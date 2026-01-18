@@ -3,92 +3,87 @@
 @section('title', 'Nuevo Cliente')
 
 @section('content')
-    <div class="max-w-4xl mx-auto">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold text-white">Registrar Nuevo Abonado</h1>
-            <a href="{{ route('admin.customers.index') }}" class="text-gray-400 hover:text-white transition">
-                &larr; Cancelar y Volver
-            </a>
+<div class="max-w-5xl mx-auto" x-data="{ type: 'person' }">
+    
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-white">Registrar Nuevo Cliente</h1>
+        <a href="{{ route('admin.customers.index') }}" class="text-gray-400 hover:text-white">&larr; Volver</a>
+    </div>
+
+    <form action="{{ route('admin.customers.store') }}" method="POST" class="bg-[#1e293b] p-8 rounded-lg border border-gray-700 shadow-xl">
+        @csrf
+
+        <div class="mb-8 flex gap-6 border-b border-gray-700 pb-6">
+            <label class="flex items-center gap-3 cursor-pointer">
+                <input type="radio" name="type" value="person" x-model="type" class="w-5 h-5 text-[#C6F211] focus:ring-[#C6F211] bg-gray-800 border-gray-600">
+                <span class="text-white font-bold" :class="type=='person' ? 'text-[#C6F211]' : ''">Persona Natural</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer">
+                <input type="radio" name="type" value="company" x-model="type" class="w-5 h-5 text-[#C6F211] focus:ring-[#C6F211] bg-gray-800 border-gray-600">
+                <span class="text-white font-bold" :class="type=='company' ? 'text-[#C6F211]' : ''">Empresa / Jurídico</span>
+            </label>
         </div>
 
-        <form action="{{ route('admin.customers.store') }}" method="POST" class="bg-[#1e293b] p-8 rounded-lg border border-gray-700 shadow-xl">
-            @csrf
-
-            <h3 class="text-[#C6F211] font-bold uppercase tracking-wider text-xs mb-4 border-b border-gray-700 pb-2">
-                Datos de Identificación
-            </h3>
+        <h3 class="text-[#C6F211] font-bold uppercase text-xs mb-4">Datos Fiscales y Legales</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Nombre(s) *</label>
-                    <input type="text" name="first_name" required class="form-input" placeholder="Ej: Juan Carlos">
-                    @error('first_name') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
-                </div>
-                
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Apellido(s) *</label>
-                    <input type="text" name="last_name" required class="form-input" placeholder="Ej: Pérez González">
-                </div>
-
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Cédula / RIF / ID *</label>
-                    <input type="text" name="national_id" required class="form-input" placeholder="V-12345678">
-                </div>
-
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Correo Electrónico</label>
-                    <input type="email" name="email" class="form-input" placeholder="cliente@email.com">
-                </div>
+            <div>
+                <label class="block text-sm text-gray-400 mb-1" x-text="type=='person' ? 'Cédula / ID *' : 'RIF / Tax ID *'"></label>
+                <input type="text" name="national_id" required class="form-input" placeholder="V-12345678 / J-123456789">
             </div>
 
-            <h3 class="text-[#C6F211] font-bold uppercase tracking-wider text-xs mb-4 border-b border-gray-700 pb-2">
-                Ubicación y Contacto
-            </h3>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Teléfono Principal *</label>
-                    <input type="text" name="phone_1" required class="form-input" placeholder="+58 414 ...">
-                </div>
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Teléfono Secundario</label>
-                    <input type="text" name="phone_2" class="form-input" placeholder="+58 251 ...">
-                </div>
-                <div class="md:col-span-2">
-                    <label class="block text-sm text-gray-400 mb-1">Dirección de Monitoreo *</label>
-                    <textarea name="address" rows="2" required class="form-input" placeholder="Urb. El Parral, Calle 2, Casa #45..."></textarea>
-                </div>
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Ciudad / Sector</label>
-                    <input type="text" name="city" class="form-input" placeholder="Barquisimeto">
-                </div>
+            <div x-show="type === 'company'" class="md:col-span-2">
+                <label class="block text-sm text-gray-400 mb-1">Razón Social (Nombre Empresa) *</label>
+                <input type="text" name="business_name" class="form-input" placeholder="Inversiones El Éxito C.A.">
             </div>
 
-            <h3 class="text-red-400 font-bold uppercase tracking-wider text-xs mb-4 border-b border-gray-700 pb-2">
-                Seguridad y Contraseñas
-            </h3>
-
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Palabra Clave (Verificación) *</label>
-                    <input type="text" name="monitoring_password" required class="form-input border-blue-500/50" placeholder="Ej: PERRO AZUL">
-                    <p class="text-xs text-gray-500 mt-1">Palabra para confirmar identidad vía telefónica.</p>
-                </div>
-                <div>
-                    <label class="block text-sm text-gray-400 mb-1">Clave de Coacción (Peligro)</label>
-                    <input type="text" name="duress_password" class="form-input border-red-500/50 text-red-300" placeholder="Ej: CIELO ROJO">
-                    <p class="text-xs text-gray-500 mt-1">Palabra que indica amenaza sin alertar al intruso.</p>
-                </div>
+            <div>
+                <label class="block text-sm text-gray-400 mb-1" x-text="type=='person' ? 'Nombres *' : 'Nombre Representante'"></label>
+                <input type="text" name="first_name" class="form-input">
             </div>
-
-            <div class="flex justify-end gap-4 border-t border-gray-700 pt-6">
-                <button type="reset" class="px-6 py-2 rounded text-gray-400 hover:text-white hover:bg-gray-800 transition">
-                    Limpiar
-                </button>
-                <button type="submit" class="bg-[#C6F211] hover:bg-[#a3c90d] text-black font-bold py-2 px-8 rounded shadow-lg shadow-lime-900/20 transform hover:scale-105 transition">
-                    Guardar Cliente
-                </button>
+            <div>
+                <label class="block text-sm text-gray-400 mb-1" x-text="type=='person' ? 'Apellidos *' : 'Apellido Representante'"></label>
+                <input type="text" name="last_name" class="form-input">
             </div>
-        </form>
-    </div>
+        </div>
+
+        <h3 class="text-[#C6F211] font-bold uppercase text-xs mb-4 mt-8">Ubicación y Contacto</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Teléfono Principal *</label>
+                <input type="text" name="phone_1" required class="form-input" placeholder="+58 414...">
+            </div>
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Email Facturación</label>
+                <input type="email" name="email" class="form-input">
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-sm text-gray-400 mb-1">Dirección Fiscal *</label>
+                <textarea name="address_billing" required class="form-input" rows="2"></textarea>
+            </div>
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Ciudad</label>
+                <input type="text" name="city" required class="form-input">
+            </div>
+        </div>
+
+        <h3 class="text-red-400 font-bold uppercase text-xs mb-4 mt-8">Seguridad Maestra (Opcional)</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Palabra Clave</label>
+                <input type="text" name="monitoring_password" class="form-input">
+            </div>
+            <div>
+                <label class="block text-sm text-gray-400 mb-1">Clave Coacción</label>
+                <input type="text" name="duress_password" class="form-input text-red-300 border-red-900">
+            </div>
+        </div>
+
+        <div class="mt-8 flex justify-end">
+            <button type="submit" class="bg-[#C6F211] hover:bg-[#a3c90d] text-black font-bold py-3 px-8 rounded shadow-lg">
+                Guardar Cliente
+            </button>
+        </div>
+    </form>
+</div>
 @endsection
