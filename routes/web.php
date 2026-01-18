@@ -6,10 +6,10 @@ use App\Http\Controllers\MonitoringController;
 // Controladores del Panel Admin
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\CustomerController;
-use App\Http\Controllers\Admin\AccountController;
+use App\Http\Controllers\Admin\AccountController; // Lógica centralizada aquí
 use App\Http\Controllers\Admin\IncidentController;
 use App\Http\Controllers\Admin\SiaCodeController;
-use App\Http\Controllers\Admin\AlarmZoneController;
+use App\Http\Controllers\Admin\AlarmZoneController; // Zonas se mantiene separado
 
 // ====================================================
 // FRONTEND PÚBLICO / VIDEO WALL
@@ -28,7 +28,6 @@ Route::get('/api/live-events', [MonitoringController::class, 'getLiveEvents'])->
 // ====================================================
 // PANEL ADMINISTRATIVO Y OPERADOR
 // ====================================================
-// Todo lo que esté aquí requiere prefijo /admin
 
 Route::prefix('admin')->name('admin.')->group(function () {
     
@@ -38,30 +37,42 @@ Route::prefix('admin')->name('admin.')->group(function () {
     // 2. Gestión de Clientes (CRM Completo)
     Route::resource('customers', CustomerController::class);
     
-    // 2.1 Acción Extra: Suspender/Reactivar Cliente (y servicios en cascada)
+    // Acciones extra de Clientes
     Route::post('customers/{id}/toggle-status', [CustomerController::class, 'toggleStatus'])->name('customers.toggle-status');
+    
+    // Contactos de Emergencia (Gestión dentro de Clientes o Cuentas)
+    Route::post('customers/{id}/contacts', [CustomerController::class, 'storeContact'])->name('customers.contacts.store');
+    Route::delete('contacts/{id}', [CustomerController::class, 'destroyContact'])->name('contacts.destroy');
+
 
     // 3. Gestión de Cuentas de Alarma (Paneles)
     // ----------------------------------------------------
-    // Listado General
+    // CRUD Principal
     Route::get('accounts', [AccountController::class, 'index'])->name('accounts.index');
-
-    // Creación
     Route::get('accounts/create', [AccountController::class, 'create'])->name('accounts.create');
     Route::post('accounts', [AccountController::class, 'store'])->name('accounts.store');
-    
-    // Ficha Técnica, Edición y Eliminación
     Route::get('accounts/{id}', [AccountController::class, 'show'])->name('accounts.show');
     Route::put('accounts/{id}', [AccountController::class, 'update'])->name('accounts.update');
-    Route::delete('accounts/{id}', [AccountController::class, 'destroy'])->name('accounts.destroy'); // <--- ESTA FALTABA
+    Route::delete('accounts/{id}', [AccountController::class, 'destroy'])->name('accounts.destroy');
 
-    // Actualización de Notas Operativas (Permanentes/Temporales)
+    // Notas Operativas (Bitácora)
     Route::put('accounts/{id}/notes', [AccountController::class, 'updateNotes'])->name('accounts.notes.update');
 
-    // Gestión de Particiones (Sub-recurso)
+    // SUB-MÓDULOS DE CUENTA (Centralizados en AccountController)
+    
+    // A. Particiones
     Route::post('accounts/{id}/partitions', [AccountController::class, 'storePartition'])->name('accounts.partitions.store');
+    Route::delete('partitions/{id}', [AccountController::class, 'destroyPartition'])->name('partitions.destroy');
 
-    // Gestión de Zonas (Sensores)
+    // B. Usuarios de Panel (Claves)
+    Route::post('accounts/{id}/users', [AccountController::class, 'storePanelUser'])->name('accounts.users.store');
+    Route::delete('panel-users/{id}', [AccountController::class, 'destroyPanelUser'])->name('accounts.users.destroy');
+
+    // C. Horarios (Schedules)
+    Route::post('accounts/{id}/schedules/temp', [AccountController::class, 'storeTempSchedule'])->name('accounts.schedules.temp.store');
+    Route::delete('schedules/{id}', [AccountController::class, 'destroySchedule'])->name('schedules.destroy');
+
+    // D. Zonas / Sensores (Usa controlador dedicado AlarmZoneController)
     Route::post('accounts/{id}/zones', [AlarmZoneController::class, 'store'])->name('accounts.zones.store');
     Route::delete('zones/{id}', [AlarmZoneController::class, 'destroy'])->name('zones.destroy');
 
@@ -70,16 +81,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('/operations', [IncidentController::class, 'console'])->name('operations.console');
 
     // 5. Flujo de Incidentes (Tickets)
-    // Paso 1: Operador hace clic en "Atender" (Crea el ticket y asigna usuario)
     Route::post('/incidents/{id}/take', [IncidentController::class, 'take'])->name('incidents.take');
-    
-    // Paso 2: Pantalla de Gestión Activa (Bitácora, Llamadas, Mapa)
     Route::get('/incidents/{id}/manage', [IncidentController::class, 'manage'])->name('operations.manage');
-    
-    // Paso 3: Cerrar el incidente
     Route::post('/incidents/{id}/close', [IncidentController::class, 'close'])->name('incidents.close');
 
-    // 6. Configuración del Sistema
-    // Gestión de Códigos SIA (Diccionario de Eventos)
+    // 6. Configuración del Sistema (Códigos SIA)
     Route::resource('sia-codes', SiaCodeController::class);
 });
