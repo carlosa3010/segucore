@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\IncidentController;
+use App\Http\Controllers\Admin\SiaCodeController; // <--- IMPORTANTE: Nuevo Controlador
 
 // ====================================================
 // FRONTEND PÚBLICO / VIDEO WALL
@@ -50,9 +51,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::post('/incidents/{id}/take', [IncidentController::class, 'take'])->name('incidents.take');
     
     // Paso 2: Pantalla de Gestión Activa (Bitácora, Llamadas, Mapa)
-    // NOTA: Debemos crear el método 'manage' en IncidentController a continuación
     Route::get('/incidents/{id}/manage', [IncidentController::class, 'manage'])->name('operations.manage');
     
     // Paso 3: Cerrar el incidente
     Route::post('/incidents/{id}/close', [IncidentController::class, 'close'])->name('incidents.close');
+
+    // 6. Configuración del Sistema
+    // Gestión de Códigos SIA (Diccionario de Eventos)
+    Route::resource('sia-codes', SiaCodeController::class);
 });
