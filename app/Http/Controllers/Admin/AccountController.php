@@ -9,7 +9,7 @@ use Illuminate\Http\Request;
 
 class AccountController extends Controller
 {
-    // Formulario de Creación (Viene del botón en Cliente)
+    // Mostrar formulario de creación (vinculado a un cliente)
     public function create(Request $request)
     {
         $customer = null;
@@ -17,52 +17,33 @@ class AccountController extends Controller
             $customer = Customer::findOrFail($request->customer_id);
         }
         
-        // Si no hay cliente seleccionado, podrías cargar una lista, 
-        // pero por ahora forzamos a venir desde la ficha del cliente.
-        
+        // Si no hay cliente preseleccionado, podrías cargar una lista, 
+        // pero por seguridad es mejor obligar a entrar desde la ficha del cliente.
+        if (!$customer) {
+            return redirect()->route('admin.customers.index')
+                ->with('error', 'Seleccione un cliente primero para agregar una cuenta.');
+        }
+
         return view('admin.customers.accounts.create', compact('customer'));
     }
 
-    // Guardar la Cuenta Básica
+    // Guardar la cuenta en la BD
     public function store(Request $request)
     {
-        $validated = $request->validate([
+        $request->validate([
             'customer_id' => 'required|exists:customers,id',
-            'account_number' => 'required|string|unique:alarm_accounts,account_number',
-            'branch_name' => 'nullable|string',
-            'installation_address' => 'nullable|string',
-            'latitude' => 'nullable|numeric',
-            'longitude' => 'nullable|numeric',
-            'device_model' => 'nullable|string', // Ej: DSC Neo
-            'notes' => 'nullable|string',
+            'account_number' => 'required|string|unique:alarm_accounts,account_number|max:20',
+            'notes' => 'nullable|string|max:255',
         ]);
 
-        $account = AlarmAccount::create($validated + ['service_status' => 'active']);
+        AlarmAccount::create([
+            'customer_id' => $request->customer_id,
+            'account_number' => $request->account_number,
+            'notes' => $request->notes,
+            'is_active' => true,
+        ]);
 
-        // Redirigir a la Ficha de la Cuenta para configurar Zonas
-        return redirect()->route('admin.accounts.show', $account->id)
-            ->with('success', 'Panel creado. Ahora configura las zonas y ubicación.');
-    }
-
-    // LA FICHA TÉCNICA DEL PANEL (El cerebro de la configuración)
-    public function show($id)
-    {
-        $account = AlarmAccount::with(['customer', 'zones'])->findOrFail($id);
-        return view('admin.customers.accounts.show', compact('account'));
-    }
-
-    public function update(Request $request, $id)
-    {
-        $account = AlarmAccount::findOrFail($id);
-        
-        $account->update($request->validate([
-            'branch_name' => 'nullable|string',
-            'installation_address' => 'nullable|string',
-            'latitude' => 'nullable|numeric',
-            'longitude' => 'nullable|numeric',
-            'notes' => 'nullable|string',
-        ]));
-
-        return back()->with('success', 'Datos del panel actualizados.');
+        return redirect()->route('admin.customers.show', $request->customer_id)
+            ->with('success', 'Cuenta de alarma agregada correctamente.');
     }
 }
