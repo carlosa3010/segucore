@@ -36,30 +36,49 @@
                             {{ $acc->account_number }}
                         </td>
                         <td class="px-6 py-4">
-                            <a href="{{ route('admin.customers.show', $acc->customer_id) }}" class="text-blue-400 hover:underline">
-                                {{ $acc->customer->full_name }}
-                            </a>
+                            @if($acc->customer)
+                                <a href="{{ route('admin.customers.show', $acc->customer_id) }}" class="text-blue-400 hover:underline">
+                                    {{ $acc->customer->full_name }}
+                                </a>
+                            @else
+                                <span class="text-red-500">Sin Cliente</span>
+                            @endif
                         </td>
                         <td class="px-6 py-4">
-                            <div class="text-white">{{ $acc->branch_name ?? 'Principal' }}</div>
-                            <div class="text-xs truncate max-w-[200px]">{{ $acc->installation_address }}</div>
+                            <div class="text-white font-medium">{{ $acc->branch_name ?? 'Principal' }}</div>
+                            <div class="text-xs truncate max-w-[200px]" title="{{ $acc->installation_address }}">
+                                {{ $acc->installation_address }}
+                            </div>
                         </td>
                         <td class="px-6 py-4">
                             @if($acc->service_status == 'active')
-                                <span class="bg-green-900 text-green-200 px-2 py-1 rounded text-xs font-bold">ACTIVO</span>
+                                <span class="bg-green-900 text-green-200 px-2 py-1 rounded text-xs font-bold border border-green-700">ACTIVO</span>
+                            @elseif($acc->service_status == 'suspended')
+                                <span class="bg-red-900 text-red-200 px-2 py-1 rounded text-xs font-bold border border-red-700">SUSPENDIDO</span>
                             @else
-                                <span class="bg-red-900 text-red-200 px-2 py-1 rounded text-xs font-bold">{{ strtoupper($acc->service_status) }}</span>
+                                <span class="bg-gray-700 text-gray-300 px-2 py-1 rounded text-xs font-bold">{{ strtoupper($acc->service_status) }}</span>
                             @endif
                         </td>
                         <td class="px-6 py-4 text-right">
-                            <a href="{{ route('admin.accounts.show', $acc->id) }}" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-xs transition">
-                                Gestionar
-                            </a>
+                            <div class="flex items-center justify-end gap-3">
+                                <a href="{{ route('admin.accounts.show', $acc->id) }}" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-xs transition border border-gray-600">
+                                    Gestionar
+                                </a>
+                                
+                                <form action="{{ route('admin.accounts.destroy', $acc->id) }}" method="POST" onsubmit="return confirm('¿Eliminar esta cuenta de alarma? Se borrará todo su historial y zonas.');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-red-500 hover:text-red-300 p-1">
+                                        🗑️
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
+        
         <div class="px-6 py-4 border-t border-gray-700">
             {{ $accounts->links() }}
         </div>
