@@ -55,8 +55,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::put('accounts/{id}', [AccountController::class, 'update'])->name('accounts.update');
     Route::delete('accounts/{id}', [AccountController::class, 'destroy'])->name('accounts.destroy');
 
-    // Notas Operativas (Bitácora)
+    // Notas Operativas y Bitácora
     Route::put('accounts/{id}/notes', [AccountController::class, 'updateNotes'])->name('accounts.notes.update');
+    Route::post('accounts/{id}/log', [AccountController::class, 'storeLog'])->name('accounts.log.store'); // <--- NUEVA RUTA PARA BITÁCORA
 
     // SUB-MÓDULOS DE CUENTA (Centralizados en AccountController)
     
