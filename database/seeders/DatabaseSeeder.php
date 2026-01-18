@@ -15,18 +15,17 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // 1. CREAR SUPER ADMIN
-        // Verifica si ya existe para no duplicar error
         if (!User::where('email', 'admin@segusmart.com')->exists()) {
             User::create([
                 'name' => 'Carlos Morales',
                 'email' => 'admin@segusmart.com',
                 'password' => Hash::make('admin123'),
-                'role' => 'admin',
+                'role' => 'admin', // Asegúrate de tener esta columna o quitar esta línea si usas Spatie
             ]);
             $this->command->info('✅ Usuario Admin creado.');
         }
 
-        // 2. DICCIONARIO SIA COMPLETO (Generado desde tu CSV de Hikvision)
+        // 2. DICCIONARIO SIA COMPLETO
         $codes = [
             ['code' => 'MA', 'desc' => 'Emergencia Médica', 'prio' => 5, 'color' => '#0000ff', 'sound' => 'panic.mp3'],
             ['code' => 'BA', 'desc' => 'Alarma de Robo', 'prio' => 4, 'color' => '#ff4500', 'sound' => 'burglar.mp3'],
@@ -83,7 +82,6 @@ class DatabaseSeeder extends Seeder
             ['code' => 'DQ', 'desc' => 'Fin Consulta Fuego', 'prio' => 5, 'color' => '#ff0000', 'sound' => 'fire_alarm.mp3'],
             ['code' => 'DU', 'desc' => 'Fin Consulta Coacción', 'prio' => 5, 'color' => '#ff0000', 'sound' => 'panic.mp3'],
             ['code' => 'DV', 'desc' => 'Fin Consulta Médica', 'prio' => 5, 'color' => '#0000ff', 'sound' => 'panic.mp3'],
-            // He agregado los más importantes, si necesitas TODOS (200+), avísame.
         ];
 
         foreach ($codes as $c) {
@@ -96,21 +94,22 @@ class DatabaseSeeder extends Seeder
         }
         $this->command->info('✅ Diccionario SIA de IP Receiver cargado.');
 
-        // 3. CLIENTE DE PRUEBA (VINCULADO A TU PANEL REAL)
-        // Usamos updateOrCreate para que no duplique si corres el seeder 2 veces
+        // 3. CLIENTE DE PRUEBA (ACTUALIZADO AL NUEVO ESQUEMA)
         $customer = Customer::updateOrCreate(
             ['national_id' => 'J-123456789'],
             [
-                'first_name' => 'Panadería La Esperanza',
+                'first_name' => 'Panadería',
+                'last_name' => 'La Esperanza', // REQUERIDO: Campo nuevo
                 'email' => 'cliente@prueba.com',
-                'phone_primary' => '0414-5555555',
-                'address_monitoring' => 'Av. 20 con Calle 30, Barquisimeto',
+                'phone_1' => '0414-5555555', // CORREGIDO: De phone_primary a phone_1
+                'address' => 'Av. 20 con Calle 30, Barquisimeto', // CORREGIDO: De address_monitoring a address
+                'city' => 'Barquisimeto', // REQUERIDO: Campo nuevo
                 'monitoring_password' => 'Chocolate',
             ]
         );
 
         $account = AlarmAccount::updateOrCreate(
-            ['account_number' => 'Q28252694'], // <--- TU CUENTA REAL
+            ['account_number' => 'Q28252694'], 
             [
                 'customer_id' => $customer->id,
                 'service_status' => 'active',
