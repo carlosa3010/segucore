@@ -5,9 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AlarmAccount;
 use App\Models\Customer;
-use App\Models\AlarmPartition; 
-use App\Models\PanelUser;      // Necesario para usuarios del panel
-use App\Models\AccountSchedule; // Necesario para horarios
+use App\Models\AlarmPartition;
+use App\Models\PanelUser;
+use App\Models\AccountSchedule;
+use App\Models\AccountLog; // Importante para la bitácora
 use Illuminate\Http\Request;
 
 class AccountController extends Controller
@@ -83,13 +84,14 @@ class AccountController extends Controller
      */
     public function show($id)
     {
-        // Cargamos todas las relaciones: Cliente, Contactos, Zonas, Particiones, Usuarios, Horarios
+        // Cargamos todas las relaciones necesarias
         $account = AlarmAccount::with([
             'customer.contacts', 
             'zones.partition', 
             'partitions', 
             'panelUsers', 
-            'schedules'
+            'schedules',
+            'logs.user' // Cargamos logs y el usuario que creó el log
         ])->findOrFail($id);
             
         return view('admin.customers.accounts.show', compact('account'));
@@ -115,20 +117,39 @@ class AccountController extends Controller
     public function destroy($id)
     {
         $account = AlarmAccount::findOrFail($id);
-        $account->delete(); // Elimina en cascada zonas, particiones, etc.
+        $account->delete(); 
 
         return redirect()->route('admin.accounts.index')
             ->with('success', 'Cuenta de monitoreo eliminada correctamente.');
     }
 
     /**
-     * 4. GESTIÓN DE NOTAS (Bitácora)
+     * 4. GESTIÓN DE NOTAS Y BITÁCORA
      */
     public function updateNotes(Request $request, $id)
     {
         $account = AlarmAccount::findOrFail($id);
         $account->update($request->only(['permanent_notes', 'temporary_notes', 'temporary_notes_until']));
         return back()->with('success', 'Notas operativas actualizadas.');
+    }
+
+    // Nuevo método para guardar en la bitácora
+    public function storeLog(Request $request, $id)
+    {
+        $account = AlarmAccount::findOrFail($id);
+        
+        $request->validate([
+            'content' => 'required|string',
+            'type' => 'required|in:note,call,alert'
+        ]);
+
+        $account->logs()->create([
+            'user_id' => auth()->id() ?? 1, // Fallback a 1 si no hay auth activo aún
+            'type' => $request->type,
+            'content' => $request->content
+        ]);
+
+        return back()->with('success', 'Entrada agregada a la bitácora.');
     }
 
     /**
@@ -154,7 +175,6 @@ class AccountController extends Controller
     {
         $partition = AlarmPartition::findOrFail($id);
         
-        // Evitar borrar la partición 1 por seguridad
         if($partition->partition_number == 1) {
             return back()->with('error', 'No se puede eliminar la Partición Principal (1).');
         }
@@ -164,7 +184,7 @@ class AccountController extends Controller
     }
 
     /**
-     * 6. GESTIÓN DE USUARIOS DEL PANEL (Claves)
+     * 6. GESTIÓN DE USUARIOS DEL PANEL
      */
     public function storePanelUser(Request $request, $id)
     {
@@ -195,7 +215,7 @@ class AccountController extends Controller
         
         $request->validate([
             'reason' => 'required|string',
-            'valid_until' => 'required|date|after:today'
+            'valid_until' => 'required|date' // date maneja fecha y hora
         ]);
 
         $account->schedules()->create([
