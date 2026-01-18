@@ -10,11 +10,9 @@ class AlarmAccount extends Model
     use HasFactory;
 
     protected $fillable = [
-        'customer_id',
-        'account_number',
-        'service_status',    // 'active', 'suspended', 'cancelled'
-        'test_mode_until',   // Para evitar falsas alarmas durante mantenimiento
-        'notes'              // Agregado por si decides usar notas en el futuro (requiere migración)
+        'customer_id', 'account_number', 'branch_name', 
+        'installation_address', 'latitude', 'longitude',
+        'service_status', 'test_mode_until', 'notes'
     ];
 
     /**
