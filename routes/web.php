@@ -8,7 +8,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\IncidentController;
-use App\Http\Controllers\Admin\SiaCodeController; // <--- IMPORTANTE: Nuevo Controlador
+use App\Http\Controllers\Admin\SiaCodeController;
 
 // ====================================================
 // FRONTEND PÚBLICO / VIDEO WALL
@@ -37,6 +37,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     // 2. Gestión de Clientes (CRM Completo)
     Route::resource('customers', CustomerController::class);
+    
+    // 2.1 Acción Extra: Suspender/Reactivar Cliente (y servicios en cascada)
+    Route::post('customers/{id}/toggle-status', [CustomerController::class, 'toggleStatus'])->name('customers.toggle-status');
 
     // 3. Gestión de Cuentas de Alarma (Paneles)
     // Estas rutas permiten vincular un número de abonado a un cliente
