@@ -25,6 +25,11 @@ class AlarmAccount extends Model
         'temporary_notes_until'  // Nuevo
     ];
 
+    protected $casts = [
+        'temporary_notes_until' => 'datetime',
+        'test_mode_until' => 'datetime',
+    ];
+
     /**
      * Relación: Una cuenta pertenece a un Cliente.
      */
@@ -34,7 +39,7 @@ class AlarmAccount extends Model
     }
 
     /**
-     * Relación: Una cuenta tiene muchas Zonas.
+     * Relación: Una cuenta tiene muchas Zonas configuradas.
      */
     public function zones()
     {
@@ -66,7 +71,17 @@ class AlarmAccount extends Model
     }
 
     /**
-     * Relación: Eventos de Alarma (Historial).
+     * Relación: Bitácora de operaciones (Notas, Llamadas, Alertas).
+     * Ordenamos por fecha descendente para ver lo último primero.
+     */
+    public function logs()
+    {
+        return $this->hasMany(AccountLog::class)->orderBy('created_at', 'desc');
+    }
+
+    /**
+     * Relación: Eventos de Alarma (Historial técnico SIA).
+     * Vinculamos por 'account_number' ya que es el dato que llega del receptor.
      */
     public function events()
     {
