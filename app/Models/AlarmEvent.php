@@ -9,22 +9,28 @@ class AlarmEvent extends Model
 {
     use HasFactory;
 
-    // ESTO ES LO QUE FALTA: Permisos de escritura
     protected $fillable = [
-        'account_number',
-        'event_code',
-        'event_type',
+        'account', // El número de abonado (ej: 1234)
+        'event_code', // El código SIA (ej: BA)
         'zone',
-        'partition',
-        'ip_address',
         'raw_data',
-        'received_at',
         'processed'
     ];
 
-    // Convertir fechas automáticamente
-    protected $casts = [
-        'received_at' => 'datetime',
-        'processed' => 'boolean',
-    ];
+    /**
+     * Relación: Un evento pertenece a una Cuenta de Alarma.
+     * Vinculamos la columna 'account' (evento) con 'account_number' (cuenta).
+     */
+    public function account()
+    {
+        return $this->belongsTo(AlarmAccount::class, 'account', 'account_number');
+    }
+    
+    // Helper para obtener descripción del código SIA
+    public function getSiaCodeDescriptionAttribute()
+    {
+        // Intenta buscar el código en la tabla cacheada o BD
+        $sia = SiaCode::where('code', $this->event_code)->first();
+        return $sia ? $sia->description : 'Evento Desconocido';
+    }
 }
