@@ -50,9 +50,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::get('accounts/create', [AccountController::class, 'create'])->name('accounts.create');
     Route::post('accounts', [AccountController::class, 'store'])->name('accounts.store');
     
-    // Ficha Técnica y Edición General
+    // Ficha Técnica, Edición y Eliminación
     Route::get('accounts/{id}', [AccountController::class, 'show'])->name('accounts.show');
     Route::put('accounts/{id}', [AccountController::class, 'update'])->name('accounts.update');
+    Route::delete('accounts/{id}', [AccountController::class, 'destroy'])->name('accounts.destroy'); // <--- ESTA FALTABA
 
     // Actualización de Notas Operativas (Permanentes/Temporales)
     Route::put('accounts/{id}/notes', [AccountController::class, 'updateNotes'])->name('accounts.notes.update');
