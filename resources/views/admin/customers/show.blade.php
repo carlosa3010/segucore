@@ -3,9 +3,16 @@
 @section('title', 'Ficha Técnica: ' . $customer->full_name)
 
 @section('content')
-    <div class="bg-[#1e293b] border-b border-gray-700 p-6 mb-6 rounded-lg shadow-lg">
-        <div class="flex justify-between items-start">
-            <div class="flex gap-4">
+    <div class="bg-[#1e293b] border-b border-gray-700 p-6 mb-6 rounded-lg shadow-lg relative overflow-hidden">
+        
+        <div class="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
+            <span class="text-9xl font-bold {{ $customer->is_active ? 'text-green-500' : 'text-red-500' }}">
+                {{ $customer->is_active ? 'ACT' : 'SUS' }}
+            </span>
+        </div>
+
+        <div class="flex justify-between items-start relative z-10">
+            <div class="flex gap-5">
                 @php
                     $initials = 'SC';
                     if($customer->type === 'company') {
@@ -14,195 +21,205 @@
                         $initials = strtoupper(substr($customer->first_name, 0, 1) . substr($customer->last_name, 0, 1));
                     }
                 @endphp
-                
-                <div class="h-16 w-16 bg-blue-900 rounded-full flex items-center justify-center text-xl font-bold text-blue-200 border-2 border-blue-500 shadow-md shrink-0">
+                <div class="h-20 w-20 rounded-xl flex items-center justify-center text-3xl font-bold border-2 shadow-2xl
+                    {{ $customer->is_active ? 'bg-blue-900 text-blue-200 border-blue-500' : 'bg-red-900 text-red-200 border-red-500 grayscale' }}">
                     {{ $initials }}
                 </div>
 
                 <div>
-                    <h1 class="text-3xl font-bold text-white tracking-wide flex items-center gap-2">
+                    <h1 class="text-3xl font-bold text-white tracking-wide flex items-center gap-3">
                         {{ $customer->full_name }}
                         @if($customer->type === 'company')
-                            <span class="text-xs bg-blue-900 text-blue-200 px-2 py-1 rounded border border-blue-700 font-mono align-middle">EMPRESA</span>
+                            <span class="text-xs bg-gray-700 text-gray-300 px-2 py-1 rounded border border-gray-600 uppercase tracking-widest">Empresa</span>
                         @endif
                     </h1>
-                    <div class="flex flex-wrap items-center gap-3 text-sm text-gray-400 mt-1">
-                        <span class="px-2 py-0.5 bg-gray-700 rounded text-white font-mono border border-gray-600">
-                            {{ $customer->national_id }}
-                        </span>
-                        <span>📍 {{ $customer->city }}</span>
-                        <span class="flex items-center gap-1 font-bold {{ $customer->is_active ? 'text-green-400' : 'text-red-400' }}">
-                            <span class="w-2 h-2 rounded-full {{ $customer->is_active ? 'bg-green-500 animate-pulse' : 'bg-red-500' }}"></span> 
-                            {{ $customer->is_active ? 'Activo' : 'Suspendido' }}
-                        </span>
+                    
+                    <div class="flex flex-wrap items-center gap-4 text-sm text-gray-400 mt-2">
+                        <div class="flex items-center gap-2 bg-black/30 px-3 py-1 rounded border border-gray-700">
+                            <span>🆔 {{ $customer->national_id }}</span>
+                        </div>
+                        <div class="flex items-center gap-2 bg-black/30 px-3 py-1 rounded border border-gray-700">
+                            <span>📧 {{ $customer->email }}</span>
+                        </div>
+                        <div class="flex items-center gap-2 bg-black/30 px-3 py-1 rounded border border-gray-700">
+                            <span>📍 {{ $customer->city }}</span>
+                        </div>
                     </div>
                 </div>
             </div>
-            
-            <div class="flex gap-2">
-                <a href="{{ route('admin.customers.edit', $customer->id) }}" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition shadow-sm border border-gray-600">
-                    Editar Datos
+
+            <div class="flex gap-3">
+                <a href="{{ route('admin.customers.edit', $customer->id) }}" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition border border-gray-600 flex items-center gap-2">
+                    <span>✏️</span> Editar
                 </a>
-                <button class="bg-red-900/40 hover:bg-red-800 text-red-300 px-4 py-2 rounded border border-red-800/50 transition">
-                    Suspender
-                </button>
-            </div>
-        </div>
-        
-        <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-[#0f172a]/80 rounded border border-gray-700">
-            <div class="p-2">
-                <span class="text-[10px] text-gray-500 uppercase tracking-widest block mb-1">Teléfono Principal</span>
-                <span class="text-white font-mono text-lg">{{ $customer->phone_1 }}</span>
-            </div>
-            <div class="p-2 border-l border-gray-700 pl-4">
-                <span class="text-[10px] text-gray-500 uppercase tracking-widest block mb-1">Dirección Fiscal / Monitoreo</span>
-                <span class="text-white text-sm block leading-snug" title="{{ $customer->address_billing }}">
-                    {{ $customer->address_billing }} </span>
-            </div>
-            <div class="bg-blue-900/20 p-2 pl-4 rounded border-l-4 border-blue-500">
-                <span class="text-[10px] text-blue-400 uppercase tracking-widest block font-bold mb-1">Palabra Clave</span>
-                <span class="text-white font-mono font-bold tracking-wider text-lg">{{ $customer->monitoring_password ?? '---' }}</span>
-            </div>
-            <div class="bg-red-900/20 p-2 pl-4 rounded border-l-4 border-red-500">
-                <span class="text-[10px] text-red-400 uppercase tracking-widest block font-bold mb-1">CLAVE DE COACCIÓN</span>
-                <span class="text-red-200 font-mono font-bold tracking-wider text-lg">
-                    {{ $customer->duress_password ?? 'N/A' }}
-                </span>
+
+                <form action="{{ route('admin.customers.toggle-status', $customer->id) }}" method="POST" onsubmit="return confirm('{{ $customer->is_active ? '¿SUSPENDER CLIENTE? Esto suspenderá también todas sus cuentas de alarma.' : '¿Reactivar Cliente?' }}');">
+                    @csrf
+                    @if($customer->is_active)
+                        <button type="submit" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded font-bold shadow-lg shadow-red-900/50 transition flex items-center gap-2">
+                            <span>🚫</span> SUSPENDER
+                        </button>
+                    @else
+                        <button type="submit" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded font-bold shadow-lg shadow-green-900/50 transition flex items-center gap-2">
+                            <span>✅</span> REACTIVAR
+                        </button>
+                    @endif
+                </form>
             </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
         
-        <div class="lg:col-span-2 space-y-6">
+        <div class="xl:col-span-2 space-y-6">
             
-            <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-5 shadow-lg">
-                <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-700">
-                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                        <span class="text-[#C6F211] text-xl">📟</span> Cuentas de Alarma
-                    </h3>
-                    <a href="{{ route('admin.accounts.create', ['customer_id' => $customer->id]) }}" 
-                       class="text-xs bg-[#C6F211] hover:bg-[#a3c90d] text-black px-3 py-1.5 rounded font-bold transition flex items-center gap-1">
-                        <span>+</span> Agregar Cuenta
+            <div class="bg-[#1e293b] rounded-lg border border-gray-700 overflow-hidden shadow-lg">
+                <div class="bg-gray-800/50 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
+                    <div>
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <span class="text-[#C6F211]">📟</span> Monitoreo de Alarmas
+                        </h3>
+                        <p class="text-xs text-gray-400">Paneles vinculados para facturación</p>
+                    </div>
+                    <a href="{{ route('admin.accounts.create', ['customer_id' => $customer->id]) }}" class="text-xs bg-[#C6F211] hover:bg-[#a3c90d] text-black px-4 py-2 rounded font-bold transition">
+                        + Nueva Cuenta
                     </a>
                 </div>
 
-                @if($customer->accounts && $customer->accounts->count() > 0)
-                    <div class="space-y-3">
-                        @foreach($customer->accounts as $acc)
-                            <div class="flex justify-between items-center p-4 bg-gray-900/50 rounded border border-gray-700 hover:border-gray-500 transition cursor-pointer group">
-                                <div>
-                                    <div class="flex items-center gap-3">
-                                        <span class="text-xl font-mono text-white font-bold group-hover:text-[#C6F211] transition">
+                <div class="p-0">
+                    @if($customer->accounts->count() > 0)
+                        <table class="w-full text-sm text-left text-gray-400">
+                            <thead class="text-xs text-gray-500 uppercase bg-gray-900/50">
+                                <tr>
+                                    <th class="px-6 py-3">Abonado (Serial)</th>
+                                    <th class="px-6 py-3">Ubicación / Etiqueta</th>
+                                    <th class="px-6 py-3">Estado</th>
+                                    <th class="px-6 py-3 text-right">Gestión</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-700">
+                                @foreach($customer->accounts as $acc)
+                                    <tr class="hover:bg-gray-800/50 transition">
+                                        <td class="px-6 py-4 font-mono font-bold text-white text-base">
                                             {{ $acc->account_number }}
-                                        </span>
-                                        <span class="bg-gray-800 text-xs px-2 py-0.5 rounded text-gray-400 border border-gray-700">
-                                            SIA-DCS
-                                        </span>
-                                        @if($acc->branch_name)
-                                            <span class="text-sm text-gray-300 font-bold border-l border-gray-600 pl-3">
-                                                {{ $acc->branch_name }}
-                                            </span>
-                                        @endif
-                                    </div>
-                                    <p class="text-xs text-gray-400 mt-1 flex gap-2">
-                                        <span>📍 {{ $acc->installation_address ?? 'Misma que cliente' }}</span>
-                                    </p>
-                                </div>
-                                <div class="text-right">
-                                    <span class="block text-[10px] uppercase text-gray-500 tracking-wider">Estado</span>
-                                    @if($acc->service_status === 'active')
-                                        <span class="text-sm text-green-400 font-bold">● ONLINE</span>
-                                    @else
-                                        <span class="text-sm text-red-400 font-bold">● OFFLINE</span>
-                                    @endif
-                                </div>
-                            </div>
-                        @endforeach
-                    </div>
-                @else
-                    <div class="text-center py-8 text-gray-500 text-sm border-2 border-dashed border-gray-700 rounded bg-gray-900/30">
-                        No tiene paneles de alarma asociados.
-                    </div>
-                @endif
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            <div class="text-white font-medium">{{ $acc->branch_name ?? 'Principal' }}</div>
+                                            <div class="text-xs truncate max-w-[200px]" title="{{ $acc->installation_address }}">{{ $acc->installation_address }}</div>
+                                        </td>
+                                        <td class="px-6 py-4">
+                                            @if($acc->service_status === 'active')
+                                                <span class="bg-green-900/30 text-green-400 text-xs px-2 py-1 rounded border border-green-900">ACTIVO</span>
+                                            @elseif($acc->service_status === 'suspended')
+                                                <span class="bg-red-900/30 text-red-400 text-xs px-2 py-1 rounded border border-red-900">SUSPENDIDO</span>
+                                            @else
+                                                <span class="bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded">{{ $acc->service_status }}</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 text-right">
+                                            <button class="text-blue-400 hover:text-white text-xs border border-blue-900 px-2 py-1 rounded">
+                                                Gestionar ⚙️
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    @else
+                        <div class="p-8 text-center text-gray-500 border-2 border-dashed border-gray-800 m-4 rounded">
+                            No hay cuentas de alarma facturables.
+                        </div>
+                    @endif
+                </div>
             </div>
 
-            <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-5 shadow-lg">
-                <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-700">
-                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                        <span class="text-yellow-400 text-xl">🛰️</span> Dispositivos GPS
-                    </h3>
-                    <button class="text-xs bg-yellow-400 hover:bg-yellow-300 text-black px-3 py-1.5 rounded font-bold transition flex items-center gap-1">
-                        <span>+</span> Vincular GPS
+            <div class="bg-[#1e293b] rounded-lg border border-gray-700 overflow-hidden shadow-lg">
+                <div class="bg-gray-800/50 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
+                    <div>
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <span class="text-yellow-400">🛰️</span> Rastreo GPS
+                        </h3>
+                        <p class="text-xs text-gray-400">Dispositivos y flotas</p>
+                    </div>
+                    <button class="text-xs bg-yellow-400 hover:bg-yellow-300 text-black px-4 py-2 rounded font-bold transition">
+                        + Vincular GPS
                     </button>
                 </div>
                 
-                @if($customer->gpsDevices && $customer->gpsDevices->count() > 0)
-                    <div class="p-3 bg-gray-900/50 rounded border border-gray-700">
-                        <span class="text-white">Toyota Fortuner - AB123CD</span>
-                    </div>
-                @else
-                    <div class="text-center py-8 text-gray-500 text-sm border-2 border-dashed border-gray-700 rounded bg-gray-900/30">
-                        Sin dispositivos GPS vinculados.
-                    </div>
-                @endif
+                <div class="p-0">
+                    @if($customer->gpsDevices && $customer->gpsDevices->count() > 0)
+                        <div class="p-4">
+                            </div>
+                    @else
+                        <div class="p-8 text-center text-gray-500 border-2 border-dashed border-gray-800 m-4 rounded">
+                            Sin dispositivos GPS asignados.
+                        </div>
+                    @endif
+                </div>
             </div>
+
         </div>
 
         <div class="space-y-6">
             
-            <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-5 shadow-lg">
-                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 border-b border-gray-700 pb-2">
-                    Lista de Llamadas (Prioridad)
+            <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-6 shadow-lg">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-700 pb-2">
+                    Resumen de Facturación
                 </h3>
                 
-                <div class="space-y-2">
-                    <div class="flex items-center justify-between p-2.5 bg-gray-800/40 rounded border border-transparent hover:border-gray-600 transition">
-                        <div class="flex items-center gap-2">
-                            <span class="w-5 h-5 flex items-center justify-center text-[10px] font-bold bg-blue-600 text-white rounded-full">1</span>
-                            <div>
-                                <span class="text-white text-sm block leading-none">
-                                    {{ $customer->first_name }} {{ $customer->last_name }}
-                                </span>
-                                <span class="text-[10px] text-gray-500">
-                                    {{ $customer->type === 'company' ? 'Representante Legal' : 'Titular' }}
-                                </span>
-                            </div>
-                        </div>
-                        <a href="tel:{{ $customer->phone_1 }}" class="text-xs font-mono text-gray-300 hover:text-white">{{ $customer->phone_1 }}</a>
-                    </div>
-
-                    @foreach($customer->contacts as $index => $contact)
-                        <div class="flex items-center justify-between p-2.5 bg-gray-800/40 rounded border border-transparent hover:border-gray-600 transition">
-                            <div class="flex items-center gap-2">
-                                <span class="w-5 h-5 flex items-center justify-center text-[10px] font-bold bg-gray-600 text-white rounded-full">
-                                    {{ $index + 2 }}
-                                </span>
-                                <div>
-                                    <span class="text-white text-sm block leading-none">{{ $contact->name }}</span>
-                                    <span class="text-[10px] text-gray-500">{{ $contact->relationship }}</span>
-                                </div>
-                            </div>
-                            <span class="text-xs font-mono text-gray-300">{{ $contact->phone }}</span>
-                        </div>
-                    @endforeach
-                    
-                    <button class="w-full mt-4 text-xs text-blue-400 hover:text-white border border-blue-900/50 hover:bg-blue-900/20 py-2 rounded transition border-dashed">
-                        + Agregar Contacto Adicional
-                    </button>
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-gray-400 text-sm">Cuentas Alarma</span>
+                    <span class="text-white font-mono font-bold">{{ $customer->accounts->count() }}</span>
                 </div>
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-gray-400 text-sm">Dispositivos GPS</span>
+                    <span class="text-white font-mono font-bold">{{ $customer->gpsDevices->count() }}</span>
+                </div>
+
+                <div class="bg-black/30 rounded p-4 text-center border border-gray-700 mb-4">
+                    <p class="text-gray-500 text-xs mb-1 uppercase">Saldo Pendiente</p>
+                    <p class="text-4xl font-bold text-green-400 font-mono tracking-tight">$0.00</p>
+                </div>
+
+                <button class="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-bold transition shadow-lg mb-2">
+                    Generar Factura Manual
+                </button>
+                <button class="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 py-2 rounded text-sm transition border border-gray-600">
+                    Ver Historial Pagos
+                </button>
             </div>
 
-            <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-5 shadow-lg">
+            <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-6 shadow-lg">
                 <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 border-b border-gray-700 pb-2">
-                    Finanzas
+                    Contacto Administrativo
                 </h3>
-                <div class="text-center py-2">
-                    <p class="text-gray-500 text-xs mb-1 uppercase tracking-wider">Saldo Pendiente</p>
-                    <p class="text-4xl font-bold text-green-400 font-mono tracking-tight">$0.00</p>
-                    <button class="mt-4 w-full bg-gray-800 hover:bg-gray-700 text-white py-2 rounded text-sm transition border border-gray-600">
-                        Ver Historial de Facturas
-                    </button>
+                
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase">Dirección Fiscal</label>
+                        <p class="text-sm text-white leading-snug">{{ $customer->address_billing }}</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] text-gray-500 uppercase">Teléfono 1</label>
+                            <p class="text-sm text-white font-mono">{{ $customer->phone_1 }}</p>
+                        </div>
+                        @if($customer->phone_2)
+                        <div>
+                            <label class="block text-[10px] text-gray-500 uppercase">Teléfono 2</label>
+                            <p class="text-sm text-white font-mono">{{ $customer->phone_2 }}</p>
+                        </div>
+                        @endif
+                    </div>
+
+                    @if($customer->monitoring_password)
+                    <div class="mt-4 p-3 bg-red-900/10 border border-red-900/30 rounded">
+                        <label class="block text-[10px] text-red-400 uppercase font-bold">Palabra Clave Maestra</label>
+                        <p class="text-lg text-white font-mono tracking-widest">{{ $customer->monitoring_password }}</p>
+                        <p class="text-[10px] text-gray-500 mt-1">Usar solo si no hay clave específica en cuenta.</p>
+                    </div>
+                    @endif
                 </div>
             </div>
 
