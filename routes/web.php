@@ -9,7 +9,7 @@ use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\IncidentController;
 use App\Http\Controllers\Admin\SiaCodeController;
-use App\Http\Controllers\Admin\AlarmZoneController; // <--- Nuevo Controlador de Zonas
+use App\Http\Controllers\Admin\AlarmZoneController;
 
 // ====================================================
 // FRONTEND PÚBLICO / VIDEO WALL
@@ -43,15 +43,24 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     // 3. Gestión de Cuentas de Alarma (Paneles)
     // ----------------------------------------------------
+    // Listado General
+    Route::get('accounts', [AccountController::class, 'index'])->name('accounts.index');
+
     // Creación
     Route::get('accounts/create', [AccountController::class, 'create'])->name('accounts.create');
     Route::post('accounts', [AccountController::class, 'store'])->name('accounts.store');
     
-    // Ficha Técnica y Edición (NUEVAS)
+    // Ficha Técnica y Edición General
     Route::get('accounts/{id}', [AccountController::class, 'show'])->name('accounts.show');
     Route::put('accounts/{id}', [AccountController::class, 'update'])->name('accounts.update');
 
-    // Gestión de Zonas (Sensores) (NUEVAS)
+    // Actualización de Notas Operativas (Permanentes/Temporales)
+    Route::put('accounts/{id}/notes', [AccountController::class, 'updateNotes'])->name('accounts.notes.update');
+
+    // Gestión de Particiones (Sub-recurso)
+    Route::post('accounts/{id}/partitions', [AccountController::class, 'storePartition'])->name('accounts.partitions.store');
+
+    // Gestión de Zonas (Sensores)
     Route::post('accounts/{id}/zones', [AlarmZoneController::class, 'store'])->name('accounts.zones.store');
     Route::delete('zones/{id}', [AlarmZoneController::class, 'destroy'])->name('zones.destroy');
 
