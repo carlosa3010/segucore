@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
+use App\Models\CustomerContact; // Importante para eliminar contactos
 use Illuminate\Http\Request;
 
 class CustomerController extends Controller
@@ -49,7 +50,7 @@ class CustomerController extends Controller
             'email' => 'nullable|email|max:255',
             'phone_1' => 'required|string|max:50',
             'phone_2' => 'nullable|string|max:50',
-            'address_billing' => 'required|string', // Antes 'address'
+            'address_billing' => 'required|string',
             'city' => 'required|string|max:100',
             'monitoring_password' => 'nullable|string|max:50',
             'duress_password' => 'nullable|string|max:50',
@@ -58,7 +59,6 @@ class CustomerController extends Controller
         // 2. Validación Condicional
         if ($request->type === 'company') {
             $rules['business_name'] = 'required|string|max:255';
-            // Para empresas, first_name/last_name son del representante (opcionales o requeridos según tu política)
             $rules['first_name'] = 'nullable|string|max:100';
             $rules['last_name']  = 'nullable|string|max:100';
         } else {
@@ -94,7 +94,6 @@ class CustomerController extends Controller
     {
         $customer = Customer::findOrFail($id);
 
-        // Reglas similares al store, pero ignorando el unique del propio ID
         $rules = [
             'national_id' => 'required|string|max:20|unique:customers,national_id,'.$id,
             'phone_1' => 'required|string|max:50',
@@ -123,11 +122,7 @@ class CustomerController extends Controller
     public function destroy($id)
     {
         $customer = Customer::findOrFail($id);
-        
-        // Opcional: Validar si tiene deuda antes de borrar
-        // if($customer->invoices()->where('status', 'unpaid')->exists()) { ... }
-
-        $customer->delete(); // La BD debe tener ON DELETE CASCADE en las claves foráneas
+        $customer->delete(); 
 
         return redirect()->route('admin.customers.index')
             ->with('success', 'Cliente eliminado permanentemente.');
@@ -156,5 +151,34 @@ class CustomerController extends Controller
         }
 
         return back()->with($newStatus ? 'success' : 'error', $message);
+    }
+
+    /**
+     * Guardar Contacto de Emergencia (Nuevo)
+     * Llamado desde la ficha del cliente o desde la cuenta de alarma.
+     */
+    public function storeContact(Request $request, $customerId)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'relationship' => 'required|string|max:50',
+            'phone' => 'required|string|max:50'
+        ]);
+
+        $customer = Customer::findOrFail($customerId);
+        $customer->contacts()->create($validated);
+
+        return back()->with('success', 'Contacto de emergencia agregado.');
+    }
+
+    /**
+     * Eliminar Contacto (Nuevo)
+     */
+    public function destroyContact($id)
+    {
+        $contact = CustomerContact::findOrFail($id);
+        $contact->delete();
+
+        return back()->with('success', 'Contacto eliminado.');
     }
 }
