@@ -9,7 +9,7 @@
         <a href="{{ route('admin.sia-codes.index') }}" class="text-gray-400 hover:text-white">&larr; Cancelar</a>
     </div>
 
-    <form action="{{ route('admin.sia-codes.store') }}" method="POST" class="bg-[#1e293b] p-8 rounded-lg border border-gray-700 shadow-xl">
+    <form action="{{ route('admin.sia-codes.update', $siaCode->id) }}" method="POST" class="bg-[#1e293b] p-8 rounded-lg border border-gray-700 shadow-xl">
         @csrf
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             
