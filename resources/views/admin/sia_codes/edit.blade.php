@@ -5,7 +5,7 @@
 @section('content')
 <div class="max-w-2xl mx-auto">
     <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold text-white">Registrar Código SIA</h1>
+        <h1 class="text-2xl font-bold text-white">Editar Código SIA</h1>
         <a href="{{ route('admin.sia-codes.index') }}" class="text-gray-400 hover:text-white">&larr; Cancelar</a>
     </div>
 
