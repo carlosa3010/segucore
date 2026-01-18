@@ -6,12 +6,27 @@
     <div class="bg-[#1e293b] border-b border-gray-700 p-6 mb-6 rounded-lg shadow-lg">
         <div class="flex justify-between items-start">
             <div class="flex gap-4">
-                <div class="h-16 w-16 bg-blue-900 rounded-full flex items-center justify-center text-2xl font-bold text-blue-200 border-2 border-blue-500 shadow-md">
-                    {{ substr($customer->first_name, 0, 1) }}{{ substr($customer->last_name, 0, 1) }}
+                @php
+                    $initials = 'SC';
+                    if($customer->type === 'company') {
+                        $initials = strtoupper(substr($customer->business_name, 0, 2));
+                    } else {
+                        $initials = strtoupper(substr($customer->first_name, 0, 1) . substr($customer->last_name, 0, 1));
+                    }
+                @endphp
+                
+                <div class="h-16 w-16 bg-blue-900 rounded-full flex items-center justify-center text-xl font-bold text-blue-200 border-2 border-blue-500 shadow-md shrink-0">
+                    {{ $initials }}
                 </div>
+
                 <div>
-                    <h1 class="text-3xl font-bold text-white tracking-wide">{{ $customer->full_name }}</h1>
-                    <div class="flex items-center gap-3 text-sm text-gray-400 mt-1">
+                    <h1 class="text-3xl font-bold text-white tracking-wide flex items-center gap-2">
+                        {{ $customer->full_name }}
+                        @if($customer->type === 'company')
+                            <span class="text-xs bg-blue-900 text-blue-200 px-2 py-1 rounded border border-blue-700 font-mono align-middle">EMPRESA</span>
+                        @endif
+                    </h1>
+                    <div class="flex flex-wrap items-center gap-3 text-sm text-gray-400 mt-1">
                         <span class="px-2 py-0.5 bg-gray-700 rounded text-white font-mono border border-gray-600">
                             {{ $customer->national_id }}
                         </span>
@@ -23,6 +38,7 @@
                     </div>
                 </div>
             </div>
+            
             <div class="flex gap-2">
                 <a href="{{ route('admin.customers.edit', $customer->id) }}" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition shadow-sm border border-gray-600">
                     Editar Datos
@@ -39,14 +55,13 @@
                 <span class="text-white font-mono text-lg">{{ $customer->phone_1 }}</span>
             </div>
             <div class="p-2 border-l border-gray-700 pl-4">
-                <span class="text-[10px] text-gray-500 uppercase tracking-widest block mb-1">Dirección</span>
-                <span class="text-white text-sm block truncate" title="{{ $customer->address }}">
-                    {{ $customer->address }}
-                </span>
+                <span class="text-[10px] text-gray-500 uppercase tracking-widest block mb-1">Dirección Fiscal / Monitoreo</span>
+                <span class="text-white text-sm block leading-snug" title="{{ $customer->address_billing }}">
+                    {{ $customer->address_billing }} </span>
             </div>
             <div class="bg-blue-900/20 p-2 pl-4 rounded border-l-4 border-blue-500">
                 <span class="text-[10px] text-blue-400 uppercase tracking-widest block font-bold mb-1">Palabra Clave</span>
-                <span class="text-white font-mono font-bold tracking-wider text-lg">{{ $customer->monitoring_password }}</span>
+                <span class="text-white font-mono font-bold tracking-wider text-lg">{{ $customer->monitoring_password ?? '---' }}</span>
             </div>
             <div class="bg-red-900/20 p-2 pl-4 rounded border-l-4 border-red-500">
                 <span class="text-[10px] text-red-400 uppercase tracking-widest block font-bold mb-1">CLAVE DE COACCIÓN</span>
@@ -75,21 +90,32 @@
                 @if($customer->accounts && $customer->accounts->count() > 0)
                     <div class="space-y-3">
                         @foreach($customer->accounts as $acc)
-                            <div class="flex justify-between items-center p-3 bg-gray-900/50 rounded border border-gray-700 hover:border-gray-500 transition cursor-pointer group">
+                            <div class="flex justify-between items-center p-4 bg-gray-900/50 rounded border border-gray-700 hover:border-gray-500 transition cursor-pointer group">
                                 <div>
-                                    <div class="flex items-center gap-2">
+                                    <div class="flex items-center gap-3">
                                         <span class="text-xl font-mono text-white font-bold group-hover:text-[#C6F211] transition">
                                             {{ $acc->account_number }}
                                         </span>
                                         <span class="bg-gray-800 text-xs px-2 py-0.5 rounded text-gray-400 border border-gray-700">
                                             SIA-DCS
                                         </span>
+                                        @if($acc->branch_name)
+                                            <span class="text-sm text-gray-300 font-bold border-l border-gray-600 pl-3">
+                                                {{ $acc->branch_name }}
+                                            </span>
+                                        @endif
                                     </div>
-                                    <p class="text-xs text-gray-400 mt-1">{{ $acc->notes ?? 'Panel Principal' }}</p>
+                                    <p class="text-xs text-gray-400 mt-1 flex gap-2">
+                                        <span>📍 {{ $acc->installation_address ?? 'Misma que cliente' }}</span>
+                                    </p>
                                 </div>
                                 <div class="text-right">
-                                    <span class="block text-[10px] uppercase text-gray-500 tracking-wider">Último evento</span>
-                                    <span class="text-sm text-green-400 font-mono">Hace 5 min</span>
+                                    <span class="block text-[10px] uppercase text-gray-500 tracking-wider">Estado</span>
+                                    @if($acc->service_status === 'active')
+                                        <span class="text-sm text-green-400 font-bold">● ONLINE</span>
+                                    @else
+                                        <span class="text-sm text-red-400 font-bold">● OFFLINE</span>
+                                    @endif
                                 </div>
                             </div>
                         @endforeach
@@ -135,11 +161,15 @@
                         <div class="flex items-center gap-2">
                             <span class="w-5 h-5 flex items-center justify-center text-[10px] font-bold bg-blue-600 text-white rounded-full">1</span>
                             <div>
-                                <span class="text-white text-sm block leading-none">{{ $customer->first_name }}</span>
-                                <span class="text-[10px] text-gray-500">Titular</span>
+                                <span class="text-white text-sm block leading-none">
+                                    {{ $customer->first_name }} {{ $customer->last_name }}
+                                </span>
+                                <span class="text-[10px] text-gray-500">
+                                    {{ $customer->type === 'company' ? 'Representante Legal' : 'Titular' }}
+                                </span>
                             </div>
                         </div>
-                        <span class="text-xs font-mono text-gray-300">{{ $customer->phone_1 }}</span>
+                        <a href="tel:{{ $customer->phone_1 }}" class="text-xs font-mono text-gray-300 hover:text-white">{{ $customer->phone_1 }}</a>
                     </div>
 
                     @foreach($customer->contacts as $index => $contact)
