@@ -13,16 +13,19 @@ return new class extends Migration
 {
     Schema::create('alarm_accounts', function (Blueprint $table) {
         $table->id();
-        // Relación con el cliente
         $table->foreignId('customer_id')->constrained()->onDelete('cascade');
-        
-        // El número de cuenta del panel (Q28252694)
-        $table->string('account_number')->unique(); 
+        $table->string('account_number')->unique(); // Serial SIA (Q28...)
 
-        // --- AGREGAR ESTOS CAMPOS FALTANTES ---
+        // UBICACIÓN ESPECÍFICA DEL PANEL (Sucursal)
+        $table->string('branch_name')->nullable(); // Ej: "Sucursal Centro", "Casa de Playa"
+        $table->text('installation_address')->nullable(); // Dirección física real
+        $table->decimal('latitude', 10, 8)->nullable();  // Coordenadas para Mapa
+        $table->decimal('longitude', 11, 8)->nullable(); // Coordenadas para Mapa
+        
+        // ESTADO TÉCNICO
         $table->enum('service_status', ['active', 'suspended', 'cancelled'])->default('active');
         $table->timestamp('test_mode_until')->nullable();
-        // --------------------------------------
+        $table->text('notes')->nullable();
 
         $table->timestamps();
     });
