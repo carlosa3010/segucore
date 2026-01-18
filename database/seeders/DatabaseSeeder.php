@@ -141,4 +141,12 @@ class DatabaseSeeder extends Seeder
         );
 
         // 5. ZONAS DE PRUEBA
-        AlarmZone::firstOrCreate(['alarm
+        AlarmZone::firstOrCreate(['alarm_account_id' => $account->id, 'zone_number' => '001'], ['name' => 'Magnético Entrada Ppal', 'type' => 'Retardada']);
+        AlarmZone::firstOrCreate(['alarm_account_id' => $account->id, 'zone_number' => '002'], ['name' => 'PIR Área Caja', 'type' => 'Instantánea']);
+        AlarmZone::firstOrCreate(['alarm_account_id' => $account->id, 'zone_number' => '003'], ['name' => 'PIR Almacén', 'type' => 'Seguimiento']);
+        AlarmZone::firstOrCreate(['alarm_account_id' => $account->id, 'zone_number' => '004'], ['name' => 'Pánico Botón Gerencia', 'type' => '24 Horas']);
+        AlarmZone::firstOrCreate(['alarm_account_id' => $account->id, 'zone_number' => '005'], ['name' => 'Sensor Humo Cocina', 'type' => 'Fuego']);
+
+        $this->command->info('✅ Base de datos inicializada correctamente.');
+    }
+}
