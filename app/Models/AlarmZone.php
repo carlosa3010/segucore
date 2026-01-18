@@ -1,10 +1,3 @@
-<?php
-
-namespace App\Models;
-
-use Illuminate\Database\Eloquent\Model;
-
-class AlarmZone extends Model
-{
-    //
-}
+Illuminate\Database\Eloquent\RelationNotFoundException
+vendor/laravel/framework/src/Illuminate/Database/Eloquent/RelationNotFoundException.php:35
+Call to undefined relationship [partition] on model [App\Models\AlarmZone].
