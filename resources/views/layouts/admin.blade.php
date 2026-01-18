@@ -39,10 +39,11 @@
 <body class="antialiased flex h-screen overflow-hidden">
 
     <aside class="w-64 bg-[#111] border-r border-gray-800 flex flex-col hidden md:flex">
-        <div class="h-16 flex items-center px-6 border-b border-gray-800">
-            <img src="{{ asset('images/logo-white.png') }}" alt="SeguCore" class="h-8 mr-2">
-            <span class="font-bold text-lg tracking-wider text-white">SEGUCORE</span>
+        <div class="h-20 flex items-center justify-center border-b border-gray-800 py-4">
+            <img src="{{ asset('images/logo-white.png') }}" alt="SeguCore" class="h-12 object-contain">
         </div>
+
+        <nav class="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
 
         <nav class="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
             
