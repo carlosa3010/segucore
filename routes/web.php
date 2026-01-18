@@ -3,12 +3,13 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MonitoringController;
 
-// Controladores del Panel Admin (Namespaces actualizados)
+// Controladores del Panel Admin
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\IncidentController;
 use App\Http\Controllers\Admin\SiaCodeController;
+use App\Http\Controllers\Admin\AlarmZoneController; // <--- Nuevo Controlador de Zonas
 
 // ====================================================
 // FRONTEND PÚBLICO / VIDEO WALL
@@ -28,7 +29,6 @@ Route::get('/api/live-events', [MonitoringController::class, 'getLiveEvents'])->
 // PANEL ADMINISTRATIVO Y OPERADOR
 // ====================================================
 // Todo lo que esté aquí requiere prefijo /admin
-// A futuro: ->middleware(['auth'])
 
 Route::prefix('admin')->name('admin.')->group(function () {
     
@@ -42,9 +42,19 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::post('customers/{id}/toggle-status', [CustomerController::class, 'toggleStatus'])->name('customers.toggle-status');
 
     // 3. Gestión de Cuentas de Alarma (Paneles)
-    // Estas rutas permiten vincular un número de abonado a un cliente
+    // ----------------------------------------------------
+    // Creación
     Route::get('accounts/create', [AccountController::class, 'create'])->name('accounts.create');
     Route::post('accounts', [AccountController::class, 'store'])->name('accounts.store');
+    
+    // Ficha Técnica y Edición (NUEVAS)
+    Route::get('accounts/{id}', [AccountController::class, 'show'])->name('accounts.show');
+    Route::put('accounts/{id}', [AccountController::class, 'update'])->name('accounts.update');
+
+    // Gestión de Zonas (Sensores) (NUEVAS)
+    Route::post('accounts/{id}/zones', [AlarmZoneController::class, 'store'])->name('accounts.zones.store');
+    Route::delete('zones/{id}', [AlarmZoneController::class, 'destroy'])->name('zones.destroy');
+
 
     // 4. Consola de Operaciones (Área de Trabajo del Operador)
     Route::get('/operations', [IncidentController::class, 'console'])->name('operations.console');
