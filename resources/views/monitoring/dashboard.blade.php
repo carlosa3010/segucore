@@ -2,7 +2,7 @@
 <html lang="es" class="dark">
 <head>
     <meta charset="UTF-8">
-    <title>SeguSmart | Event Log</title>
+    <title>SeguSmart | Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         /* Fondo Negro Puro */
