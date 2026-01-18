@@ -110,14 +110,77 @@
 
     <div x-show="activeTab === 'zones'" x-cloak>
         <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-5">
-            {{-- 
-            <form action="{{ route('admin.zones.destroy', $zone->id) }}" ...>
-                @csrf @method('DELETE')
-                <button class="text-red-500">🗑️</button>
-            </form> 
-            --}}
-            @include('admin.customers.accounts.partials.zones_tab') 
-            {{-- Sugerencia: Si es mucho código, puedes usar includes, pero por ahora pega el código anterior de zonas aquí --}}
+            <h3 class="text-white font-bold text-lg mb-4 border-b border-gray-700 pb-2">Listado de Zonas</h3>
+            
+            <form action="{{ route('admin.accounts.zones.store', $account->id) }}" method="POST" class="mb-6 bg-gray-900/50 p-4 rounded border border-gray-700 grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                @csrf
+                <div class="md:col-span-1">
+                    <label class="text-[10px] uppercase text-gray-500 font-bold mb-1 block">Zona #</label>
+                    <input type="text" name="zone_number" class="form-input text-center font-mono font-bold" placeholder="001" required>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="text-[10px] uppercase text-gray-500 font-bold mb-1 block">Partición</label>
+                    <select name="partition_id" class="form-input text-sm">
+                        @foreach($account->partitions as $p)
+                            <option value="{{ $p->id }}">{{ $p->partition_number }} - {{ $p->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="md:col-span-5">
+                    <label class="text-[10px] uppercase text-gray-500 font-bold mb-1 block">Ubicación / Sensor</label>
+                    <input type="text" name="name" class="form-input" placeholder="Ej: PIR Sala Principal" required>
+                </div>
+                <div class="md:col-span-2">
+                    <label class="text-[10px] uppercase text-gray-500 font-bold mb-1 block">Tipo</label>
+                    <select name="type" class="form-input text-sm">
+                        <option value="Instantánea">Instantánea</option>
+                        <option value="Retardada">Retardada</option>
+                        <option value="24 Horas">24 Horas</option>
+                        <option value="Fuego">Fuego</option>
+                        <option value="Pánico">Pánico</option>
+                        <option value="Médica">Médica</option>
+                    </select>
+                </div>
+                <div class="md:col-span-2">
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded text-sm h-[42px] shadow transition">
+                        + Agregar
+                    </button>
+                </div>
+            </form>
+
+            <table class="w-full text-sm text-left text-gray-400">
+                <thead class="bg-gray-800 text-xs uppercase text-gray-300">
+                    <tr>
+                        <th class="px-4 py-3 text-center">N°</th>
+                        <th class="px-4 py-3">Partición</th>
+                        <th class="px-4 py-3">Descripción</th>
+                        <th class="px-4 py-3">Definición</th>
+                        <th class="px-4 py-3 text-right"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-700">
+                    @forelse($account->zones->sortBy('zone_number') as $zone)
+                        <tr class="hover:bg-gray-700/30 transition group">
+                            <td class="px-4 py-3 font-mono text-white font-bold text-center border-r border-gray-700">{{ $zone->zone_number }}</td>
+                            <td class="px-4 py-3 text-xs text-gray-400">
+                                {{ $zone->partition ? 'P'.$zone->partition->partition_number : 'P-' }}
+                            </td>
+                            <td class="px-4 py-3 text-white">{{ $zone->name }}</td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-1 rounded text-xs border border-gray-600 text-gray-300">{{ $zone->type }}</span>
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <form action="{{ route('admin.zones.destroy', $zone->id) }}" method="POST" onsubmit="return confirm('¿Borrar zona?');" class="inline">
+                                    @csrf @method('DELETE')
+                                    <button class="text-red-500 opacity-0 group-hover:opacity-100 transition">🗑️</button>
+                                </form>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="px-4 py-12 text-center text-gray-500 italic border-2 border-dashed border-gray-700">No se han cargado zonas.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
 
