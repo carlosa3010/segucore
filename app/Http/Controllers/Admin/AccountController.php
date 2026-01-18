@@ -5,64 +5,91 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AlarmAccount;
 use App\Models\Customer;
+use App\Models\AlarmPartition; // Asegúrate de crear este Modelo
 use Illuminate\Http\Request;
 
 class AccountController extends Controller
 {
-    // Formulario de Creación (Viene del botón en Cliente)
+    // 1. LISTADO GENERAL DE CUENTAS (VISTA INDEX QUE FALTABA)
+    public function index(Request $request)
+    {
+        $query = AlarmAccount::with('customer');
+
+        if ($request->has('search')) {
+            $s = $request->search;
+            $query->where('account_number', 'LIKE', "%$s%")
+                  ->orWhere('branch_name', 'LIKE', "%$s%")
+                  ->orWhereHas('customer', function($q) use ($s) {
+                      $q->where('first_name', 'LIKE', "%$s%")
+                        ->orWhere('last_name', 'LIKE', "%$s%")
+                        ->orWhere('business_name', 'LIKE', "%$s%");
+                  });
+        }
+
+        $accounts = $query->paginate(20);
+        return view('admin.customers.accounts.index', compact('accounts'));
+    }
+
     public function create(Request $request)
     {
         $customer = null;
         if ($request->has('customer_id')) {
             $customer = Customer::findOrFail($request->customer_id);
         }
+        // Si no viene cliente, obtenemos todos para el select (solo activos)
+        $customers = Customer::where('is_active', true)->orderBy('created_at', 'desc')->take(50)->get();
         
-        // Si no hay cliente seleccionado, podrías cargar una lista, 
-        // pero por ahora forzamos a venir desde la ficha del cliente.
-        
-        return view('admin.customers.accounts.create', compact('customer'));
+        return view('admin.customers.accounts.create', compact('customer', 'customers'));
     }
 
-    // Guardar la Cuenta Básica
     public function store(Request $request)
     {
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'account_number' => 'required|string|unique:alarm_accounts,account_number',
             'branch_name' => 'nullable|string',
-            'installation_address' => 'nullable|string',
+            'installation_address' => 'required|string',
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
-            'device_model' => 'nullable|string', // Ej: DSC Neo
-            'notes' => 'nullable|string',
+            'device_model' => 'nullable|string',
         ]);
 
         $account = AlarmAccount::create($validated + ['service_status' => 'active']);
 
-        // Redirigir a la Ficha de la Cuenta para configurar Zonas
+        // Crear partición por defecto (Partición 1)
+        $account->partitions()->create([
+            'partition_number' => 1,
+            'name' => 'Sistema General'
+        ]);
+
         return redirect()->route('admin.accounts.show', $account->id)
-            ->with('success', 'Panel creado. Ahora configura las zonas y ubicación.');
+            ->with('success', 'Cuenta creada. Configura las zonas ahora.');
     }
 
-    // LA FICHA TÉCNICA DEL PANEL (El cerebro de la configuración)
     public function show($id)
     {
-        $account = AlarmAccount::with(['customer', 'zones'])->findOrFail($id);
+        // Cargamos TODO: Cliente, Zonas, Particiones, Horarios (Si existe relación)
+        $account = AlarmAccount::with(['customer.contacts', 'zones', 'partitions'])->findOrFail($id);
         return view('admin.customers.accounts.show', compact('account'));
     }
 
-    public function update(Request $request, $id)
+    // Método para guardar Particiones
+    public function storePartition(Request $request, $id)
     {
         $account = AlarmAccount::findOrFail($id);
+        $request->validate(['name' => 'required', 'partition_number' => 'required|integer']);
         
-        $account->update($request->validate([
-            'branch_name' => 'nullable|string',
-            'installation_address' => 'nullable|string',
-            'latitude' => 'nullable|numeric',
-            'longitude' => 'nullable|numeric',
-            'notes' => 'nullable|string',
-        ]));
-
-        return back()->with('success', 'Datos del panel actualizados.');
+        // Simulación de modelo Partition (Debes crear App\Models\AlarmPartition)
+        $account->partitions()->create($request->all()); 
+        
+        return back()->with('success', 'Partición agregada.');
+    }
+    
+    // Método para actualizar notas
+    public function updateNotes(Request $request, $id)
+    {
+        $account = AlarmAccount::findOrFail($id);
+        $account->update($request->only(['permanent_notes', 'temporary_notes', 'temporary_notes_until']));
+        return back()->with('success', 'Notas operativas actualizadas.');
     }
 }
