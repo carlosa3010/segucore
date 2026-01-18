@@ -6,30 +6,35 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-   public function up(): void
-{
-    Schema::create('customers', function (Blueprint $table) {
-        $table->id();
-        $table->string('first_name');
-        $table->string('national_id')->unique();
-        $table->string('email')->nullable();
-        $table->string('phone_primary');
-        $table->string('address_monitoring');
-        
-        // --- AGREGA ESTAS 2 LÍNEAS DE SEGURIDAD ---
-        $table->string('monitoring_password')->nullable(); // "Chocolate"
-        $table->string('duress_password')->nullable();     // Coacción
-        
-        $table->timestamps();
-    });
-}
+    public function up(): void
+    {
+        Schema::create('customers', function (Blueprint $table) {
+            $table->id();
+            
+            // Identificación
+            $table->string('first_name');
+            $table->string('last_name'); // FALTABA ESTE
+            $table->string('national_id')->unique();
+            $table->string('email')->nullable();
+            
+            // Ubicación y Contacto
+            $table->string('phone_1'); // Renombrado de phone_primary para coincidir con el form
+            $table->string('phone_2')->nullable(); // Agregado
+            $table->string('address'); // Renombrado de address_monitoring
+            $table->string('city')->nullable(); // Agregado
+            
+            // Seguridad
+            $table->string('monitoring_password')->nullable();
+            $table->string('duress_password')->nullable();
+            
+            // Estado
+            $table->boolean('is_active')->default(true);
+            $table->text('notes')->nullable();
 
-    /**
-     * Reverse the migrations.
-     */
+            $table->timestamps();
+        });
+    }
+
     public function down(): void
     {
         Schema::dropIfExists('customers');
