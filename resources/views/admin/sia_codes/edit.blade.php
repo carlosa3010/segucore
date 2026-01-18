@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Nuevo Código SIA')
+@section('title', 'Editat Código SIA')
 
 @section('content')
 <div class="max-w-2xl mx-auto">
