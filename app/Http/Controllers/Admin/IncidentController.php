@@ -83,9 +83,16 @@ class IncidentController extends Controller
             'logs.user' 
         ])->findOrFail($id);
 
-        return view('admin.operations.manage', compact('incident'));
-    }
+        // Cargar últimos 15 eventos de ESTA cuenta para contexto
+        $accountHistory = AlarmEvent::where('account_number', $incident->alarmEvent->account_number)
+                                    ->where('id', '!=', $incident->alarm_event_id) // Excluir el actual
+                                    ->latest()
+                                    ->take(15)
+                                    ->get();
 
+        return view('admin.operations.manage', compact('incident', 'accountHistory'));
+    }
+    
     /**
      * 4. PONER EN ESPERA (HOLD)
      */
