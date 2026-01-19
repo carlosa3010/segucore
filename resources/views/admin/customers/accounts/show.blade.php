@@ -6,9 +6,41 @@
 <div x-data="{ 
     activeTab: localStorage.getItem('activeTab') || 'partitions',
     showWeeklyModal: false,
+    
+    // Estados para Modals de Edición
+    editPartitionModal: false,
+    partitionForm: { id: null, name: '', number: '' },
+
+    editZoneModal: false,
+    zoneForm: { id: null, number: '', name: '', type: '', partition_id: '' },
+
+    editUserModal: false,
+    userForm: { id: null, number: '', name: '', role: '' },
+
+    editContactModal: false,
+    contactForm: { id: null, priority: '', name: '', relationship: '', phone: '' },
+
     setTab(tab) {
         this.activeTab = tab;
         localStorage.setItem('activeTab', tab);
+    },
+
+    // Helpers para abrir modals con datos
+    openEditPartition(p) {
+        this.partitionForm = { id: p.id, name: p.name, number: p.partition_number };
+        this.editPartitionModal = true;
+    },
+    openEditZone(z) {
+        this.zoneForm = { id: z.id, number: z.zone_number, name: z.name, type: z.type, partition_id: z.partition_id };
+        this.editZoneModal = true;
+    },
+    openEditUser(u) {
+        this.userForm = { id: u.id, number: u.user_number, name: u.name, role: u.role };
+        this.editUserModal = true;
+    },
+    openEditContact(c) {
+        this.contactForm = { id: c.id, priority: c.priority, name: c.name, relationship: c.relationship, phone: c.phone };
+        this.editContactModal = true;
     }
 }">
 
@@ -104,6 +136,8 @@
                             <td class="px-6 py-4 font-mono text-white font-bold text-lg bg-gray-800/30 w-16 text-center border-r border-gray-700">{{ $part->partition_number }}</td>
                             <td class="px-6 py-4"><span class="text-white font-medium text-base">{{ $part->name }}</span></td>
                             <td class="px-6 py-4 text-right">
+                                <button @click="openEditPartition({{ $part }})" class="text-blue-400 hover:text-blue-300 font-bold mr-3" title="Editar">✏️</button>
+                                
                                 @if($part->partition_number != 1)
                                     <form action="{{ route('admin.partitions.destroy', $part->id) }}" method="POST" onsubmit="return confirm('¿Eliminar partición? Se borrarán sus zonas asociadas.');" class="inline">
                                         @csrf @method('DELETE')
@@ -182,6 +216,7 @@
                                 <span class="px-2 py-1 rounded text-xs border border-gray-600 text-gray-300">{{ $zone->type }}</span>
                             </td>
                             <td class="px-4 py-3 text-right">
+                                <button @click="openEditZone({{ $zone }})" class="text-blue-400 hover:text-blue-300 font-bold mr-2" title="Editar">✏️</button>
                                 <form action="{{ route('admin.zones.destroy', $zone->id) }}" method="POST" onsubmit="return confirm('¿Borrar zona?');" class="inline">
                                     @csrf @method('DELETE')
                                     <button class="text-red-500 hover:text-red-300 font-bold px-2 py-1">🗑️</button>
@@ -228,23 +263,22 @@
                     <tr><th class="px-4 py-3">Slot</th><th class="px-4 py-3">Nombre</th><th class="px-4 py-3">Rol</th><th class="px-4 py-3 text-right"></th></tr>
                 </thead>
                 <tbody class="divide-y divide-gray-700">
-                    @if($account->panelUsers && $account->panelUsers->count() > 0)
-                        @foreach($account->panelUsers->sortBy('user_number') as $user)
-                            <tr class="hover:bg-gray-700/30 group">
-                                <td class="px-4 py-3 font-mono text-white">{{ $user->user_number }}</td>
-                                <td class="px-4 py-3 text-white">{{ $user->name }}</td>
-                                <td class="px-4 py-3">{{ ucfirst($user->role) }}</td>
-                                <td class="px-4 py-3 text-right">
-                                    <form action="{{ route('admin.accounts.users.destroy', $user->id) }}" method="POST" onsubmit="return confirm('¿Borrar usuario?');" class="inline">
-                                        @csrf @method('DELETE')
-                                        <button class="text-red-500 hover:text-red-300 font-bold">🗑️</button>
-                                    </form>
-                                </td>
-                            </tr>
-                        @endforeach
-                    @else
+                    @forelse($account->panelUsers->sortBy('user_number') as $user)
+                        <tr class="hover:bg-gray-700/30 group">
+                            <td class="px-4 py-3 font-mono text-white">{{ $user->user_number }}</td>
+                            <td class="px-4 py-3 text-white">{{ $user->name }}</td>
+                            <td class="px-4 py-3">{{ ucfirst($user->role) }}</td>
+                            <td class="px-4 py-3 text-right">
+                                <button @click="openEditUser({{ $user }})" class="text-blue-400 hover:text-blue-300 font-bold mr-2" title="Editar">✏️</button>
+                                <form action="{{ route('admin.accounts.users.destroy', $user->id) }}" method="POST" onsubmit="return confirm('¿Borrar usuario?');" class="inline">
+                                    @csrf @method('DELETE')
+                                    <button class="text-red-500 hover:text-red-300 font-bold">🗑️</button>
+                                </form>
+                            </td>
+                        </tr>
+                    @empty
                         <tr><td colspan="4" class="px-4 py-8 text-center text-gray-500">Sin usuarios registrados.</td></tr>
-                    @endif
+                    @endforelse
                 </tbody>
             </table>
         </div>
@@ -256,7 +290,6 @@
             <div class="space-y-3">
                 <h3 class="text-white font-bold mb-4">Lista de Contactos (Orden de Llamada)</h3>
                 
-                {{-- Ordenamos por prioridad (ascendente) --}}
                 @forelse($account->customer->contacts->sortBy('priority') as $contact)
                     <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded border border-gray-600 hover:border-blue-500 transition group">
                         <div class="flex items-center gap-4">
@@ -270,6 +303,7 @@
                         </div>
                         <div class="text-right flex items-center gap-2">
                             <p class="text-white font-mono text-sm mr-2 bg-black/30 px-2 py-1 rounded">{{ $contact->phone }}</p>
+                            <button @click="openEditContact({{ $contact }})" class="text-blue-400 hover:text-blue-300 text-xs font-bold px-2">✏️</button>
                             <form action="{{ route('admin.contacts.destroy', $contact->id) }}" method="POST" onsubmit="return confirm('¿Eliminar contacto?');" class="inline">
                                 @csrf @method('DELETE')
                                 <button class="text-red-400 hover:text-red-200 text-xs transition px-2 font-bold">✕</button>
@@ -322,16 +356,12 @@
     
     <div x-show="activeTab === 'schedule'" x-cloak>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
             <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-6 text-center shadow-lg group">
                 <div class="h-12 w-12 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl group-hover:bg-blue-600 group-hover:text-white transition">📅</div>
                 <h3 class="text-white font-bold text-lg mb-2">Horario Semanal</h3>
                 <p class="text-gray-500 text-sm mb-6">Apertura y cierre habitual (Lunes a Domingo).</p>
-                <button @click="showWeeklyModal = true" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded font-bold transition w-full">
-                    Configurar Semana
-                </button>
+                <button @click="showWeeklyModal = true" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded font-bold transition w-full">Configurar Semana</button>
             </div>
-
             <div class="bg-[#1e293b] rounded-lg border border-purple-500/30 p-6 shadow-lg relative">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="h-10 w-10 bg-purple-900/40 rounded-full flex items-center justify-center text-xl text-purple-300">🚀</div>
@@ -340,7 +370,6 @@
                         <p class="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Prioridad Alta</p>
                     </div>
                 </div>
-                
                 <div class="mb-4 space-y-2">
                     @foreach($account->schedules->where('type', 'temporary') as $sched)
                         <div class="flex justify-between items-center bg-purple-900/20 p-2 rounded border border-purple-500/30 text-xs">
@@ -355,7 +384,6 @@
                         </div>
                     @endforeach
                 </div>
-
                 <form action="{{ route('admin.accounts.schedules.temp.store', $account->id) }}" method="POST" class="space-y-4">
                     @csrf
                     <div>
@@ -385,24 +413,20 @@
     <div x-show="activeTab === 'notes'" x-cloak>
         <form action="{{ route('admin.accounts.notes.update', $account->id) }}" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             @csrf @method('PUT')
-            
             <div class="bg-[#1e293b] rounded-lg border border-red-900/30 p-5 shadow-lg relative">
                 <div class="absolute top-0 left-0 w-1 h-full bg-red-500 rounded-l-lg"></div>
                 <h3 class="text-red-400 font-bold mb-2 flex items-center gap-2">⚠️ Nota Permanente</h3>
                 <textarea name="permanent_notes" class="form-input bg-gray-900/50 border-gray-700 text-white h-40 focus:border-red-500 transition resize-none">{{ $account->permanent_notes }}</textarea>
             </div>
-
             <div class="bg-[#1e293b] rounded-lg border border-yellow-900/30 p-5 shadow-lg relative">
                 <div class="absolute top-0 left-0 w-1 h-full bg-yellow-500 rounded-l-lg"></div>
                 <h3 class="text-yellow-400 font-bold mb-2 flex items-center gap-2">⏳ Nota Temporal</h3>
                 <textarea name="temporary_notes" class="form-input bg-gray-900/50 border-gray-700 text-white h-24 focus:border-yellow-500 transition resize-none mb-3">{{ $account->temporary_notes }}</textarea>
-                
                 <div class="flex items-center gap-3">
                     <label class="text-xs text-gray-400 whitespace-nowrap">Válida hasta:</label>
                     <input type="datetime-local" name="temporary_notes_until" class="form-input bg-gray-900 text-xs" value="{{ $account->temporary_notes_until }}">
                 </div>
             </div>
-
             <div class="md:col-span-2 text-right">
                 <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded font-bold shadow-lg transition transform hover:scale-105">💾 Guardar Notas</button>
             </div>
@@ -412,7 +436,6 @@
     <div x-show="activeTab === 'log'" x-cloak>
         <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-5 shadow-lg">
             <h3 class="text-white font-bold mb-4">Bitácora de Eventos y Gestión</h3>
-            
             <form action="{{ route('admin.accounts.log.store', $account->id) }}" method="POST" class="mb-6 bg-gray-900/50 p-4 rounded border border-gray-700">
                 @csrf
                 <div class="flex gap-4 mb-2">
@@ -425,7 +448,6 @@
                     <button type="submit" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-1 rounded text-sm">Registrar en Bitácora</button>
                 </div>
             </form>
-
             <div class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
                 @if($account->logs && $account->logs->count() > 0)
                     @foreach($account->logs as $log)
@@ -447,17 +469,136 @@
         </div>
     </div>
 
-    <div x-show="showWeeklyModal" style="display: none;" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
-         x-transition:enter="transition ease-out duration-300"
-         x-transition:enter-start="opacity-0 scale-90"
-         x-transition:enter-end="opacity-100 scale-100">
-         
+    <div x-show="editPartitionModal" style="display: none;" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm" x-transition>
+        <div class="bg-[#1e293b] rounded-lg border border-gray-700 w-full max-w-md shadow-2xl" @click.away="editPartitionModal = false">
+            <form :action="`/admin/partitions/${partitionForm.id}`" method="POST">
+                @csrf @method('PUT')
+                <div class="p-4 border-b border-gray-700"><h3 class="text-white font-bold">Editar Área #<span x-text="partitionForm.number"></span></h3></div>
+                <div class="p-4">
+                    <label class="text-[10px] text-gray-500 uppercase block mb-1">Nombre</label>
+                    <input type="text" name="name" x-model="partitionForm.name" class="form-input" required>
+                </div>
+                <div class="p-4 bg-gray-800 border-t border-gray-700 flex justify-end gap-3">
+                    <button type="button" @click="editPartitionModal = false" class="text-gray-400 hover:text-white">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div x-show="editZoneModal" style="display: none;" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm" x-transition>
+        <div class="bg-[#1e293b] rounded-lg border border-gray-700 w-full max-w-lg shadow-2xl" @click.away="editZoneModal = false">
+            <form :action="`/admin/zones/${zoneForm.id}`" method="POST">
+                @csrf @method('PUT')
+                <div class="p-4 border-b border-gray-700"><h3 class="text-white font-bold">Editar Zona</h3></div>
+                <div class="p-4 grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-[10px] text-gray-500 uppercase block mb-1">Número</label>
+                        <input type="text" name="zone_number" x-model="zoneForm.number" class="form-input bg-gray-700" readonly>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-gray-500 uppercase block mb-1">Partición</label>
+                        <select name="partition_id" x-model="zoneForm.partition_id" class="form-input text-sm">
+                            @foreach($account->partitions as $p)
+                                <option value="{{ $p->id }}">{{ $p->partition_number }} - {{ $p->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-[10px] text-gray-500 uppercase block mb-1">Descripción</label>
+                        <input type="text" name="name" x-model="zoneForm.name" class="form-input" required>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="text-[10px] text-gray-500 uppercase block mb-1">Tipo</label>
+                        <select name="type" x-model="zoneForm.type" class="form-input text-sm">
+                            <option value="Instantánea">Instantánea</option>
+                            <option value="Retardada">Retardada</option>
+                            <option value="24 Horas">24 Horas</option>
+                            <option value="Fuego">Fuego</option>
+                            <option value="Pánico">Pánico</option>
+                            <option value="Médica">Médica</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="p-4 bg-gray-800 border-t border-gray-700 flex justify-end gap-3">
+                    <button type="button" @click="editZoneModal = false" class="text-gray-400 hover:text-white">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div x-show="editUserModal" style="display: none;" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm" x-transition>
+        <div class="bg-[#1e293b] rounded-lg border border-gray-700 w-full max-w-md shadow-2xl" @click.away="editUserModal = false">
+            <form :action="`/admin/panel-users/${userForm.id}`" method="POST">
+                @csrf @method('PUT')
+                <div class="p-4 border-b border-gray-700"><h3 class="text-white font-bold">Editar Usuario</h3></div>
+                <div class="p-4 space-y-3">
+                    <div>
+                        <label class="text-[10px] text-gray-500 uppercase block mb-1">Slot #</label>
+                        <input type="text" name="user_number" x-model="userForm.number" class="form-input" required>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-gray-500 uppercase block mb-1">Nombre</label>
+                        <input type="text" name="name" x-model="userForm.name" class="form-input" required>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-gray-500 uppercase block mb-1">Rol</label>
+                        <select name="role" x-model="userForm.role" class="form-input text-sm">
+                            <option value="user">Usuario Estándar</option>
+                            <option value="master">Maestro</option>
+                            <option value="duress">Coacción (Silencioso)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="p-4 bg-gray-800 border-t border-gray-700 flex justify-end gap-3">
+                    <button type="button" @click="editUserModal = false" class="text-gray-400 hover:text-white">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div x-show="editContactModal" style="display: none;" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm" x-transition>
+        <div class="bg-[#1e293b] rounded-lg border border-gray-700 w-full max-w-md shadow-2xl" @click.away="editContactModal = false">
+            <form :action="`/admin/contacts/${contactForm.id}`" method="POST">
+                @csrf @method('PUT')
+                <div class="p-4 border-b border-gray-700"><h3 class="text-white font-bold">Editar Contacto</h3></div>
+                <div class="p-4 space-y-3">
+                    <div class="flex gap-3">
+                        <div class="w-1/4">
+                            <label class="text-[10px] text-gray-500 uppercase block mb-1">Prioridad</label>
+                            <input type="number" name="priority" x-model="contactForm.priority" class="form-input text-center font-bold" min="1" required>
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-[10px] text-gray-500 uppercase block mb-1">Nombre</label>
+                            <input type="text" name="name" x-model="contactForm.name" class="form-input" required>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-gray-500 uppercase block mb-1">Relación</label>
+                        <input type="text" name="relationship" x-model="contactForm.relationship" class="form-input" required>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-gray-500 uppercase block mb-1">Teléfono</label>
+                        <input type="text" name="phone" x-model="contactForm.phone" class="form-input" required>
+                    </div>
+                </div>
+                <div class="p-4 bg-gray-800 border-t border-gray-700 flex justify-end gap-3">
+                    <button type="button" @click="editContactModal = false" class="text-gray-400 hover:text-white">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div x-show="showWeeklyModal" style="display: none;" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm" x-transition>
         <div class="bg-[#1e293b] rounded-lg border border-gray-700 w-full max-w-3xl shadow-2xl overflow-hidden" @click.away="showWeeklyModal = false">
             <form action="{{ route('admin.accounts.schedules.weekly.store', $account->id) }}" method="POST">
                 @csrf
                 <div class="p-6 border-b border-gray-700 bg-gray-800">
                     <h3 class="text-white font-bold text-xl">Configuración de Horario Semanal</h3>
-                    <p class="text-gray-400 text-sm">Define las horas de apertura y cierre esperadas. Deja en blanco los días que el local permanece cerrado.</p>
+                    <p class="text-gray-400 text-sm">Define las horas de apertura y cierre esperadas.</p>
                 </div>
                 
                 <div class="p-6 max-h-[60vh] overflow-y-auto">
@@ -472,7 +613,6 @@
                         <tbody class="divide-y divide-gray-700">
                             @php
                                 $days = [1 => 'Lunes', 2 => 'Martes', 3 => 'Miércoles', 4 => 'Jueves', 5 => 'Viernes', 6 => 'Sábado', 7 => 'Domingo'];
-                                // Helper para obtener hora guardada safely
                                 $getOpen = fn($d) => optional($account->schedules->where('type', 'weekly')->where('day_of_week', $d)->first())->open_time ? \Carbon\Carbon::parse($account->schedules->where('type', 'weekly')->where('day_of_week', $d)->first()->open_time)->format('H:i') : '';
                                 $getClose = fn($d) => optional($account->schedules->where('type', 'weekly')->where('day_of_week', $d)->first())->close_time ? \Carbon\Carbon::parse($account->schedules->where('type', 'weekly')->where('day_of_week', $d)->first()->close_time)->format('H:i') : '';
                             @endphp
