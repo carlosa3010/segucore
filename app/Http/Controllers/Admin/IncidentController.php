@@ -27,11 +27,27 @@ class IncidentController extends Controller
     // 2. TOMAR EVENTO (Crear Ticket)
     public function take($eventId)
     {
-        $event = AlarmEvent::findOrFail($eventId);
+        $event = AlarmEvent::with('account')->findOrFail($eventId); // Asegurar cargar la cuenta
         
         if ($event->processed) {
-            return back()->with('error', 'Este evento ya fue procesado.');
+            return back()->with('error', 'Este evento ya fue atendido.');
         }
+
+        // Crear el Incidente (Ticket)
+        $incident = Incident::create([
+            'alarm_event_id'   => $event->id,
+            'alarm_account_id' => $event->account->id, // <--- ESTO FALTABA y es obligatorio
+            'customer_id'      => $event->account->customer_id ?? null,
+            'operator_id'      => Auth::id() ?? 1,     // Asigna el usuario actual o el ID 1 (Admin)
+            'status'           => 'in_progress',
+            'started_at'       => now(),
+        ]);
+
+        // Marcar evento como procesado
+        $event->update(['processed' => true, 'processed_at' => now()]);
+
+        return redirect()->route('admin.operations.manage', $incident->id);
+    }
 
         // Crear incidente vinculado
         $incident = Incident::create([
