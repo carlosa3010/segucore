@@ -119,9 +119,9 @@
         </div>
     </div>
 
-    <div class="col-span-12 lg:col-span-3 bg-slate-900 border-l border-slate-700 flex flex-col">
+    <div class="col-span-12 lg:col-span-3 bg-slate-900 border-l border-slate-700 flex flex-col h-full overflow-hidden">
         
-        <div class="flex border-b border-slate-800 bg-slate-950">
+        <div class="flex border-b border-slate-800 bg-slate-950 shrink-0">
             <button onclick="switchTab('logs')" id="tab-logs" class="flex-1 py-3 text-xs font-bold text-white border-b-2 border-blue-500 bg-slate-800 transition">
                 BITÁCORA
             </button>
@@ -130,23 +130,50 @@
             </button>
         </div>
 
-        <div id="content-logs" class="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-900">
-            @forelse($incident->logs as $log)
-                <div class="relative pl-4 border-l-2 {{ $log->action_type == 'SYSTEM' ? 'border-blue-800' : 'border-green-600' }}">
-                    <div class="text-[10px] text-slate-500 mb-1 flex justify-between">
-                        <span>{{ $log->created_at->format('H:i') }}</span>
-                        <span class="font-bold {{ $log->action_type == 'SYSTEM' ? 'text-blue-500' : 'text-green-500' }}">{{ $log->action_type }}</span>
+        <div id="content-logs" class="flex-1 flex flex-col overflow-hidden bg-slate-900">
+            
+            <div class="p-3 bg-slate-800 border-b border-slate-700 shrink-0 z-10">
+                <form action="{{ route('admin.incidents.add-note', $incident->id) }}" method="POST">
+                    @csrf
+                    <label class="text-[10px] uppercase font-bold text-blue-400 mb-1 block">Agregar Observación</label>
+                    <div class="flex gap-2">
+                        <input type="text" name="note" class="flex-1 bg-slate-900 border border-slate-600 rounded text-xs px-3 py-2 text-white focus:border-blue-500 outline-none placeholder-slate-500" placeholder="Ej: Llamé y dio ocupado..." required autocomplete="off">
+                        <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded text-xs font-bold transition shadow-lg">
+                            ➜
+                        </button>
                     </div>
-                    <p class="text-xs text-slate-300 leading-relaxed bg-slate-800/50 p-2 rounded">
-                        {{ $log->description }}
-                    </p>
-                    <div class="text-[9px] text-slate-600 mt-1 text-right italic">
-                        Op: {{ $log->user->name ?? 'Sistema' }}
+                </form>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 space-y-4">
+                @forelse($incident->logs as $log)
+                    <div class="relative pl-4 border-l-2 
+                        {{ $log->action_type == 'SYSTEM' ? 'border-blue-800' : 
+                          ($log->action_type == 'NOTE' ? 'border-yellow-500' : 'border-green-600') }}">
+                        
+                        <div class="text-[10px] text-slate-500 mb-1 flex justify-between">
+                            <span>{{ $log->created_at->format('H:i') }}</span>
+                            <span class="font-bold 
+                                {{ $log->action_type == 'SYSTEM' ? 'text-blue-500' : 
+                                  ($log->action_type == 'NOTE' ? 'text-yellow-500' : 'text-green-500') }}">
+                                {{ $log->action_type == 'NOTE' ? 'NOTA MANUAL' : $log->action_type }}
+                            </span>
+                        </div>
+                        
+                        <div class="text-xs text-slate-300 leading-relaxed bg-slate-800/50 p-2 rounded">
+                            {{ $log->description }}
+                        </div>
+                        
+                        <div class="text-[9px] text-slate-600 mt-1 text-right italic">
+                            Op: {{ $log->user->name ?? 'Sistema' }}
+                        </div>
                     </div>
-                </div>
-            @empty
-                <div class="text-center text-slate-600 py-10 text-xs">Sin registros aún</div>
-            @endforelse
+                @empty
+                    <div class="text-center text-slate-600 py-10 text-xs">
+                        Sin registros. Escribe la primera nota arriba.
+                    </div>
+                @endforelse
+            </div>
         </div>
 
         <div id="content-history" class="hidden flex-1 overflow-y-auto p-0 bg-slate-900">
@@ -177,7 +204,7 @@
             </table>
         </div>
 
-        <div class="p-4 bg-slate-950 border-t border-slate-800 shadow-[0_-5px_15px_rgba(0,0,0,0.5)] z-20">
+        <div class="p-4 bg-slate-950 border-t border-slate-800 shadow-[0_-5px_15px_rgba(0,0,0,0.5)] z-20 shrink-0">
             <h4 class="text-[10px] font-bold text-slate-500 uppercase mb-2">Resolución del Caso</h4>
             <form action="{{ route('admin.incidents.close', $incident->id) }}" method="POST">
                 @csrf
@@ -191,7 +218,7 @@
                     </select>
                 </div>
                 <div class="mb-3">
-                    <textarea name="resolution_notes" rows="2" class="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded p-2 focus:ring-1 focus:ring-blue-500 outline-none resize-none" placeholder="Escriba el informe de cierre obligatoriamente..." required></textarea>
+                    <textarea name="resolution_notes" rows="2" class="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded p-2 focus:ring-1 focus:ring-blue-500 outline-none resize-none" placeholder="Informe final obligatorio..." required></textarea>
                 </div>
                 <button type="submit" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded text-sm shadow-lg shadow-green-900/30 transition flex items-center justify-center gap-2">
                     <span>✓</span> CERRAR INCIDENTE
@@ -199,7 +226,6 @@
             </form>
         </div>
     </div>
-</div>
 
 <dialog id="holdModal" class="bg-slate-900 text-white p-0 rounded-lg border border-slate-700 shadow-2xl backdrop:bg-black/90 w-full max-w-sm">
     <div class="p-4 border-b border-slate-800 bg-slate-950">
