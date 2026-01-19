@@ -11,10 +11,10 @@ class CustomerContact extends Model
 
     protected $fillable = [
         'customer_id',
-        'priority',    // <--- Nuevo
+        'priority',
         'name',
         'relationship',
-        'phone',       // <--- Soluciona el error
+        'phone',
         'is_active'
     ];
 
