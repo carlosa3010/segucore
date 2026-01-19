@@ -6,6 +6,7 @@ use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use App\Models\AlarmEvent;
 use App\Models\SiaCode;
+use App\Services\AlarmProcessor;
 
 class AlarmServer extends Command
 {
