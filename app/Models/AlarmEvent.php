@@ -10,7 +10,7 @@ class AlarmEvent extends Model
     use HasFactory;
 
     protected $fillable = [
-        'account_number', // Nombre correcto según tu migración
+        'account_number',
         'event_code',
         'event_type',
         'zone',
@@ -18,31 +18,39 @@ class AlarmEvent extends Model
         'ip_address',
         'raw_data',
         'received_at',
-        'processed'
+        'processed',
+        'processed_at' // <--- Faltaba este campo vital
     ];
 
     protected $casts = [
         'received_at' => 'datetime',
+        'processed_at' => 'datetime', // <--- Importante para operaciones de fecha
         'processed' => 'boolean',
     ];
 
     /**
      * Relación: Un evento pertenece a una Cuenta de Alarma.
-     * Vinculamos la columna 'account_number' (evento) con 'account_number' (cuenta).
      */
     public function account()
     {
-        // belongsTo(Modelo, Foreign Key en esta tabla, Owner Key en la otra tabla)
         return $this->belongsTo(AlarmAccount::class, 'account_number', 'account_number');
     }
 
     /**
-     * Helper: Obtener descripción del código SIA (Ej: "Robo", "Fuego").
-     * Uso: $event->sia_code_description
+     * Relación: Un evento corresponde a una definición de código SIA.
+     * Esto soluciona el error "undefined relationship [siaCode]".
+     */
+    public function siaCode()
+    {
+        // belongsTo(Modelo, FK_local, Owner_Key_remota)
+        return $this->belongsTo(SiaCode::class, 'event_code', 'code');
+    }
+
+    /**
+     * Helper opcional para compatibilidad
      */
     public function getSiaCodeDescriptionAttribute()
     {
-        $sia = SiaCode::where('code', $this->event_code)->first();
-        return $sia ? $sia->description : 'Evento Desconocido';
+        return $this->siaCode ? $this->siaCode->description : 'Evento Desconocido';
     }
 }
