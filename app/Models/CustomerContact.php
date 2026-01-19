@@ -11,9 +11,10 @@ class CustomerContact extends Model
 
     protected $fillable = [
         'customer_id',
+        'priority',    // <--- Nuevo
         'name',
         'relationship',
-        'phone',
+        'phone',       // <--- Soluciona el error
         'is_active'
     ];
 
