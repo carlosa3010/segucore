@@ -43,7 +43,10 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::resource('customers', CustomerController::class);
     // Acciones extra de clientes
     Route::post('customers/{id}/toggle-status', [CustomerController::class, 'toggleStatus'])->name('customers.toggle-status');
+    
+    // Contactos
     Route::post('customers/{id}/contacts', [CustomerController::class, 'storeContact'])->name('customers.contacts.store');
+    Route::put('contacts/{id}', [CustomerController::class, 'updateContact'])->name('contacts.update'); // <--- NUEVA: Editar Contacto
     Route::delete('contacts/{id}', [CustomerController::class, 'destroyContact'])->name('contacts.destroy');
 
 
@@ -59,10 +62,12 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     
     // A. Particiones
     Route::post('accounts/{id}/partitions', [AccountController::class, 'storePartition'])->name('accounts.partitions.store');
-    Route::delete('partitions/{id}', [AccountController::class, 'destroyPartition'])->name('accounts.partitions.destroy');
+    Route::put('partitions/{id}', [AccountController::class, 'updatePartition'])->name('partitions.update'); // <--- NUEVA: Editar Partición
+    Route::delete('partitions/{id}', [AccountController::class, 'destroyPartition'])->name('partitions.destroy');
 
     // B. Usuarios de Panel (Claves)
     Route::post('accounts/{id}/users', [AccountController::class, 'storePanelUser'])->name('accounts.users.store');
+    Route::put('panel-users/{id}', [AccountController::class, 'updatePanelUser'])->name('accounts.users.update'); // <--- NUEVA: Editar Usuario Panel
     Route::delete('panel-users/{id}', [AccountController::class, 'destroyPanelUser'])->name('accounts.users.destroy');
 
     // C. Horarios (Schedules)
@@ -72,6 +77,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
     // D. Zonas (Controlador Dedicado)
     Route::post('accounts/{id}/zones', [AlarmZoneController::class, 'store'])->name('accounts.zones.store');
+    Route::put('zones/{id}', [AlarmZoneController::class, 'update'])->name('zones.update'); // <--- NUEVA: Editar Zona
     Route::delete('zones/{id}', [AlarmZoneController::class, 'destroy'])->name('zones.destroy');
 
 
