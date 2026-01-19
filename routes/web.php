@@ -57,13 +57,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     // Notas Operativas y Bitácora
     Route::put('accounts/{id}/notes', [AccountController::class, 'updateNotes'])->name('accounts.notes.update');
-    Route::post('accounts/{id}/log', [AccountController::class, 'storeLog'])->name('accounts.log.store'); // <--- NUEVA RUTA PARA BITÁCORA
+    Route::post('accounts/{id}/log', [AccountController::class, 'storeLog'])->name('accounts.log.store');
 
     // SUB-MÓDULOS DE CUENTA (Centralizados en AccountController)
     
     // A. Particiones
     Route::post('accounts/{id}/partitions', [AccountController::class, 'storePartition'])->name('accounts.partitions.store');
-    Route::delete('partitions/{id}', [AccountController::class, 'destroyPartition'])->name('partitions.destroy');
+    Route::delete('partitions/{id}', [AccountController::class, 'destroyPartition'])->name('admin.partitions.destroy');
 
     // B. Usuarios de Panel (Claves)
     Route::post('accounts/{id}/users', [AccountController::class, 'storePanelUser'])->name('accounts.users.store');
@@ -71,6 +71,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
     // C. Horarios (Schedules)
     Route::post('accounts/{id}/schedules/temp', [AccountController::class, 'storeTempSchedule'])->name('accounts.schedules.temp.store');
+    Route::post('accounts/{id}/schedules/weekly', [AccountController::class, 'storeWeeklySchedule'])->name('accounts.schedules.weekly.store'); // <--- Esta faltaba
     Route::delete('schedules/{id}', [AccountController::class, 'destroySchedule'])->name('schedules.destroy');
 
     // D. Zonas / Sensores (Usa controlador dedicado AlarmZoneController)
