@@ -37,7 +37,7 @@ class IncidentController extends Controller
             ->get();
 
         // C. Datos para Modal de Evento Manual (Optimizado)
-        $accounts = AlarmAccount::with('customer:id,full_name,business_name')
+        $accounts = AlarmAccount::with('customer:id,first_name,last_name,business_name'))
             ->select('id', 'customer_id', 'account_number', 'branch_name')
             ->get();
             
