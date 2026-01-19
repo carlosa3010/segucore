@@ -155,4 +155,26 @@ class IncidentController extends Controller
         return redirect()->route('operations.console')
             ->with('success', 'Incidente cerrado correctamente.');
     }
+
+    /**
+     * 6. AGREGAR NOTA MANUAL A LA BITÁCORA
+     * Permite al operador registrar acciones sin cambiar el estado.
+     */
+    public function addNote(Request $request, $id)
+    {
+        $incident = Incident::findOrFail($id);
+
+        $request->validate([
+            'note' => 'required|string|min:2'
+        ]);
+
+        IncidentLog::create([
+            'incident_id' => $incident->id,
+            'user_id'     => Auth::id() ?? 1,
+            'action_type' => 'NOTE', // Tipo específico para notas manuales
+            'description' => $request->note
+        ]);
+
+        return back()->with('success', 'Nota agregada a la bitácora.');
+    }
 }
