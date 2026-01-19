@@ -19,16 +19,18 @@
         
         <div class="flex justify-between items-start relative z-10">
             <div class="flex gap-6">
-                <div class="bg-black/40 p-4 rounded text-center min-w-[120px] border border-gray-600 flex flex-col justify-center shadow-inner">
+                <div class="bg-black/40 p-4 rounded text-center min-w-[120px] border border-gray-600 shadow-inner">
                     <span class="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">ABONADO</span>
                     <span class="text-3xl font-mono font-bold text-[#C6F211] tracking-wider">{{ $account->account_number }}</span>
-                    <div class="mt-2 flex justify-center">
+                    <div class="mt-2 text-center">
                         @if($account->service_status === 'active')
-                            <span class="animate-pulse h-2 w-2 rounded-full bg-green-500 inline-block mr-1"></span>
-                            <span class="text-[10px] text-green-400 font-bold uppercase">Online</span>
+                            <span class="text-[10px] text-green-400 font-bold uppercase flex justify-center items-center gap-1">
+                                <span class="animate-pulse h-2 w-2 rounded-full bg-green-500"></span> Online
+                            </span>
                         @else
-                            <span class="h-2 w-2 rounded-full bg-red-500 inline-block mr-1"></span>
-                            <span class="text-[10px] text-red-400 font-bold uppercase">Offline</span>
+                            <span class="text-[10px] text-red-400 font-bold uppercase flex justify-center items-center gap-1">
+                                <span class="h-2 w-2 rounded-full bg-red-500"></span> Offline
+                            </span>
                         @endif
                     </div>
                 </div>
@@ -103,7 +105,7 @@
                             <td class="px-6 py-4"><span class="text-white font-medium text-base">{{ $part->name }}</span></td>
                             <td class="px-6 py-4 text-right">
                                 @if($part->partition_number != 1)
-                                    <form action="{{ route('admin.partitions.destroy', $part->id) }}" method="POST" onsubmit="return confirm('¿Eliminar partición? Se borrarán sus zonas.');" class="inline">
+                                    <form action="{{ route('admin.partitions.destroy', $part->id) }}" method="POST" onsubmit="return confirm('¿Eliminar partición? Se borrarán sus zonas asociadas.');" class="inline">
                                         @csrf @method('DELETE')
                                         <button class="text-red-500 hover:text-red-300 font-bold" title="Eliminar">🗑️</button>
                                     </form>
@@ -111,7 +113,7 @@
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="3" class="px-6 py-8 text-center text-gray-500">Sin particiones. Crea la Partición 1.</td></tr>
+                        <tr><td colspan="3" class="px-6 py-8 text-center text-gray-500">Sin particiones.</td></tr>
                     @endforelse
                 </tbody>
             </table>
@@ -164,7 +166,7 @@
                         <th class="px-4 py-3 text-center">N°</th>
                         <th class="px-4 py-3">Partición</th>
                         <th class="px-4 py-3">Descripción</th>
-                        <th class="px-4 py-3">Definición</th>
+                        <th class="px-4 py-3">Tipo</th>
                         <th class="px-4 py-3 text-right"></th>
                     </tr>
                 </thead>
@@ -182,7 +184,7 @@
                             <td class="px-4 py-3 text-right">
                                 <form action="{{ route('admin.zones.destroy', $zone->id) }}" method="POST" onsubmit="return confirm('¿Borrar zona?');" class="inline">
                                     @csrf @method('DELETE')
-                                    <button class="text-red-500 hover:text-red-300 transition" title="Borrar">🗑️</button>
+                                    <button class="text-red-500 hover:text-red-300 font-bold px-2 py-1">🗑️</button>
                                 </form>
                             </td>
                         </tr>
@@ -235,7 +237,7 @@
                                 <td class="px-4 py-3 text-right">
                                     <form action="{{ route('admin.accounts.users.destroy', $user->id) }}" method="POST" onsubmit="return confirm('¿Borrar usuario?');" class="inline">
                                         @csrf @method('DELETE')
-                                        <button class="text-red-500 hover:text-red-300 transition">🗑️</button>
+                                        <button class="text-red-500 hover:text-red-300 font-bold">🗑️</button>
                                     </form>
                                 </td>
                             </tr>
@@ -272,7 +274,7 @@
                         </div>
                     </div>
                 @empty
-                    <div class="text-center py-8 text-gray-500 border-2 border-dashed border-gray-700 rounded">No hay contactos.</div>
+                    <div class="text-center py-8 text-gray-500 border-2 border-dashed border-gray-700 rounded">No hay contactos registrados.</div>
                 @endforelse
             </div>
 
