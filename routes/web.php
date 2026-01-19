@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\IncidentController;
+use App\Http\Controllers\Admin\IncidentConfigController; // <--- NUEVO CONTROLADOR DE CONFIG
 use App\Http\Controllers\Admin\SiaCodeController;
 use App\Http\Controllers\Admin\AlarmZoneController;
 
@@ -48,7 +49,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
     // 3. GESTIÓN DE CUENTAS DE ALARMA (PANELES)
     // ----------------------------------------------------
-    Route::resource('accounts', AccountController::class); // CRUD standard (index, create, store, show, edit, update, destroy)
+    Route::resource('accounts', AccountController::class); 
 
     // Notas Operativas y Bitácora
     Route::put('accounts/{id}/notes', [AccountController::class, 'updateNotes'])->name('accounts.notes.update');
@@ -94,6 +95,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         // d. Cerrar Incidente
         Route::post('/incident/{id}/close', [IncidentController::class, 'close'])->name('incidents.close');
 
+        // e. Agregar Nota Manual (Bitácora Viva)
         Route::post('/incident/{id}/note', [IncidentController::class, 'addNote'])->name('incidents.add-note');
     });
 
@@ -102,7 +104,23 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     // ----------------------------------------------------
     Route::resource('sia-codes', SiaCodeController::class);
 
+    // Configuración Dinámica de Incidentes (Resoluciones y Motivos)
+    Route::prefix('config')->name('config.')->group(function () {
+        // Resoluciones
+        Route::get('resolutions', [IncidentConfigController::class, 'indexResolutions'])->name('resolutions.index');
+        Route::post('resolutions', [IncidentConfigController::class, 'storeResolution'])->name('resolutions.store');
+        Route::delete('resolutions/{id}', [IncidentConfigController::class, 'destroyResolution'])->name('resolutions.destroy');
+        
+        // Motivos de Espera
+        Route::get('hold-reasons', [IncidentConfigController::class, 'indexHoldReasons'])->name('hold-reasons.index');
+        Route::post('hold-reasons', [IncidentConfigController::class, 'storeHoldReason'])->name('hold-reasons.store');
+        Route::delete('hold-reasons/{id}', [IncidentConfigController::class, 'destroyHoldReason'])->name('hold-reasons.destroy');
+    });
+
 });
+
+// Autenticación (Login / Logout)
+require __DIR__.'/auth.php';
 
 // Autenticación (Generadas por Laravel Breeze/Auth)
 require __DIR__.'/auth.php';
