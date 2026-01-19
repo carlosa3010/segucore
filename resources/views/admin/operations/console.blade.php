@@ -108,7 +108,7 @@
     </div>
 </div>
 
-<dialog id="manualEventModal" class="m-auto bg-slate-900 text-white p-0 rounded-lg border border-slate-700 shadow-2xl backdrop:bg-black/90 w-full max-w-md open:animate-fade-in text-left fixed inset-0 z-50">
+<dialog id="manualEventModal" class="m-auto bg-slate-900 text-white p-0 rounded-lg border border-slate-700 shadow-2xl backdrop:bg-black/90 w-full max-w-md open:animate-fade-in text-left">
     <div class="p-4 border-b border-slate-800 bg-slate-950 flex justify-between items-center">
         <h3 class="font-bold text-sm uppercase text-white flex items-center gap-2">
             <span>🚨</span> Generar Incidente Manual
