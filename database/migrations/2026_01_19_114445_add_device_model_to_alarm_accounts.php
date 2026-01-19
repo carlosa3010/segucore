@@ -6,23 +6,19 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::table('alarm_accounts', function (Blueprint $table) {
-            //
+            // Agregamos el campo para el modelo del panel
+            // Lo ponemos después de 'service_status' o al final
+            $table->string('device_model', 100)->nullable()->after('service_status');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::table('alarm_accounts', function (Blueprint $table) {
-            //
+            $table->dropColumn('device_model');
         });
     }
 };
