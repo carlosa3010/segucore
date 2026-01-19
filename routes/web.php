@@ -63,7 +63,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     
     // A. Particiones
     Route::post('accounts/{id}/partitions', [AccountController::class, 'storePartition'])->name('accounts.partitions.store');
-    Route::delete('partitions/{id}', [AccountController::class, 'destroyPartition'])->name('admin.partitions.destroy');
+    Route::delete('partitions/{id}', [AccountController::class, 'destroyPartition'])->name(partitions.destroy');
 
     // B. Usuarios de Panel (Claves)
     Route::post('accounts/{id}/users', [AccountController::class, 'storePanelUser'])->name('accounts.users.store');
