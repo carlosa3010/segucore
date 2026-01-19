@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AlarmEvent;
 use App\Models\Incident;
-use App\Models\IncidentLog; // <--- Importante: Importar el modelo
+use App\Models\IncidentLog; 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -40,22 +40,24 @@ class IncidentController extends Controller
      */
     public function take($eventId)
     {
+        // Cargamos el evento Y la cuenta asociada para obtener su ID
         $event = AlarmEvent::with('account')->findOrFail($eventId);
         
         if ($event->processed) {
             return back()->with('error', 'Este evento ya fue atendido.');
         }
 
-        // Crear Ticket
+        // Crear Ticket (AQUÍ ESTABA EL ERROR: Faltaba alarm_account_id)
         $incident = Incident::create([
             'alarm_event_id'   => $event->id,
-            'alarm_account_id' => $event->account->id,
+            'alarm_account_id' => $event->account->id, // <--- OBLIGATORIO PARA LA BD
             'customer_id'      => $event->account->customer_id ?? null,
             'operator_id'      => Auth::id() ?? 1,
             'status'           => 'in_progress',
             'started_at'       => now(),
         ]);
 
+        // Marcar evento como procesado
         $event->update(['processed' => true, 'processed_at' => now()]);
 
         // BITÁCORA: Inicio de gestión
@@ -78,7 +80,7 @@ class IncidentController extends Controller
             'alarmEvent.account.customer.contacts',
             'alarmEvent.account.zones',
             'alarmEvent.siaCode',
-            'logs.user' // Cargar historial para mostrarlo en la vista si quieres
+            'logs.user' 
         ])->findOrFail($id);
 
         return view('admin.operations.manage', compact('incident'));
@@ -86,7 +88,6 @@ class IncidentController extends Controller
 
     /**
      * 4. PONER EN ESPERA (HOLD)
-     * Activa la bitácora registrando la razón de la espera.
      */
     public function hold(Request $request, $id)
     {
@@ -112,12 +113,11 @@ class IncidentController extends Controller
         ]);
 
         return redirect()->route('operations.console')
-            ->with('success', 'Incidente puesto en espera. Puedes retomarlo desde "Mis Incidentes".');
+            ->with('success', 'Incidente puesto en espera.');
     }
 
     /**
      * 5. CERRAR INCIDENTE
-     * Guarda el log final de cierre.
      */
     public function close(Request $request, $id)
     {
