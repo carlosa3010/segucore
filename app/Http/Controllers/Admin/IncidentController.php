@@ -10,75 +10,41 @@ use Illuminate\Support\Facades\Auth;
 
 class IncidentController extends Controller
 {
-    // 1. CONSOLA DE ESPERA
+    // La pantalla principal de atención (Cola de espera)
     public function console()
     {
+        // Traemos eventos NO procesados ordenados por prioridad
         $pendingEvents = AlarmEvent::where('processed', false)
             ->join('sia_codes', 'alarm_events.event_code', '=', 'sia_codes.code')
-            ->orderBy('sia_codes.priority', 'desc') 
-            ->orderBy('alarm_events.created_at', 'asc')
+            ->orderBy('sia_codes.priority', 'desc') // 5 Pánico primero
+            ->orderBy('alarm_events.created_at', 'asc') // Los más viejos primero (FIFO)
             ->select('alarm_events.*')
-            ->with(['account.customer', 'siaCode']) // Asegura tener la relación siaCode en el modelo AlarmEvent
+            ->with('account.customer') // Eager loading para ver quién es
             ->get();
 
         return view('admin.operations.console', compact('pendingEvents'));
     }
 
-    // 2. TOMAR EVENTO (Crear Ticket)
+    // Acción: Operador toma el evento ("Atender")
     public function take($eventId)
     {
         $event = AlarmEvent::findOrFail($eventId);
         
+        // Verificar si ya fue tomado por otro
         if ($event->processed) {
-            return back()->with('error', 'Este evento ya fue procesado.');
+            return back()->with('error', 'Este evento ya fue atendido.');
         }
 
-        // Crear incidente vinculado
+        // Crear el Incidente (Ticket)
         $incident = Incident::create([
             'alarm_event_id' => $event->id,
-            'customer_id' => $event->account->customer_id ?? null,
-            // 'operator_id' => Auth::id(), // Activar cuando uses autenticación real
-            'status' => 'in_progress',
+            'customer_id' => $event->account->customer_id ?? null, // Asumimos relación
+            // 'operator_id' => Auth::id(), // Descomentar cuando tengas Auth
+            'status' => 'open',
             'started_at' => now(),
         ]);
 
-        // Marcar evento como "En proceso" para sacarlo de la cola general
-        $event->update(['processed' => true, 'processed_at' => now()]);
-
+        // Redirigir a la pantalla de gestión del incidente
         return redirect()->route('admin.operations.manage', $incident->id);
-    }
-
-    // 3. GESTIONAR INCIDENTE (Pantalla de Atención)
-    public function manage($id)
-    {
-        // Cargar incidente con todas las relaciones necesarias para el operador
-        $incident = Incident::with([
-            'alarmEvent.account.customer.contacts', // Contactos para llamar
-            'alarmEvent.account.zones',             // Para ver qué zona es
-            'alarmEvent.siaCode'                    // Qué significa el código
-        ])->findOrFail($id);
-
-        return view('admin.operations.manage', compact('incident'));
-    }
-
-    // 4. CERRAR INCIDENTE
-    public function close(Request $request, $id)
-    {
-        $incident = Incident::findOrFail($id);
-        
-        $request->validate([
-            'resolution_notes' => 'required|string|min:5',
-            'result_code' => 'required|string' // Ej: Falsa Alarma, Real, Prueba
-        ]);
-
-        $incident->update([
-            'status' => 'closed',
-            'closed_at' => now(),
-            'notes' => $request->resolution_notes,
-            'result' => $request->result_code
-        ]);
-
-        return redirect()->route('operations.console')
-            ->with('success', 'Incidente cerrado correctamente.');
     }
 }
