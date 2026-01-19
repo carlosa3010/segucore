@@ -160,6 +160,7 @@ class CustomerController extends Controller
     public function storeContact(Request $request, $customerId)
     {
         $validated = $request->validate([
+            'priority' => 'required|integer|min:1|max:20', // Validación de prioridad
             'name' => 'required|string|max:100',
             'relationship' => 'required|string|max:50',
             'phone' => 'required|string|max:50'
@@ -168,7 +169,7 @@ class CustomerController extends Controller
         $customer = Customer::findOrFail($customerId);
         $customer->contacts()->create($validated);
 
-        return back()->with('success', 'Contacto de emergencia agregado.');
+        return back()->with('success', 'Contacto agregado correctamente.');
     }
 
     /**
