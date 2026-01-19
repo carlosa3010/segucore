@@ -93,6 +93,8 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         
         // d. Cerrar Incidente
         Route::post('/incident/{id}/close', [IncidentController::class, 'close'])->name('incidents.close');
+
+        Route::post('/incident/{id}/note', [IncidentController::class, 'addNote'])->name('incidents.add-note');
     });
 
 
