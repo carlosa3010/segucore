@@ -79,23 +79,26 @@ class IncidentController extends Controller
      */
     public function manage($id)
     {
-        // 1. Cargar el Incidente con todas sus relaciones
+        // ... (Tu código existente de carga de incidente) ...
         $incident = Incident::with([
-            'alarmEvent.account.customer.contacts', // Contactos
-            'alarmEvent.account.zones',             // Mapa de zonas
-            'alarmEvent.siaCode',                   // Descripción del evento
-            'logs.user'                             // Bitácora de operadores
+            'alarmEvent.account.customer.contacts',
+            'alarmEvent.account.zones',
+            'alarmEvent.siaCode',
+            'logs.user' 
         ])->findOrFail($id);
 
-        // 2. CORRECCIÓN: Cargar el Historial de la Cuenta (Últimos 15 eventos)
-        // Esto es lo que faltaba para que funcionara la pestaña "Historial"
         $accountHistory = AlarmEvent::where('account_number', $incident->alarmEvent->account_number)
-            ->where('id', '!=', $incident->alarm_event_id) // Excluir el evento actual
+            ->where('id', '!=', $incident->alarm_event_id)
             ->latest()
             ->take(15)
             ->get();
 
-        return view('admin.operations.manage', compact('incident', 'accountHistory'));
+        // NUEVO: Cargar catálogos dinámicos
+        $resolutions = IncidentResolution::where('is_active', true)->get();
+        $holdReasons = IncidentHoldReason::where('is_active', true)->get();
+
+        // Pasamos todo a la vista
+        return view('admin.operations.manage', compact('incident', 'accountHistory', 'resolutions', 'holdReasons'));
     }
 
     /**
