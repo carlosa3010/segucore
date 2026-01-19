@@ -8,7 +8,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\CustomerController;
 use App\Http\Controllers\Admin\AccountController;
 use App\Http\Controllers\Admin\IncidentController;
-use App\Http\Controllers\Admin\IncidentConfigController; // <--- NUEVO CONTROLADOR DE CONFIG
+use App\Http\Controllers\Admin\IncidentConfigController;
 use App\Http\Controllers\Admin\SiaCodeController;
 use App\Http\Controllers\Admin\AlarmZoneController;
 
@@ -59,7 +59,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     
     // A. Particiones
     Route::post('accounts/{id}/partitions', [AccountController::class, 'storePartition'])->name('accounts.partitions.store');
-    Route::delete('partitions/{id}', [AccountController::class, 'destroyPartition'])->name('partitions.destroy');
+    Route::delete('partitions/{id}', [AccountController::class, 'destroyPartition'])->name('accounts.partitions.destroy');
 
     // B. Usuarios de Panel (Claves)
     Route::post('accounts/{id}/users', [AccountController::class, 'storePanelUser'])->name('accounts.users.store');
@@ -85,17 +85,20 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         // Acciones sobre Incidentes
         // a. Tomar un evento -> Crea Ticket
         Route::post('/take/{id}', [IncidentController::class, 'take'])->name('incidents.take');
+
+        // b. Crear Evento Manual (Ticket sin señal)
+        Route::post('/manual-event', [IncidentController::class, 'storeManual'])->name('incidents.manual');
         
-        // b. Pantalla de Gestión (Mapa, llamadas, bitácora)
+        // c. Pantalla de Gestión (Mapa, llamadas, bitácora)
         Route::get('/incident/{id}', [IncidentController::class, 'manage'])->name('operations.manage');
         
-        // c. Poner en Espera (Hold)
+        // d. Poner en Espera (Hold)
         Route::post('/incident/{id}/hold', [IncidentController::class, 'hold'])->name('incidents.hold');
         
-        // d. Cerrar Incidente
+        // e. Cerrar Incidente
         Route::post('/incident/{id}/close', [IncidentController::class, 'close'])->name('incidents.close');
 
-        // e. Agregar Nota Manual (Bitácora Viva)
+        // f. Agregar Nota Manual (Bitácora Viva)
         Route::post('/incident/{id}/note', [IncidentController::class, 'addNote'])->name('incidents.add-note');
     });
 
@@ -118,9 +121,6 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     });
 
 });
-
-// Autenticación (Login / Logout)
-require __DIR__.'/auth.php';
 
 // Autenticación (Generadas por Laravel Breeze/Auth)
 require __DIR__.'/auth.php';
