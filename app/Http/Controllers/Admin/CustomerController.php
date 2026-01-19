@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Customer;
-use App\Models\CustomerContact; // Importante para eliminar contactos
+use App\Models\CustomerContact; // Importante para gestionar contactos
 use Illuminate\Http\Request;
 
 class CustomerController extends Controller
@@ -154,13 +154,12 @@ class CustomerController extends Controller
     }
 
     /**
-     * Guardar Contacto de Emergencia (Nuevo)
-     * Llamado desde la ficha del cliente o desde la cuenta de alarma.
+     * Guardar Contacto de Emergencia
      */
     public function storeContact(Request $request, $customerId)
     {
         $validated = $request->validate([
-            'priority' => 'required|integer|min:1|max:20', // Validación de prioridad
+            'priority' => 'required|integer|min:1|max:20', 
             'name' => 'required|string|max:100',
             'relationship' => 'required|string|max:50',
             'phone' => 'required|string|max:50'
@@ -173,7 +172,26 @@ class CustomerController extends Controller
     }
 
     /**
-     * Eliminar Contacto (Nuevo)
+     * Actualizar Contacto de Emergencia (NUEVO)
+     */
+    public function updateContact(Request $request, $id)
+    {
+        $contact = CustomerContact::findOrFail($id);
+        
+        $validated = $request->validate([
+            'priority' => 'required|integer|min:1|max:20',
+            'name' => 'required|string|max:100',
+            'relationship' => 'required|string|max:50',
+            'phone' => 'required|string|max:50'
+        ]);
+
+        $contact->update($validated);
+
+        return back()->with('success', 'Contacto actualizado.');
+    }
+
+    /**
+     * Eliminar Contacto
      */
     public function destroyContact($id)
     {
