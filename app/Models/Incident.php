@@ -10,15 +10,16 @@ class Incident extends Model
     use HasFactory;
 
     protected $fillable = [
-        'alarm_event_id',
-        'customer_id',
-        'operator_id',
-        'status',      // open, in_progress, closed
-        'result',      // false_alarm, real, test, etc.
-        'notes',       // Notas del operador
-        'started_at',
-        'closed_at'
-    ];
+    'alarm_event_id',
+    'alarm_account_id', // <--- ASEGÚRATE QUE ESTÉ AQUÍ
+    'customer_id',
+    'operator_id',
+    'status',
+    'result',
+    'notes',
+    'started_at',
+    'closed_at'
+];
 
     protected $casts = [
         'started_at' => 'datetime',
