@@ -194,6 +194,25 @@ class AccountController extends Controller
         return back()->with('success', 'Partición agregada.');
     }
 
+    // Actualizar Partición (NUEVO)
+    public function updatePartition(Request $request, $id)
+    {
+        $partition = AlarmPartition::with('account')->findOrFail($id);
+        $request->validate(['name' => 'required|string|max:100']);
+        
+        $oldName = $partition->name;
+        $partition->update(['name' => $request->name]);
+
+        // Auditoría
+        $partition->account->logs()->create([
+            'user_id' => auth()->id() ?? 1,
+            'type' => 'note',
+            'content' => "SISTEMA: Se renombró el Área #{$partition->partition_number} de '{$oldName}' a '{$request->name}'."
+        ]);
+
+        return back()->with('success', 'Nombre de partición actualizado.');
+    }
+
     public function destroyPartition($id)
     {
         $partition = AlarmPartition::with('account')->findOrFail($id);
@@ -240,6 +259,29 @@ class AccountController extends Controller
         ]);
 
         return back()->with('success', 'Usuario de panel agregado.');
+    }
+
+    // Actualizar Usuario de Panel (NUEVO)
+    public function updatePanelUser(Request $request, $id)
+    {
+        $user = PanelUser::with('account')->findOrFail($id);
+        
+        $validated = $request->validate([
+            'name' => 'required|string|max:100',
+            'role' => 'required|string',
+            'user_number' => 'required|string|max:10'
+        ]);
+
+        $user->update($validated);
+
+        // Auditoría
+        $user->account->logs()->create([
+            'user_id' => auth()->id() ?? 1,
+            'type' => 'note',
+            'content' => "SISTEMA: Se editaron datos del usuario de panel (Slot: {$validated['user_number']})."
+        ]);
+
+        return back()->with('success', 'Usuario actualizado.');
     }
 
     public function destroyPanelUser($id)
