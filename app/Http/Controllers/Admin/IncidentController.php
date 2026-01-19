@@ -5,93 +5,142 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AlarmEvent;
 use App\Models\Incident;
+use App\Models\IncidentLog; // <--- Importante: Importar el modelo
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class IncidentController extends Controller
 {
-    // 1. CONSOLA DE ESPERA
+    /**
+     * 1. CONSOLA DE OPERACIONES
+     */
     public function console()
     {
+        // A. Cola de Eventos Nuevos
         $pendingEvents = AlarmEvent::where('processed', false)
             ->join('sia_codes', 'alarm_events.event_code', '=', 'sia_codes.code')
             ->orderBy('sia_codes.priority', 'desc') 
             ->orderBy('alarm_events.created_at', 'asc')
             ->select('alarm_events.*')
-            ->with(['account.customer', 'siaCode']) // Asegura tener la relación siaCode en el modelo AlarmEvent
+            ->with(['account.customer', 'siaCode'])
             ->get();
 
-        return view('admin.operations.console', compact('pendingEvents'));
+        // B. Mis Incidentes en Curso (Monitoreo / Espera)
+        $myIncidents = Incident::where('operator_id', Auth::id() ?? 1)
+            ->whereIn('status', ['in_progress', 'monitoring', 'police_dispatched'])
+            ->with(['alarmEvent.account.customer', 'alarmEvent.siaCode'])
+            ->orderBy('updated_at', 'desc')
+            ->get();
+
+        return view('admin.operations.console', compact('pendingEvents', 'myIncidents'));
     }
 
-    // 2. TOMAR EVENTO (Crear Ticket)
+    /**
+     * 2. TOMAR EVENTO (Crear Ticket)
+     */
     public function take($eventId)
     {
-        $event = AlarmEvent::with('account')->findOrFail($eventId); // Asegurar cargar la cuenta
+        $event = AlarmEvent::with('account')->findOrFail($eventId);
         
         if ($event->processed) {
             return back()->with('error', 'Este evento ya fue atendido.');
         }
 
-        // Crear el Incidente (Ticket)
+        // Crear Ticket
         $incident = Incident::create([
             'alarm_event_id'   => $event->id,
-            'alarm_account_id' => $event->account->id, // <--- ESTO FALTABA y es obligatorio
+            'alarm_account_id' => $event->account->id,
             'customer_id'      => $event->account->customer_id ?? null,
-            'operator_id'      => Auth::id() ?? 1,     // Asigna el usuario actual o el ID 1 (Admin)
+            'operator_id'      => Auth::id() ?? 1,
             'status'           => 'in_progress',
             'started_at'       => now(),
         ]);
 
-        // Marcar evento como procesado
         $event->update(['processed' => true, 'processed_at' => now()]);
 
-        return redirect()->route('admin.operations.manage', $incident->id);
-    }
-
-        // Crear incidente vinculado
-        $incident = Incident::create([
-            'alarm_event_id' => $event->id,
-            'customer_id' => $event->account->customer_id ?? null,
-            // 'operator_id' => Auth::id(), // Activar cuando uses autenticación real
-            'status' => 'in_progress',
-            'started_at' => now(),
+        // BITÁCORA: Inicio de gestión
+        IncidentLog::create([
+            'incident_id' => $incident->id,
+            'user_id'     => Auth::id() ?? 1,
+            'action_type' => 'SYSTEM',
+            'description' => 'Operador inició la atención del evento.'
         ]);
 
-        // Marcar evento como "En proceso" para sacarlo de la cola general
-        $event->update(['processed' => true, 'processed_at' => now()]);
-
         return redirect()->route('admin.operations.manage', $incident->id);
     }
 
-    // 3. GESTIONAR INCIDENTE (Pantalla de Atención)
+    /**
+     * 3. GESTIONAR (Vista Detalle)
+     */
     public function manage($id)
     {
-        // Cargar incidente con todas las relaciones necesarias para el operador
         $incident = Incident::with([
-            'alarmEvent.account.customer.contacts', // Contactos para llamar
-            'alarmEvent.account.zones',             // Para ver qué zona es
-            'alarmEvent.siaCode'                    // Qué significa el código
+            'alarmEvent.account.customer.contacts',
+            'alarmEvent.account.zones',
+            'alarmEvent.siaCode',
+            'logs.user' // Cargar historial para mostrarlo en la vista si quieres
         ])->findOrFail($id);
 
         return view('admin.operations.manage', compact('incident'));
     }
 
-    // 4. CERRAR INCIDENTE
+    /**
+     * 4. PONER EN ESPERA (HOLD)
+     * Activa la bitácora registrando la razón de la espera.
+     */
+    public function hold(Request $request, $id)
+    {
+        $incident = Incident::findOrFail($id);
+
+        $request->validate([
+            'status' => 'required|in:monitoring,police_dispatched',
+            'note'   => 'nullable|string'
+        ]);
+
+        $incident->update([
+            'status' => $request->status,
+        ]);
+
+        // BITÁCORA: Registro de espera
+        $statusLabel = $request->status == 'police_dispatched' ? 'Policía Despachada' : 'Monitoreo Preventivo';
+        
+        IncidentLog::create([
+            'incident_id' => $incident->id,
+            'user_id'     => Auth::id() ?? 1,
+            'action_type' => 'STATUS_CHANGE',
+            'description' => "Incidente puesto en espera: $statusLabel. Nota: " . ($request->note ?? 'Sin observaciones')
+        ]);
+
+        return redirect()->route('operations.console')
+            ->with('success', 'Incidente puesto en espera. Puedes retomarlo desde "Mis Incidentes".');
+    }
+
+    /**
+     * 5. CERRAR INCIDENTE
+     * Guarda el log final de cierre.
+     */
     public function close(Request $request, $id)
     {
         $incident = Incident::findOrFail($id);
         
         $request->validate([
             'resolution_notes' => 'required|string|min:5',
-            'result_code' => 'required|string' // Ej: Falsa Alarma, Real, Prueba
+            'result_code'      => 'required|string'
         ]);
 
         $incident->update([
-            'status' => 'closed',
+            'status'    => 'closed',
             'closed_at' => now(),
-            'notes' => $request->resolution_notes,
-            'result' => $request->result_code
+            'notes'     => $request->resolution_notes,
+            'result'    => $request->result_code
+        ]);
+
+        // BITÁCORA: Cierre
+        IncidentLog::create([
+            'incident_id' => $incident->id,
+            'user_id'     => Auth::id() ?? 1,
+            'action_type' => 'SYSTEM',
+            'description' => "Incidente cerrado. Resultado: {$request->result_code}. Informe: {$request->resolution_notes}"
         ]);
 
         return redirect()->route('operations.console')
