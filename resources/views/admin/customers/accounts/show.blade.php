@@ -252,13 +252,16 @@
 
     <div x-show="activeTab === 'contacts'" x-cloak>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
             <div class="space-y-3">
-                <h3 class="text-white font-bold mb-4">Lista de Contactos</h3>
-                @forelse($account->customer->contacts as $index => $contact)
+                <h3 class="text-white font-bold mb-4">Lista de Contactos (Orden de Llamada)</h3>
+                
+                {{-- Ordenamos por prioridad (ascendente) --}}
+                @forelse($account->customer->contacts->sortBy('priority') as $contact)
                     <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded border border-gray-600 hover:border-blue-500 transition group">
                         <div class="flex items-center gap-4">
-                            <div class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-md">
-                                {{ $index + 1 }}
+                            <div class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-md border border-blue-400">
+                                {{ $contact->priority }}
                             </div>
                             <div>
                                 <p class="text-white text-sm font-bold">{{ $contact->name }}</p>
@@ -266,42 +269,57 @@
                             </div>
                         </div>
                         <div class="text-right flex items-center gap-2">
-                            <p class="text-white font-mono text-sm bg-black/20 px-2 py-1 rounded border border-gray-700">{{ $contact->phone }}</p>
+                            <p class="text-white font-mono text-sm mr-2 bg-black/30 px-2 py-1 rounded">{{ $contact->phone }}</p>
                             <form action="{{ route('admin.contacts.destroy', $contact->id) }}" method="POST" onsubmit="return confirm('¿Eliminar contacto?');" class="inline">
                                 @csrf @method('DELETE')
-                                <button class="text-red-400 hover:text-red-200 text-xs transition px-2">✕</button>
+                                <button class="text-red-400 hover:text-red-200 text-xs transition px-2 font-bold">✕</button>
                             </form>
                         </div>
                     </div>
                 @empty
-                    <div class="text-center py-8 text-gray-500 border-2 border-dashed border-gray-700 rounded">No hay contactos registrados.</div>
+                    <div class="text-center py-8 text-gray-500 border-2 border-dashed border-gray-700 rounded bg-gray-800/20">
+                        No hay contactos de emergencia registrados.
+                    </div>
                 @endforelse
             </div>
 
-            <div class="bg-gray-900/30 p-5 rounded border border-gray-700 h-fit">
-                <h4 class="text-gray-300 font-bold text-sm mb-4">Nuevo Contacto</h4>
+            <div class="bg-gray-900/30 p-5 rounded border border-gray-700 h-fit shadow-lg">
+                <h4 class="text-gray-300 font-bold text-sm mb-4 border-b border-gray-700 pb-2">Nuevo Contacto</h4>
+                
                 <form action="{{ route('admin.customers.contacts.store', $account->customer_id) }}" method="POST" class="space-y-4">
                     @csrf
-                    <div>
-                        <label class="text-[10px] text-gray-500 uppercase">Nombre Completo</label>
-                        <input type="text" name="name" class="form-input" required>
+                    
+                    <div class="flex gap-4">
+                        <div class="w-24">
+                            <label class="text-[10px] text-gray-500 uppercase font-bold mb-1 block">Prioridad</label>
+                            <input type="number" name="priority" class="form-input text-center font-bold text-white bg-gray-800 border-blue-500/50 focus:border-blue-500" 
+                                   value="{{ $account->customer->contacts->count() + 1 }}" min="1" required>
+                        </div>
+                        <div class="flex-1">
+                            <label class="text-[10px] text-gray-500 uppercase font-bold mb-1 block">Nombre Completo</label>
+                            <input type="text" name="name" class="form-input" placeholder="Ej: Juan Pérez" required>
+                        </div>
                     </div>
+
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="text-[10px] text-gray-500 uppercase">Relación</label>
-                            <input type="text" name="relationship" class="form-input" placeholder="Ej: Esposo" required>
+                            <label class="text-[10px] text-gray-500 uppercase font-bold mb-1 block">Relación</label>
+                            <input type="text" name="relationship" class="form-input" placeholder="Ej: Vecino, Esposo" required>
                         </div>
                         <div>
-                            <label class="text-[10px] text-gray-500 uppercase">Teléfono</label>
-                            <input type="text" name="phone" class="form-input" required>
+                            <label class="text-[10px] text-gray-500 uppercase font-bold mb-1 block">Teléfono</label>
+                            <input type="text" name="phone" class="form-input" placeholder="0414-XXXXXXX" required>
                         </div>
                     </div>
-                    <button type="submit" class="w-full bg-[#C6F211] hover:bg-[#a3c90d] text-black font-bold py-2 rounded text-sm shadow">Guardar Contacto</button>
+
+                    <button type="submit" class="w-full bg-[#C6F211] hover:bg-[#a3c90d] text-black font-bold py-2 rounded text-sm shadow mt-2 transition transform hover:scale-[1.02]">
+                        + Guardar Contacto
+                    </button>
                 </form>
             </div>
         </div>
     </div>
-
+    
     <div x-show="activeTab === 'schedule'" x-cloak>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             
