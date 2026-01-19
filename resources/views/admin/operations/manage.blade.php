@@ -211,10 +211,16 @@
                 <div class="mb-2">
                     <select name="result_code" class="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded p-2 focus:ring-1 focus:ring-blue-500 outline-none" required>
                         <option value="" disabled selected>Seleccione Resultado...</option>
-                        <option value="false_alarm">🚫 Falsa Alarma</option>
-                        <option value="real_police">👮 Real - Policía Actuó</option>
-                        <option value="real_medical">🚑 Real - Emergencia Médica</option>
-                        <option value="test">🔧 Prueba de Usuario</option>
+                        @if(isset($resolutions) && $resolutions->count() > 0)
+                            @foreach($resolutions as $res)
+                                <option value="{{ $res->code }}">{{ $res->name }}</option>
+                            @endforeach
+                        @else
+                            <option value="false_alarm">🚫 Falsa Alarma</option>
+                            <option value="real_police">👮 Real - Policía Actuó</option>
+                            <option value="real_medical">🚑 Real - Emergencia Médica</option>
+                            <option value="test">🔧 Prueba de Usuario</option>
+                        @endif
                     </select>
                 </div>
                 <div class="mb-3">
@@ -226,24 +232,36 @@
             </form>
         </div>
     </div>
+</div>
 
-<dialog id="holdModal" class="bg-slate-900 text-white p-0 rounded-lg border border-slate-700 shadow-2xl backdrop:bg-black/90 w-full max-w-sm">
-    <div class="p-4 border-b border-slate-800 bg-slate-950">
+<dialog id="holdModal" class="m-auto bg-slate-900 text-white p-0 rounded-lg border border-slate-700 shadow-2xl backdrop:bg-black/90 w-full max-w-sm fixed inset-0 z-50">
+    <div class="p-4 border-b border-slate-800 bg-slate-950 flex justify-between items-center">
         <h3 class="font-bold text-sm uppercase text-slate-300">Poner Incidente en Espera</h3>
+        <button type="button" onclick="document.getElementById('holdModal').close()" class="text-slate-500 hover:text-white">✕</button>
     </div>
+    
     <form action="{{ route('admin.incidents.hold', $incident->id) }}" method="POST" class="p-6">
         @csrf
         <div class="mb-4">
             <label class="block text-xs text-slate-500 uppercase font-bold mb-2">Motivo</label>
             <select name="status" class="w-full bg-slate-800 border border-slate-600 p-2.5 rounded text-sm text-white focus:outline-none focus:border-blue-500">
-                <option value="monitoring">⏳ Monitoreo Preventivo (Cliente avisado)</option>
-                <option value="police_dispatched">🚓 Policía en Camino</option>
+                @if(isset($holdReasons) && $holdReasons->count() > 0)
+                    @foreach($holdReasons as $reason)
+                        <option value="{{ $reason->code }}">{{ $reason->name }}</option>
+                    @endforeach
+                @else
+                    <option value="monitoring">⏳ Monitoreo Preventivo</option>
+                    <option value="police_dispatched">🚓 Policía en Camino</option>
+                    <option value="waiting_contact">📞 Esperando Contacto</option>
+                @endif
             </select>
         </div>
+        
         <div class="mb-6">
             <label class="block text-xs text-slate-500 uppercase font-bold mb-2">Nota Interna</label>
             <textarea name="note" class="w-full bg-slate-800 border border-slate-600 p-2.5 rounded text-sm text-white focus:outline-none focus:border-blue-500" rows="3" placeholder="Ej: Llamar en 15 min..."></textarea>
         </div>
+        
         <div class="flex justify-end gap-2">
             <button type="button" onclick="document.getElementById('holdModal').close()" class="text-slate-400 hover:text-white px-4 text-xs font-bold uppercase transition">Cancelar</button>
             <button type="submit" class="bg-yellow-600 hover:bg-yellow-500 text-white px-6 py-2 rounded font-bold text-xs uppercase shadow-lg transition">Confirmar</button>
