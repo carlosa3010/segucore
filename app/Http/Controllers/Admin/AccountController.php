@@ -8,8 +8,9 @@ use App\Models\Customer;
 use App\Models\AlarmPartition;
 use App\Models\PanelUser;
 use App\Models\AccountSchedule;
-use App\Models\AccountLog; // Importante para la bitácora
+use App\Models\AccountLog;
 use Illuminate\Http\Request;
+use Carbon\Carbon; // Necesario para formatear fechas si hace falta
 
 class AccountController extends Controller
 {
@@ -84,14 +85,14 @@ class AccountController extends Controller
      */
     public function show($id)
     {
-        // Cargamos todas las relaciones necesarias
+        // Cargamos todas las relaciones necesarias para la vista
         $account = AlarmAccount::with([
             'customer.contacts', 
             'zones.partition', 
             'partitions', 
             'panelUsers', 
             'schedules',
-            'logs.user' // Cargamos logs y el usuario que creó el log
+            'logs.user'
         ])->findOrFail($id);
             
         return view('admin.customers.accounts.show', compact('account'));
@@ -133,7 +134,6 @@ class AccountController extends Controller
         return back()->with('success', 'Notas operativas actualizadas.');
     }
 
-    // Nuevo método para guardar en la bitácora
     public function storeLog(Request $request, $id)
     {
         $account = AlarmAccount::findOrFail($id);
@@ -144,7 +144,7 @@ class AccountController extends Controller
         ]);
 
         $account->logs()->create([
-            'user_id' => auth()->id() ?? 1, // Fallback a 1 si no hay auth activo aún
+            'user_id' => auth()->id() ?? 1, // Fallback si no hay usuario logueado
             'type' => $request->type,
             'content' => $request->content
         ]);
@@ -207,15 +207,17 @@ class AccountController extends Controller
     }
 
     /**
-     * 7. GESTIÓN DE HORARIOS
+     * 7. GESTIÓN DE HORARIOS (TEMPORAL Y SEMANAL)
      */
+    
+    // Guardar Horario Temporal (Excepciones)
     public function storeTempSchedule(Request $request, $id)
     {
         $account = AlarmAccount::findOrFail($id);
         
         $request->validate([
             'reason' => 'required|string',
-            'valid_until' => 'required|date' // date maneja fecha y hora
+            'valid_until' => 'required|date' 
         ]);
 
         $account->schedules()->create([
@@ -230,6 +232,34 @@ class AccountController extends Controller
         return back()->with('success', 'Horario temporal creado.');
     }
 
+    // Guardar Horario Semanal (Lunes a Domingo)
+    public function storeWeeklySchedule(Request $request, $id)
+    {
+        $account = AlarmAccount::findOrFail($id);
+        
+        // 1. Limpiar horario semanal previo para evitar duplicados
+        $account->schedules()->where('type', 'weekly')->delete();
+
+        // 2. Recorrer los días enviados (1=Lunes a 7=Domingo)
+        if ($request->has('days')) {
+            foreach ($request->days as $day => $times) {
+                // Solo guardar si se definieron ambas horas
+                if (!empty($times['open']) && !empty($times['close'])) {
+                    $account->schedules()->create([
+                        'type' => 'weekly',
+                        'day_of_week' => $day, 
+                        'open_time' => $times['open'],
+                        'close_time' => $times['close'],
+                        'tolerance_minutes' => 30 // Valor por defecto
+                    ]);
+                }
+            }
+        }
+
+        return back()->with('success', 'Horario semanal actualizado correctamente.');
+    }
+
+    // Eliminar cualquier horario
     public function destroySchedule($id)
     {
         $schedule = AccountSchedule::findOrFail($id);
