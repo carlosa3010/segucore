@@ -10,7 +10,7 @@ use App\Models\PanelUser;
 use App\Models\AccountSchedule;
 use App\Models\AccountLog;
 use Illuminate\Http\Request;
-use Carbon\Carbon; // Necesario para formatear fechas si hace falta
+use Carbon\Carbon;
 
 class AccountController extends Controller
 {
@@ -76,6 +76,13 @@ class AccountController extends Controller
             'name' => 'Sistema General'
         ]);
 
+        // Auditoría Inicial
+        $account->logs()->create([
+            'user_id' => auth()->id() ?? 1,
+            'type' => 'note',
+            'content' => 'SISTEMA: Cuenta creada e inicializada.'
+        ]);
+
         return redirect()->route('admin.accounts.show', $account->id)
             ->with('success', 'Cuenta creada. Configura las zonas ahora.');
     }
@@ -92,7 +99,7 @@ class AccountController extends Controller
             'partitions', 
             'panelUsers', 
             'schedules',
-            'logs.user'
+            'logs.user' // Cargamos logs y el usuario que creó el log
         ])->findOrFail($id);
             
         return view('admin.customers.accounts.show', compact('account'));
@@ -131,6 +138,14 @@ class AccountController extends Controller
     {
         $account = AlarmAccount::findOrFail($id);
         $account->update($request->only(['permanent_notes', 'temporary_notes', 'temporary_notes_until']));
+        
+        // Auditoría
+        $account->logs()->create([
+            'user_id' => auth()->id() ?? 1,
+            'type' => 'note',
+            'content' => 'SISTEMA: Se actualizaron las notas operativas.'
+        ]);
+
         return back()->with('success', 'Notas operativas actualizadas.');
     }
 
@@ -144,7 +159,7 @@ class AccountController extends Controller
         ]);
 
         $account->logs()->create([
-            'user_id' => auth()->id() ?? 1, // Fallback si no hay usuario logueado
+            'user_id' => auth()->id() ?? 1,
             'type' => $request->type,
             'content' => $request->content
         ]);
@@ -168,18 +183,38 @@ class AccountController extends Controller
         }
 
         $account->partitions()->create($request->all()); 
+
+        // Auditoría
+        $account->logs()->create([
+            'user_id' => auth()->id() ?? 1,
+            'type' => 'note',
+            'content' => "SISTEMA: Se agregó el Área #{$request->partition_number} ({$request->name})."
+        ]);
+
         return back()->with('success', 'Partición agregada.');
     }
 
     public function destroyPartition($id)
     {
-        $partition = AlarmPartition::findOrFail($id);
+        $partition = AlarmPartition::with('account')->findOrFail($id);
+        $account = $partition->account;
         
         if($partition->partition_number == 1) {
             return back()->with('error', 'No se puede eliminar la Partición Principal (1).');
         }
 
+        $num = $partition->partition_number;
         $partition->delete();
+
+        // Auditoría
+        if($account) {
+            $account->logs()->create([
+                'user_id' => auth()->id() ?? 1,
+                'type' => 'note',
+                'content' => "SISTEMA: Se eliminó el Área #{$num}."
+            ]);
+        }
+
         return back()->with('success', 'Partición eliminada.');
     }
 
@@ -196,13 +231,34 @@ class AccountController extends Controller
         ]);
 
         $account->panelUsers()->create($validated);
+
+        // Auditoría
+        $account->logs()->create([
+            'user_id' => auth()->id() ?? 1,
+            'type' => 'note',
+            'content' => "SISTEMA: Se creó usuario de panel '{$validated['name']}' (Slot: {$validated['user_number']})."
+        ]);
+
         return back()->with('success', 'Usuario de panel agregado.');
     }
 
     public function destroyPanelUser($id)
     {
-        $user = PanelUser::findOrFail($id);
+        $user = PanelUser::with('account')->findOrFail($id);
+        $account = $user->account;
+        $name = $user->name;
+        
         $user->delete();
+
+        // Auditoría
+        if($account) {
+            $account->logs()->create([
+                'user_id' => auth()->id() ?? 1,
+                'type' => 'note',
+                'content' => "SISTEMA: Se eliminó el usuario de panel '{$name}'."
+            ]);
+        }
+
         return back()->with('success', 'Usuario de panel eliminado.');
     }
 
@@ -229,6 +285,13 @@ class AccountController extends Controller
             'valid_until' => $request->valid_until
         ]);
 
+        // Auditoría
+        $account->logs()->create([
+            'user_id' => auth()->id() ?? 1,
+            'type' => 'note',
+            'content' => "SISTEMA: Se creó un horario temporal por '{$request->reason}' hasta {$request->valid_until}."
+        ]);
+
         return back()->with('success', 'Horario temporal creado.');
     }
 
@@ -237,24 +300,30 @@ class AccountController extends Controller
     {
         $account = AlarmAccount::findOrFail($id);
         
-        // 1. Limpiar horario semanal previo para evitar duplicados
+        // 1. Limpiar horario semanal previo
         $account->schedules()->where('type', 'weekly')->delete();
 
         // 2. Recorrer los días enviados (1=Lunes a 7=Domingo)
         if ($request->has('days')) {
             foreach ($request->days as $day => $times) {
-                // Solo guardar si se definieron ambas horas
                 if (!empty($times['open']) && !empty($times['close'])) {
                     $account->schedules()->create([
                         'type' => 'weekly',
                         'day_of_week' => $day, 
                         'open_time' => $times['open'],
                         'close_time' => $times['close'],
-                        'tolerance_minutes' => 30 // Valor por defecto
+                        'tolerance_minutes' => 30
                     ]);
                 }
             }
         }
+
+        // Auditoría
+        $account->logs()->create([
+            'user_id' => auth()->id() ?? 1,
+            'type' => 'note',
+            'content' => "SISTEMA: Se actualizó la configuración del horario semanal."
+        ]);
 
         return back()->with('success', 'Horario semanal actualizado correctamente.');
     }
@@ -262,8 +331,21 @@ class AccountController extends Controller
     // Eliminar cualquier horario
     public function destroySchedule($id)
     {
-        $schedule = AccountSchedule::findOrFail($id);
+        $schedule = AccountSchedule::with('account')->findOrFail($id);
+        $account = $schedule->account;
+        $type = $schedule->type == 'temporary' ? 'Temporal' : 'Semanal';
+        
         $schedule->delete();
+
+        // Auditoría
+        if($account) {
+            $account->logs()->create([
+                'user_id' => auth()->id() ?? 1,
+                'type' => 'note',
+                'content' => "SISTEMA: Se eliminó una regla de horario ({$type})."
+            ]);
+        }
+
         return back()->with('success', 'Horario eliminado.');
     }
 }
