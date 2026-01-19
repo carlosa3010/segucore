@@ -8,6 +8,9 @@ use App\Models\Incident;
 use App\Models\IncidentLog; 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+// Asegúrate de importar los nuevos modelos arriba:
+use App\Models\IncidentResolution;
+    use App\Models\IncidentHoldReason;
 
 class IncidentController extends Controller
 {
