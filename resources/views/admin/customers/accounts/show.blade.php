@@ -19,18 +19,16 @@
         
         <div class="flex justify-between items-start relative z-10">
             <div class="flex gap-6">
-                <div class="bg-black/40 p-4 rounded text-center min-w-[120px] border border-gray-600 shadow-inner">
+                <div class="bg-black/40 p-4 rounded text-center min-w-[120px] border border-gray-600 flex flex-col justify-center shadow-inner">
                     <span class="block text-[10px] text-gray-500 uppercase tracking-widest mb-1">ABONADO</span>
                     <span class="text-3xl font-mono font-bold text-[#C6F211] tracking-wider">{{ $account->account_number }}</span>
-                    <div class="mt-2 text-center">
+                    <div class="mt-2 flex justify-center">
                         @if($account->service_status === 'active')
-                            <span class="text-[10px] text-green-400 font-bold uppercase flex justify-center items-center gap-1">
-                                <span class="animate-pulse h-2 w-2 rounded-full bg-green-500"></span> Online
-                            </span>
+                            <span class="animate-pulse h-2 w-2 rounded-full bg-green-500 inline-block mr-1"></span>
+                            <span class="text-[10px] text-green-400 font-bold uppercase">Online</span>
                         @else
-                            <span class="text-[10px] text-red-400 font-bold uppercase flex justify-center items-center gap-1">
-                                <span class="h-2 w-2 rounded-full bg-red-500"></span> Offline
-                            </span>
+                            <span class="h-2 w-2 rounded-full bg-red-500 inline-block mr-1"></span>
+                            <span class="text-[10px] text-red-400 font-bold uppercase">Offline</span>
                         @endif
                     </div>
                 </div>
@@ -44,13 +42,17 @@
                         <a href="{{ route('admin.customers.show', $account->customer_id) }}" class="text-blue-400 hover:text-white flex items-center gap-2 transition font-medium">
                             👤 <span class="underline">{{ $account->customer->full_name }}</span>
                         </a>
+                        <span class="text-gray-600">|</span>
+                        <span class="text-gray-300">📡 {{ $account->device_model ?? 'Modelo Genérico' }}</span>
                     </div>
                 </div>
             </div>
             
             @if($account->permanent_notes)
                 <div class="bg-red-900/10 border-l-4 border-red-500 p-4 max-w-md rounded-r shadow-lg backdrop-blur-sm">
-                    <h4 class="text-red-400 font-bold text-xs uppercase mb-1">⚠️ Nota Operativa</h4>
+                    <h4 class="text-red-400 font-bold text-xs uppercase mb-1 flex items-center gap-2">
+                        ⚠️ Nota Operativa Fija
+                    </h4>
                     <p class="text-white text-sm leading-relaxed">{{ $account->permanent_notes }}</p>
                 </div>
             @endif
@@ -68,48 +70,56 @@
     </div>
 
     <div x-show="activeTab === 'partitions'" x-cloak>
-        <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-5">
-            <h3 class="text-white font-bold text-lg mb-4">Particiones / Áreas</h3>
+        <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-5 shadow-lg">
+            <h3 class="text-white font-bold text-lg mb-4 border-b border-gray-700 pb-2">Configuración de Áreas</h3>
             
             <form action="{{ route('admin.accounts.partitions.store', $account->id) }}" method="POST" class="mb-6 bg-gray-900/50 p-4 rounded border border-gray-700 flex flex-col md:flex-row gap-4 items-end">
                 @csrf
                 <div class="w-full md:w-32">
-                    <label class="text-[10px] uppercase text-gray-500 font-bold mb-1">N° Área</label>
+                    <label class="text-[10px] uppercase text-gray-500 font-bold mb-1 block">N° Área</label>
                     <input type="number" name="partition_number" class="form-input text-center font-mono font-bold" min="1" max="8" value="{{ ($account->partitions->max('partition_number') ?? 0) + 1 }}" required>
                 </div>
                 <div class="flex-1 w-full">
-                    <label class="text-[10px] uppercase text-gray-500 font-bold mb-1">Nombre</label>
-                    <input type="text" name="name" class="form-input" placeholder="Ej: Anexo" required>
+                    <label class="text-[10px] uppercase text-gray-500 font-bold mb-1 block">Nombre (Ej: Casa, Oficina)</label>
+                    <input type="text" name="name" class="form-input" placeholder="Descripción del área" required>
                 </div>
-                <button type="submit" class="bg-[#C6F211] hover:bg-[#a3c90d] text-black font-bold py-2 px-6 rounded text-sm shadow-lg">Crear</button>
+                <button type="submit" class="bg-[#C6F211] hover:bg-[#a3c90d] text-black font-bold py-2 px-6 rounded text-sm h-[42px] shadow-lg">
+                    + Crear Área
+                </button>
             </form>
 
             <table class="w-full text-sm text-left text-gray-400">
                 <thead class="bg-gray-800 text-xs uppercase text-gray-300">
-                    <tr><th class="px-6 py-3">#</th><th class="px-6 py-3">Nombre</th><th class="px-6 py-3 text-right">Acción</th></tr>
+                    <tr>
+                        <th class="px-6 py-3">#</th>
+                        <th class="px-6 py-3">Nombre del Área</th>
+                        <th class="px-6 py-3 text-right">Acciones</th>
+                    </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-700">
-                    @foreach($account->partitions->sortBy('partition_number') as $part)
-                        <tr class="hover:bg-gray-700/30">
-                            <td class="px-6 py-4 font-mono text-white font-bold">{{ $part->partition_number }}</td>
-                            <td class="px-6 py-4 text-white">{{ $part->name }}</td>
+                    @forelse($account->partitions->sortBy('partition_number') as $part)
+                        <tr class="hover:bg-gray-700/30 transition">
+                            <td class="px-6 py-4 font-mono text-white font-bold text-lg bg-gray-800/30 w-16 text-center border-r border-gray-700">{{ $part->partition_number }}</td>
+                            <td class="px-6 py-4"><span class="text-white font-medium text-base">{{ $part->name }}</span></td>
                             <td class="px-6 py-4 text-right">
                                 @if($part->partition_number != 1)
                                     <form action="{{ route('admin.partitions.destroy', $part->id) }}" method="POST" onsubmit="return confirm('¿Eliminar partición? Se borrarán sus zonas.');" class="inline">
                                         @csrf @method('DELETE')
-                                        <button class="text-red-500 hover:text-red-300 font-bold">🗑️</button>
+                                        <button class="text-red-500 hover:text-red-300 font-bold" title="Eliminar">🗑️</button>
                                     </form>
                                 @endif
                             </td>
                         </tr>
-                    @endforeach
+                    @empty
+                        <tr><td colspan="3" class="px-6 py-8 text-center text-gray-500">Sin particiones. Crea la Partición 1.</td></tr>
+                    @endforelse
                 </tbody>
             </table>
         </div>
     </div>
 
     <div x-show="activeTab === 'zones'" x-cloak>
-        <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-5">
+        <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-5 shadow-lg">
             <h3 class="text-white font-bold text-lg mb-4 border-b border-gray-700 pb-2">Listado de Zonas</h3>
             
             <form action="{{ route('admin.accounts.zones.store', $account->id) }}" method="POST" class="mb-6 bg-gray-900/50 p-4 rounded border border-gray-700 grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
@@ -172,7 +182,7 @@
                             <td class="px-4 py-3 text-right">
                                 <form action="{{ route('admin.zones.destroy', $zone->id) }}" method="POST" onsubmit="return confirm('¿Borrar zona?');" class="inline">
                                     @csrf @method('DELETE')
-                                    <button class="text-red-500 opacity-0 group-hover:opacity-100 transition">🗑️</button>
+                                    <button class="text-red-500 hover:text-red-300 transition" title="Borrar">🗑️</button>
                                 </form>
                             </td>
                         </tr>
@@ -185,28 +195,30 @@
     </div>
 
     <div x-show="activeTab === 'users'" x-cloak>
-        <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-5">
-            <h3 class="text-white font-bold text-lg mb-4">Usuarios de Teclado</h3>
+        <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-5 shadow-lg">
+            <h3 class="text-white font-bold text-lg mb-4 border-b border-gray-700 pb-2">Usuarios de Teclado</h3>
             
             <form action="{{ route('admin.accounts.users.store', $account->id) }}" method="POST" class="mb-6 bg-gray-900/50 p-4 rounded border border-gray-700 flex gap-4 items-end">
                 @csrf
                 <div class="w-24">
-                    <label class="text-[10px] text-gray-500 mb-1 block">Slot #</label>
+                    <label class="text-[10px] uppercase text-gray-500 mb-1 block">Slot #</label>
                     <input type="text" name="user_number" class="form-input text-center font-mono" placeholder="001" required>
                 </div>
                 <div class="flex-1">
-                    <label class="text-[10px] text-gray-500 mb-1 block">Nombre</label>
-                    <input type="text" name="name" class="form-input" required>
+                    <label class="text-[10px] uppercase text-gray-500 mb-1 block">Nombre Usuario</label>
+                    <input type="text" name="name" class="form-input" placeholder="Ej: Gerente Pedro" required>
                 </div>
                 <div class="w-40">
-                    <label class="text-[10px] text-gray-500 mb-1 block">Rol</label>
+                    <label class="text-[10px] uppercase text-gray-500 mb-1 block">Rol</label>
                     <select name="role" class="form-input text-sm">
-                        <option value="user">Usuario</option>
+                        <option value="user">Usuario Estándar</option>
                         <option value="master">Maestro</option>
-                        <option value="duress">Coacción</option>
+                        <option value="duress">Coacción (Silencioso)</option>
                     </select>
                 </div>
-                <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded text-sm">+ Agregar</button>
+                <button type="submit" class="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-4 rounded text-sm h-[42px]">
+                    + Agregar
+                </button>
             </form>
 
             <table class="w-full text-sm text-left text-gray-400">
@@ -214,19 +226,23 @@
                     <tr><th class="px-4 py-3">Slot</th><th class="px-4 py-3">Nombre</th><th class="px-4 py-3">Rol</th><th class="px-4 py-3 text-right"></th></tr>
                 </thead>
                 <tbody class="divide-y divide-gray-700">
-                    @foreach($account->panelUsers as $user)
-                        <tr>
-                            <td class="px-4 py-3 font-mono text-white">{{ $user->user_number }}</td>
-                            <td class="px-4 py-3 text-white">{{ $user->name }}</td>
-                            <td class="px-4 py-3">{{ ucfirst($user->role) }}</td>
-                            <td class="px-4 py-3 text-right">
-                                <form action="{{ route('admin.accounts.users.destroy', $user->id) }}" method="POST" onsubmit="return confirm('¿Borrar?');">
-                                    @csrf @method('DELETE')
-                                    <button class="text-red-500 hover:text-white">🗑️</button>
-                                </form>
-                            </td>
-                        </tr>
-                    @endforeach
+                    @if($account->panelUsers && $account->panelUsers->count() > 0)
+                        @foreach($account->panelUsers->sortBy('user_number') as $user)
+                            <tr class="hover:bg-gray-700/30 group">
+                                <td class="px-4 py-3 font-mono text-white">{{ $user->user_number }}</td>
+                                <td class="px-4 py-3 text-white">{{ $user->name }}</td>
+                                <td class="px-4 py-3">{{ ucfirst($user->role) }}</td>
+                                <td class="px-4 py-3 text-right">
+                                    <form action="{{ route('admin.accounts.users.destroy', $user->id) }}" method="POST" onsubmit="return confirm('¿Borrar usuario?');" class="inline">
+                                        @csrf @method('DELETE')
+                                        <button class="text-red-500 hover:text-red-300 transition">🗑️</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        @endforeach
+                    @else
+                        <tr><td colspan="4" class="px-4 py-8 text-center text-gray-500">Sin usuarios registrados.</td></tr>
+                    @endif
                 </tbody>
             </table>
         </div>
@@ -236,36 +252,49 @@
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div class="space-y-3">
                 <h3 class="text-white font-bold mb-4">Lista de Contactos</h3>
-                @foreach($account->customer->contacts as $index => $contact)
-                    <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded border border-gray-600">
+                @forelse($account->customer->contacts as $index => $contact)
+                    <div class="flex items-center justify-between p-3 bg-gray-800/50 rounded border border-gray-600 hover:border-blue-500 transition group">
                         <div class="flex items-center gap-4">
-                            <div class="bg-blue-600 text-white w-6 h-6 rounded-full flex items-center justify-center font-bold text-xs">{{ $index + 1 }}</div>
+                            <div class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shadow-md">
+                                {{ $index + 1 }}
+                            </div>
                             <div>
                                 <p class="text-white text-sm font-bold">{{ $contact->name }}</p>
-                                <p class="text-xs text-gray-400">{{ $contact->relationship }}</p>
+                                <p class="text-xs text-gray-400 uppercase tracking-wider">{{ $contact->relationship }}</p>
                             </div>
                         </div>
                         <div class="text-right flex items-center gap-2">
-                            <p class="text-white font-mono text-sm mr-2">{{ $contact->phone }}</p>
-                            <form action="{{ route('admin.contacts.destroy', $contact->id) }}" method="POST" onsubmit="return confirm('¿Borrar contacto?');">
+                            <p class="text-white font-mono text-sm bg-black/20 px-2 py-1 rounded border border-gray-700">{{ $contact->phone }}</p>
+                            <form action="{{ route('admin.contacts.destroy', $contact->id) }}" method="POST" onsubmit="return confirm('¿Eliminar contacto?');" class="inline">
                                 @csrf @method('DELETE')
-                                <button class="text-red-500 hover:text-white text-xs">✕</button>
+                                <button class="text-red-400 hover:text-red-200 text-xs transition px-2">✕</button>
                             </form>
                         </div>
                     </div>
-                @endforeach
+                @empty
+                    <div class="text-center py-8 text-gray-500 border-2 border-dashed border-gray-700 rounded">No hay contactos.</div>
+                @endforelse
             </div>
 
             <div class="bg-gray-900/30 p-5 rounded border border-gray-700 h-fit">
                 <h4 class="text-gray-300 font-bold text-sm mb-4">Nuevo Contacto</h4>
                 <form action="{{ route('admin.customers.contacts.store', $account->customer_id) }}" method="POST" class="space-y-4">
                     @csrf
-                    <div><label class="text-[10px] text-gray-500 uppercase">Nombre</label><input type="text" name="name" class="form-input" required></div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><label class="text-[10px] text-gray-500 uppercase">Relación</label><input type="text" name="relationship" class="form-input" required></div>
-                        <div><label class="text-[10px] text-gray-500 uppercase">Teléfono</label><input type="text" name="phone" class="form-input" required></div>
+                    <div>
+                        <label class="text-[10px] text-gray-500 uppercase">Nombre Completo</label>
+                        <input type="text" name="name" class="form-input" required>
                     </div>
-                    <button type="submit" class="w-full bg-[#C6F211] hover:bg-[#a3c90d] text-black font-bold py-2 rounded text-sm">Guardar</button>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[10px] text-gray-500 uppercase">Relación</label>
+                            <input type="text" name="relationship" class="form-input" placeholder="Ej: Esposo" required>
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-500 uppercase">Teléfono</label>
+                            <input type="text" name="phone" class="form-input" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-[#C6F211] hover:bg-[#a3c90d] text-black font-bold py-2 rounded text-sm shadow">Guardar Contacto</button>
                 </form>
             </div>
         </div>
@@ -274,8 +303,8 @@
     <div x-show="activeTab === 'schedule'" x-cloak>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-6 text-center shadow-lg">
-                <div class="h-12 w-12 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">📅</div>
+            <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-6 text-center shadow-lg group">
+                <div class="h-12 w-12 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl group-hover:bg-blue-600 group-hover:text-white transition">📅</div>
                 <h3 class="text-white font-bold text-lg mb-2">Horario Semanal</h3>
                 <p class="text-gray-500 text-sm mb-6">Apertura y cierre habitual (Lunes a Domingo).</p>
                 <button @click="showWeeklyModal = true" class="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded font-bold transition w-full">
@@ -283,17 +312,21 @@
                 </button>
             </div>
 
-            <div class="bg-[#1e293b] rounded-lg border border-purple-500/30 p-6 shadow-lg">
-                <h3 class="text-white font-bold text-lg flex items-center gap-2 mb-4">
-                    <span class="text-purple-400">🚀</span> Horario Temporal
-                </h3>
+            <div class="bg-[#1e293b] rounded-lg border border-purple-500/30 p-6 shadow-lg relative">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="h-10 w-10 bg-purple-900/40 rounded-full flex items-center justify-center text-xl text-purple-300">🚀</div>
+                    <div>
+                        <h3 class="text-white font-bold text-lg">Horario Temporal</h3>
+                        <p class="text-[10px] text-purple-400 font-bold uppercase tracking-wider">Prioridad Alta</p>
+                    </div>
+                </div>
                 
-                <div class="space-y-2 mb-4">
+                <div class="mb-4 space-y-2">
                     @foreach($account->schedules->where('type', 'temporary') as $sched)
                         <div class="flex justify-between items-center bg-purple-900/20 p-2 rounded border border-purple-500/30 text-xs">
                             <div>
                                 <span class="text-purple-200 font-bold block">{{ $sched->reason }}</span>
-                                <span class="text-gray-400">Vence: {{ $sched->valid_until->format('d/m/Y') }}</span>
+                                <span class="text-gray-400">Vence: {{ optional($sched->valid_until)->format('d/m/Y') }}</span>
                             </div>
                             <form action="{{ route('admin.schedules.destroy', $sched->id) }}" method="POST">
                                 @csrf @method('DELETE')
@@ -305,13 +338,25 @@
 
                 <form action="{{ route('admin.accounts.schedules.temp.store', $account->id) }}" method="POST" class="space-y-4">
                     @csrf
-                    <div><label class="text-[10px] text-gray-500 uppercase">Motivo</label><input type="text" name="reason" class="form-input bg-gray-900 border-gray-600" required></div>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div><label class="text-[10px] text-gray-500 uppercase">Apertura</label><input type="time" name="open_time" class="form-input bg-gray-900 border-gray-600"></div>
-                        <div><label class="text-[10px] text-gray-500 uppercase">Cierre</label><input type="time" name="close_time" class="form-input bg-gray-900 border-gray-600"></div>
+                    <div>
+                        <label class="text-[10px] text-gray-500 uppercase block mb-1">Motivo (Ej: Inventario)</label>
+                        <input type="text" name="reason" class="form-input bg-gray-900 border-gray-600" required>
                     </div>
-                    <div><label class="text-[10px] text-gray-500 uppercase">Válido Hasta</label><input type="date" name="valid_until" class="form-input bg-gray-900 border-gray-600" required></div>
-                    <button type="submit" class="w-full bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded font-bold mt-2">Crear Excepción</button>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[10px] text-gray-500 uppercase block mb-1">Apertura</label>
+                            <input type="time" name="open_time" class="form-input bg-gray-900 border-gray-600">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-500 uppercase block mb-1">Cierre</label>
+                            <input type="time" name="close_time" class="form-input bg-gray-900 border-gray-600">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-gray-500 uppercase block mb-1">Válido Hasta</label>
+                        <input type="date" name="valid_until" class="form-input bg-gray-900 border-gray-600" required>
+                    </div>
+                    <button type="submit" class="w-full bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded font-bold transition shadow-lg mt-2">Crear Excepción</button>
                 </form>
             </div>
         </div>
@@ -321,20 +366,25 @@
         <form action="{{ route('admin.accounts.notes.update', $account->id) }}" method="POST" class="grid grid-cols-1 md:grid-cols-2 gap-6">
             @csrf @method('PUT')
             
-            <div class="bg-[#1e293b] rounded-lg border border-red-900/30 p-5 shadow-lg">
-                <h3 class="text-red-400 font-bold mb-2">⚠️ Nota Permanente</h3>
-                <textarea name="permanent_notes" class="form-input bg-gray-900/50 border-gray-700 text-white h-40">{{ $account->permanent_notes }}</textarea>
+            <div class="bg-[#1e293b] rounded-lg border border-red-900/30 p-5 shadow-lg relative">
+                <div class="absolute top-0 left-0 w-1 h-full bg-red-500 rounded-l-lg"></div>
+                <h3 class="text-red-400 font-bold mb-2 flex items-center gap-2">⚠️ Nota Permanente</h3>
+                <textarea name="permanent_notes" class="form-input bg-gray-900/50 border-gray-700 text-white h-40 focus:border-red-500 transition resize-none">{{ $account->permanent_notes }}</textarea>
             </div>
 
-            <div class="bg-[#1e293b] rounded-lg border border-yellow-900/30 p-5 shadow-lg">
-                <h3 class="text-yellow-400 font-bold mb-2">⏳ Nota Temporal</h3>
-                <textarea name="temporary_notes" class="form-input bg-gray-900/50 border-gray-700 text-white h-24 mb-3">{{ $account->temporary_notes }}</textarea>
-                <label class="text-xs text-gray-400">Válida hasta:</label>
-                <input type="datetime-local" name="temporary_notes_until" class="form-input bg-gray-900 text-xs" value="{{ $account->temporary_notes_until }}">
+            <div class="bg-[#1e293b] rounded-lg border border-yellow-900/30 p-5 shadow-lg relative">
+                <div class="absolute top-0 left-0 w-1 h-full bg-yellow-500 rounded-l-lg"></div>
+                <h3 class="text-yellow-400 font-bold mb-2 flex items-center gap-2">⏳ Nota Temporal</h3>
+                <textarea name="temporary_notes" class="form-input bg-gray-900/50 border-gray-700 text-white h-24 focus:border-yellow-500 transition resize-none mb-3">{{ $account->temporary_notes }}</textarea>
+                
+                <div class="flex items-center gap-3">
+                    <label class="text-xs text-gray-400 whitespace-nowrap">Válida hasta:</label>
+                    <input type="datetime-local" name="temporary_notes_until" class="form-input bg-gray-900 text-xs" value="{{ $account->temporary_notes_until }}">
+                </div>
             </div>
 
             <div class="md:col-span-2 text-right">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded font-bold shadow-lg">Guardar Notas</button>
+                <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded font-bold shadow-lg transition transform hover:scale-105">💾 Guardar Notas</button>
             </div>
         </form>
     </div>
@@ -377,14 +427,56 @@
         </div>
     </div>
 
-    <div x-show="showWeeklyModal" style="display: none;" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-        <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-6 w-full max-w-2xl shadow-2xl" @click.away="showWeeklyModal = false">
-            <h3 class="text-white font-bold text-xl mb-4">Configuración Semanal</h3>
-            <p class="text-gray-400 text-sm mb-4">Aquí iría una tabla de Lunes a Domingo con inputs de hora para cada día. (Funcionalidad pendiente de implementar en controlador).</p>
-            <div class="flex justify-end gap-2">
-                <button @click="showWeeklyModal = false" class="px-4 py-2 text-gray-300 hover:text-white">Cancelar</button>
-                <button class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold">Guardar Cambios</button>
-            </div>
+    <div x-show="showWeeklyModal" style="display: none;" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0 scale-90"
+         x-transition:enter-end="opacity-100 scale-100">
+         
+        <div class="bg-[#1e293b] rounded-lg border border-gray-700 w-full max-w-3xl shadow-2xl overflow-hidden" @click.away="showWeeklyModal = false">
+            <form action="{{ route('admin.accounts.schedules.weekly.store', $account->id) }}" method="POST">
+                @csrf
+                <div class="p-6 border-b border-gray-700 bg-gray-800">
+                    <h3 class="text-white font-bold text-xl">Configuración de Horario Semanal</h3>
+                    <p class="text-gray-400 text-sm">Define las horas de apertura y cierre esperadas. Deja en blanco los días que el local permanece cerrado.</p>
+                </div>
+                
+                <div class="p-6 max-h-[60vh] overflow-y-auto">
+                    <table class="w-full text-sm text-gray-300">
+                        <thead>
+                            <tr class="text-xs uppercase text-gray-500 border-b border-gray-700">
+                                <th class="text-left py-2">Día</th>
+                                <th class="text-center py-2">Apertura</th>
+                                <th class="text-center py-2">Cierre</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-700">
+                            @php
+                                $days = [1 => 'Lunes', 2 => 'Martes', 3 => 'Miércoles', 4 => 'Jueves', 5 => 'Viernes', 6 => 'Sábado', 7 => 'Domingo'];
+                                // Helper para obtener hora guardada safely
+                                $getOpen = fn($d) => optional($account->schedules->where('type', 'weekly')->where('day_of_week', $d)->first())->open_time ? \Carbon\Carbon::parse($account->schedules->where('type', 'weekly')->where('day_of_week', $d)->first()->open_time)->format('H:i') : '';
+                                $getClose = fn($d) => optional($account->schedules->where('type', 'weekly')->where('day_of_week', $d)->first())->close_time ? \Carbon\Carbon::parse($account->schedules->where('type', 'weekly')->where('day_of_week', $d)->first()->close_time)->format('H:i') : '';
+                            @endphp
+
+                            @foreach($days as $num => $name)
+                                <tr class="hover:bg-gray-700/30 transition">
+                                    <td class="py-3 font-medium text-white">{{ $name }}</td>
+                                    <td class="py-3 text-center">
+                                        <input type="time" name="days[{{ $num }}][open]" value="{{ $getOpen($num) }}" class="bg-gray-900 border border-gray-600 rounded text-center text-white px-2 py-1 focus:border-blue-500 focus:outline-none">
+                                    </td>
+                                    <td class="py-3 text-center">
+                                        <input type="time" name="days[{{ $num }}][close]" value="{{ $getClose($num) }}" class="bg-gray-900 border border-gray-600 rounded text-center text-white px-2 py-1 focus:border-blue-500 focus:outline-none">
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="p-4 bg-gray-800 border-t border-gray-700 flex justify-end gap-3">
+                    <button type="button" @click="showWeeklyModal = false" class="px-4 py-2 text-gray-400 hover:text-white transition">Cancelar</button>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded font-bold shadow-lg">Guardar Horario</button>
+                </div>
+            </form>
         </div>
     </div>
 
