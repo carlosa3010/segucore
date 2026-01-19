@@ -7,11 +7,13 @@
     
     <div class="flex justify-between items-end mb-2 px-2 shrink-0">
         <h1 class="text-xl font-bold text-white flex items-center gap-2">
-            @if($pendingEvents->count() > 0)
-                <span class="w-3 h-3 bg-red-500 rounded-full animate-ping"></span> 
-            @else
-                <span class="w-3 h-3 bg-green-500 rounded-full"></span> 
-            @endif
+            <span id="console-status">
+                @if($pendingEvents->count() > 0)
+                    <span class="w-3 h-3 bg-red-500 rounded-full animate-ping"></span> 
+                @else
+                    <span class="w-3 h-3 bg-green-500 rounded-full"></span> 
+                @endif
+            </span>
             Cola de Eventos
         </h1>
         
@@ -28,8 +30,6 @@
         
         <div class="lg:col-span-3 bg-slate-950 border border-slate-800 rounded flex flex-col overflow-hidden relative">
             
-            <audio id="siren-sound" src="{{ asset('sounds/alert.mp3') }}" preload="auto" loop></audio>
-
             <div class="grid grid-cols-12 gap-2 bg-slate-900 px-4 py-2 text-xs font-bold text-slate-400 uppercase border-b border-slate-800 shrink-0">
                 <div class="col-span-1">Prioridad</div>
                 <div class="col-span-1">Hora</div>
@@ -39,7 +39,7 @@
                 <div class="col-span-1 text-right">Acción</div>
             </div>
 
-            <div class="overflow-y-auto flex-1 p-0 scroll-smooth">
+            <div id="pending-events-list" class="overflow-y-auto flex-1 p-0 scroll-smooth">
                 @forelse($pendingEvents as $event)
                     <div class="grid grid-cols-12 gap-2 items-center px-4 py-2 border-b border-slate-800/50 hover:bg-slate-800 transition text-sm group
                         {{ $event->siaCode->priority >= 4 ? 'bg-red-900/10 border-l-2 border-l-red-500 animate-pulse' : 'border-l-2 border-l-slate-700' }}">
@@ -88,9 +88,10 @@
         <div class="lg:col-span-1 bg-slate-900 border border-slate-800 rounded flex flex-col">
             <div class="bg-slate-800 px-3 py-2 text-xs font-bold text-white border-b border-slate-700 flex justify-between shrink-0">
                 <span>Mis Casos Activos</span>
-                <span class="bg-slate-600 px-1.5 rounded-full">{{ count($myIncidents) }}</span>
+                <span id="my-incidents-count" class="bg-slate-600 px-1.5 rounded-full">{{ count($myIncidents) }}</span>
             </div>
-            <div class="overflow-y-auto flex-1 p-2 space-y-2">
+            
+            <div id="my-incidents-list" class="overflow-y-auto flex-1 p-2 space-y-2">
                 @foreach($myIncidents as $inc)
                     <div class="bg-slate-950 p-3 rounded border-l-2 {{ $inc->status == 'police_dispatched' ? 'border-red-500' : 'border-yellow-500' }} hover:border-blue-400 transition cursor-pointer relative"
                          onclick="window.location='{{ route('admin.operations.manage', $inc->id) }}'">
@@ -165,21 +166,34 @@
 </dialog>
 
 <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        // 1. Recarga Automática
-        setTimeout(() => window.location.reload(), 15000);
+    // Lógica de Refresco en Segundo Plano (AJAX)
+    // Actualiza solo los contenedores de eventos sin recargar la página entera.
+    setInterval(() => {
+        fetch(window.location.href)
+            .then(response => response.text())
+            .then(html => {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(html, 'text/html');
 
-        // 2. Lógica de Alerta Sonora
-        // Verificar si hay eventos de Alta Prioridad (Pánico/Robo) en la lista renderizada
-        const hasHighPriority = document.querySelector('.animate-pulse') !== null;
-        const siren = document.getElementById('siren-sound');
+                // 1. Actualizar Cola de Eventos
+                const newPending = doc.getElementById('pending-events-list').innerHTML;
+                const currentPending = document.getElementById('pending-events-list');
+                if (currentPending.innerHTML !== newPending) {
+                    currentPending.innerHTML = newPending;
+                }
 
-        if (hasHighPriority && siren) {
-            // Intentar reproducir sonido (Requiere interacción previa del usuario en la mayoría de navegadores)
-            siren.play().catch(error => {
-                console.log("Autoplay bloqueado por el navegador. Haga clic en la página para activar audio.");
-            });
-        }
-    });
+                // 2. Actualizar Mis Incidentes
+                const newIncidents = doc.getElementById('my-incidents-list').innerHTML;
+                document.getElementById('my-incidents-list').innerHTML = newIncidents;
+
+                // 3. Actualizar Indicadores (Punto rojo/verde y contador)
+                const newStatus = doc.getElementById('console-status').innerHTML;
+                document.getElementById('console-status').innerHTML = newStatus;
+
+                const newCount = doc.getElementById('my-incidents-count').innerHTML;
+                document.getElementById('my-incidents-count').innerHTML = newCount;
+            })
+            .catch(err => console.error('Error actualizando consola:', err));
+    }, 15000); // 15 Segundos
 </script>
 @endsection
