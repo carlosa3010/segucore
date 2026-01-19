@@ -86,6 +86,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::post('/incidents/{id}/take', [IncidentController::class, 'take'])->name('incidents.take');
     Route::get('/incidents/{id}/manage', [IncidentController::class, 'manage'])->name('operations.manage');
     Route::post('/incidents/{id}/close', [IncidentController::class, 'close'])->name('incidents.close');
+    Route::post('/operations/incident/{id}/hold', [IncidentController::class, 'hold'])->name('admin.incidents.hold');
 
     // 6. Configuración del Sistema (Códigos SIA)
     Route::resource('sia-codes', SiaCodeController::class);
