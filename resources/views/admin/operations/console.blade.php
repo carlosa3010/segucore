@@ -7,7 +7,11 @@
     
     <div class="flex justify-between items-end mb-2 px-2 shrink-0">
         <h1 class="text-xl font-bold text-white flex items-center gap-2">
-            <span class="w-3 h-3 bg-red-500 rounded-full animate-ping"></span> 
+            @if($pendingEvents->count() > 0)
+                <span class="w-3 h-3 bg-red-500 rounded-full animate-ping"></span> 
+            @else
+                <span class="w-3 h-3 bg-green-500 rounded-full"></span> 
+            @endif
             Cola de Eventos
         </h1>
         
@@ -22,7 +26,10 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-4 gap-2 h-full overflow-hidden">
         
-        <div class="lg:col-span-3 bg-slate-950 border border-slate-800 rounded flex flex-col overflow-hidden">
+        <div class="lg:col-span-3 bg-slate-950 border border-slate-800 rounded flex flex-col overflow-hidden relative">
+            
+            <audio id="siren-sound" src="{{ asset('sounds/alert.mp3') }}" preload="auto" loop></audio>
+
             <div class="grid grid-cols-12 gap-2 bg-slate-900 px-4 py-2 text-xs font-bold text-slate-400 uppercase border-b border-slate-800 shrink-0">
                 <div class="col-span-1">Prioridad</div>
                 <div class="col-span-1">Hora</div>
@@ -35,7 +42,7 @@
             <div class="overflow-y-auto flex-1 p-0 scroll-smooth">
                 @forelse($pendingEvents as $event)
                     <div class="grid grid-cols-12 gap-2 items-center px-4 py-2 border-b border-slate-800/50 hover:bg-slate-800 transition text-sm group
-                        {{ $event->siaCode->priority >= 4 ? 'bg-red-900/10 border-l-2 border-l-red-500' : 'border-l-2 border-l-slate-700' }}">
+                        {{ $event->siaCode->priority >= 4 ? 'bg-red-900/10 border-l-2 border-l-red-500 animate-pulse' : 'border-l-2 border-l-slate-700' }}">
                         
                         <div class="col-span-1">
                             @if($event->siaCode->priority >= 5) <span class="bg-red-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold animate-pulse">PÁNICO</span>
@@ -158,7 +165,21 @@
 </dialog>
 
 <script>
-    // Recarga automática simple (Fase 1)
-    setTimeout(() => window.location.reload(), 15000);
+    document.addEventListener('DOMContentLoaded', () => {
+        // 1. Recarga Automática
+        setTimeout(() => window.location.reload(), 15000);
+
+        // 2. Lógica de Alerta Sonora
+        // Verificar si hay eventos de Alta Prioridad (Pánico/Robo) en la lista renderizada
+        const hasHighPriority = document.querySelector('.animate-pulse') !== null;
+        const siren = document.getElementById('siren-sound');
+
+        if (hasHighPriority && siren) {
+            // Intentar reproducir sonido (Requiere interacción previa del usuario en la mayoría de navegadores)
+            siren.play().catch(error => {
+                console.log("Autoplay bloqueado por el navegador. Haga clic en la página para activar audio.");
+            });
+        }
+    });
 </script>
 @endsection
