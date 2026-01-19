@@ -6,31 +6,30 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
-{
-    Schema::create('incidents', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('alarm_account_id')->constrained('alarm_accounts');
-        $table->foreignId('alarm_event_id')->nullable(); // Evento disparador
-        
-        $table->foreignId('operator_id')->constrained('users'); // Quién lo trabaja
-        
-        $table->enum('status', ['open', 'monitoring', 'police_dispatched', 'closed'])->default('open');
-        $table->string('resolution_code')->nullable(); // FALSA_ALARMA, REAL, TEST
-        
-        $table->timestamp('started_at')->useCurrent();
-        $table->timestamp('closed_at')->nullable();
-        
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('incidents', function (Blueprint $table) {
+            $table->id();
+            
+            // RELACIONES
+            $table->foreignId('alarm_event_id')->constrained('alarm_events')->onDelete('cascade');
+            $table->foreignId('alarm_account_id')->constrained('alarm_accounts'); // Obligatorio
+            $table->foreignId('customer_id')->nullable()->constrained('customers'); // <--- AGREGADO
+            $table->foreignId('operator_id')->nullable()->constrained('users');     // <--- AHORA ES NULLABLE (Para cuando se crea auto)
+            
+            // ESTADO Y GESTIÓN
+            $table->string('status')->default('open'); // 'open', 'in_progress', 'closed'
+            $table->string('result')->nullable();      // 'false_alarm', 'real', etc.
+            $table->text('notes')->nullable();         // Notas de resolución
+            
+            // TIEMPOS
+            $table->timestamp('started_at')->useCurrent();
+            $table->timestamp('closed_at')->nullable();
+            
+            $table->timestamps();
+        });
+    }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('incidents');
