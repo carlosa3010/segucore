@@ -266,5 +266,30 @@ class GpsDeviceController extends Controller
     }
 
 
-    
+   /**
+     * 12. EXPORTAR HISTORIAL A PDF
+     */
+    public function exportHistoryPdf(Request $request, $id)
+    {
+        $device = GpsDevice::with('customer')->findOrFail($id);
+        
+        $from = $request->input('from') ? \Carbon\Carbon::parse($request->input('from')) : now()->subHours(12);
+        $to = $request->input('to') ? \Carbon\Carbon::parse($request->input('to')) : now();
+
+        // Obtener datos (Reutilizamos lógica, pero directo para la vista)
+        $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
+        $positions = collect([]);
+
+        if ($traccarDevice) {
+            $positions = TraccarPosition::where('deviceid', $traccarDevice->id)
+                ->whereBetween('fixtime', [$from->copy()->setTimezone('UTC'), $to->copy()->setTimezone('UTC')])
+                ->orderBy('fixtime', 'asc')
+                ->get();
+        }
+
+        // Generar PDF
+        $pdf = Pdf::loadView('admin.gps.devices.pdf_history', compact('device', 'positions', 'from', 'to'));
+        
+        return $pdf->download("Historial_{$device->name}_{$from->format('Ymd')}.pdf");
+    } 
 }
