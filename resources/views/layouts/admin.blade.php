@@ -122,6 +122,11 @@
 
             <div class="mt-6">
                 <h3 class="px-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-800 pb-1 mb-2">Seguridad Física</h3>
+                
+                <a href="{{ route('admin.security.map.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-blue-400 hover:bg-blue-900/20 hover:text-blue-300 {{ request()->routeIs('admin.security.map.*') ? 'active' : '' }}">
+                    <span class="mr-3 text-lg animate-pulse">🌐</span> Mapa Táctico
+                </a>
+
                 <a href="{{ route('admin.patrols.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white {{ request()->routeIs('admin.patrols.*') ? 'active' : '' }}">
                     <span class="mr-3">🚓</span> Patrullas
                 </a>
