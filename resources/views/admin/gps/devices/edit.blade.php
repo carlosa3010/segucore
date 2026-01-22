@@ -17,7 +17,7 @@
             <div class="mb-6 p-4 bg-slate-900/50 rounded border border-slate-700 flex justify-between items-center">
                 <div>
                     <span class="block text-xs text-slate-500 uppercase">Identificador (IMEI)</span>
-                    <span class="text-lg font-mono text-yellow-500">{{ $device->unique_id }}</span>
+                    <span class="text-lg font-mono text-yellow-500">{{ $device->imei }}</span>
                 </div>
                 <div>
                     <span class="block text-xs text-slate-500 uppercase">Cliente</span>

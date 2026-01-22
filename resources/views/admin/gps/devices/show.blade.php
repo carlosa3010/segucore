@@ -14,7 +14,7 @@
                 
                 <div class="space-y-3 text-sm text-slate-300">
                     <div class="flex justify-between">
-                        <span>IMEI:</span> <span class="font-mono text-yellow-500">{{ $device->unique_id }}</span>
+                        <span>IMEI:</span> <span class="font-mono text-yellow-500">{{ $device->imei }}</span>
                     </div>
                     <div class="flex justify-between">
                         <span>Placa:</span> <span class="font-bold">{{ $device->plate_number ?? 'N/A' }}</span>
