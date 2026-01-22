@@ -21,7 +21,8 @@ class GpsDevice extends Model
         'driver_name',
         'installation_date',
         'subscription_status'
-        'plate_number', 'speed_limit', 'odometer',
+        'plate_number',
+         'speed_limit', 'odometer',
     ];
 
     public function customer()
