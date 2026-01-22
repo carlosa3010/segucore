@@ -229,38 +229,26 @@ class GpsDeviceController extends Controller
     {
         $device = GpsDevice::findOrFail($id);
         
-        // ZONA HORARIA DE TU PAÍS (Ajusta si es necesario)
-        $tz = 'America/Caracas'; 
-
-        // 1. Procesar fechas: Convertir Entrada (Local) -> Query (UTC)
-        if ($request->filled('from') && $request->filled('to')) {
-            // Si el usuario eligió fechas, asumimos que están en su hora local
-            $from = \Carbon\Carbon::parse($request->input('from'), $tz)->setTimezone('UTC');
-            $to = \Carbon\Carbon::parse($request->input('to'), $tz)->setTimezone('UTC');
-        } else {
-            // Default: Últimas 12 horas (Calculado desde ahora)
-            $from = now()->subHours(12)->setTimezone('UTC');
-            $to = now()->setTimezone('UTC');
-        }
+        $from = $request->input('from') ?: now()->subHours(12);
+        $to = $request->input('to') ?: now();
 
         $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
         if (!$traccarDevice) return response()->json([]);
 
-        // 2. Consulta a BD (Usando tiempos UTC)
         $positions = TraccarPosition::where('deviceid', $traccarDevice->id)
             ->whereBetween('fixtime', [$from, $to])
-            ->orderBy('fixtime', 'asc') 
+            ->orderBy('fixtime', 'asc') // Orden cronológico para dibujar la ruta correctamente
             ->get()
-            ->map(function ($p) use ($tz) {
+            ->map(function ($p) {
                 return [
                     'lat' => $p->latitude,
                     'lng' => $p->longitude,
-                    'speed' => round($p->speed * 1.852), // Nudos a Km/h
-                    // 3. Salida: Convertir DB (UTC) -> Visualización (Local)
-                    'time' => \Carbon\Carbon::parse($p->fixtime)->setTimezone($tz)->format('d/m H:i'),
+                    'speed' => round($p->speed * 1.852), // Km/h
+                    'time' => \Carbon\Carbon::parse($p->fixtime)->format('d/m H:i'),
                     'course' => $p->course
                 ];
             });
 
         return response()->json($positions);
     }
+}
