@@ -23,9 +23,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('gps_devices', function (Blueprint $table) {
-            // Eliminamos las columnas si se revierte la migración
-            $table->dropColumn(['speed_limit', 'odometer']);
-        });
+        
     }
 };
