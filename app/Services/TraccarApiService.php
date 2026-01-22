@@ -13,6 +13,7 @@ class TraccarApiService
 
     public function __construct()
     {
+        // Usa las claves que confirmaste que funcionan en tu entorno
         $this->baseUrl = config('services.traccar.base_url');
         $this->user = config('services.traccar.user');
         $this->password = config('services.traccar.password');
@@ -106,5 +107,29 @@ class TraccarApiService
         }
 
         return true;
+    }
+
+    /**
+     * 4. Crear Geocerca (NUEVO: Requerido por GeofenceController)
+     * @param string $name Nombre de la zona
+     * @param string $area Cadena WKT (POLYGON((...)))
+     */
+    public function createGeofence($name, $area, $description = '')
+    {
+        $response = $this->client()->post("{$this->baseUrl}/geofences", [
+            'name' => $name,
+            'area' => $area,
+            'description' => $description,
+        ]);
+
+        if ($response->successful()) {
+            return $response->json()['id']; // Retorna el ID creado en Traccar
+        }
+
+        // Loguear error para debug
+        Log::error('Error creando geocerca en Traccar: ' . $response->body());
+        
+        // No lanzamos excepción para que no rompa la app, pero retornamos null
+        return null;
     }
 }
