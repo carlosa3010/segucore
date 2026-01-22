@@ -30,6 +30,11 @@ class GpsDevice extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    public function driver()
+    {
+        return $this->belongsTo(Driver::class);
+    }
+
     // Relación con Traccar
     public function traccarData()
     {
