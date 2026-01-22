@@ -19,7 +19,9 @@ use App\Http\Controllers\Admin\GpsDeviceController;
 use App\Http\Controllers\Admin\FleetController;
 use App\Http\Controllers\Admin\DriverController;
 use App\Http\Controllers\Admin\GeofenceController;
-use App\Http\Controllers\Admin\DeviceAlertController; // <--- AGREGADO
+use App\Http\Controllers\Admin\DeviceAlertController;
+use App\Http\Controllers\Admin\PatrolController; // <--- NUEVO
+use App\Http\Controllers\Admin\GuardController;  // <--- NUEVO
 
 /*
 |--------------------------------------------------------------------------
@@ -125,23 +127,21 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     });
 
     // 7. MÓDULO DE RASTREO GPS Y FLOTAS
-    // ----------------------------------------------------
     Route::prefix('gps')->name('gps.')->group(function () {
-        // Dispositivos Individuales
         Route::resource('devices', GpsDeviceController::class);
         
-        // Comandos Remotos (AJAX)
+        // Comandos Remotos
         Route::post('devices/{id}/command', [GpsDeviceController::class, 'sendCommand'])->name('devices.command');
 
-        // Historial de Ruta (AJAX para Mapa)
+        // Historial de Ruta
         Route::get('devices/{id}/route', [GpsDeviceController::class, 'getRoute'])->name('devices.route');
         
-        // --- Historial & Reportes ---
+        // Historial & Reportes
         Route::get('devices/{id}/history', [GpsDeviceController::class, 'history'])->name('devices.history');
         Route::get('devices/{id}/history-data', [GpsDeviceController::class, 'getHistoryData'])->name('devices.history-data');
         Route::get('devices/{id}/history/pdf', [GpsDeviceController::class, 'exportHistoryPdf'])->name('devices.history.pdf');
 
-        // Gestión de Flotas (Mapa Global)
+        // Flotas
         Route::get('/fleet', [FleetController::class, 'index'])->name('fleet.index');
         Route::get('/fleet/positions', [FleetController::class, 'positions'])->name('fleet.positions');
     });
@@ -154,6 +154,10 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
     // 10. ALERTAS
     Route::get('alerts', [DeviceAlertController::class, 'index'])->name('alerts.index');
+
+    // 11. SEGURIDAD FÍSICA (NUEVO)
+    Route::resource('patrols', PatrolController::class);
+    Route::resource('guards', GuardController::class);
 
 });
 
