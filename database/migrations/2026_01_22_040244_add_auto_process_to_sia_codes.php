@@ -9,12 +9,11 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
-    {
-        Schema::table('sia_codes', function (Blueprint $table) {
-            //
-        });
-    }
+    public function up(): void {
+    Schema::table('sia_codes', function (Blueprint $table) {
+        $table->boolean('auto_process')->default(false)->after('priority');
+    });
+}
 
     /**
      * Reverse the migrations.
