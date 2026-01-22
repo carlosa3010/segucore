@@ -11,14 +11,15 @@ class GpsDevice extends Model
 
     protected $fillable = [
         'customer_id',
+        'driver_id', // <--- IMPORTANTE: Agregado para poder guardar el conductor seleccionado
         'name',
-        'imei', // <--- CAMBIO AQUI
+        'imei',
         'phone_number',
         'sim_card_id',
         'device_model',
         'plate_number',
         'vehicle_type',
-        'driver_name',
+        'driver_name', // (Legacy) Mantenemos por si acaso, pero usaremos driver_id
         'installation_date',
         'subscription_status',
         'speed_limit',
@@ -33,6 +34,12 @@ class GpsDevice extends Model
     public function driver()
     {
         return $this->belongsTo(Driver::class);
+    }
+
+    // Relación con Geocercas (Muchos a Muchos) - NUEVO
+    public function geofences()
+    {
+        return $this->belongsToMany(Geofence::class, 'geofence_gps_device');
     }
 
     // Relación con Traccar
