@@ -4,18 +4,18 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AlarmEvent;
-use App\Models\AlarmAccount; // Necesario
+use App\Models\AlarmAccount;
 use App\Models\Customer;
 use App\Models\Incident;
 use App\Models\SiaCode;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB; // Para estadísticas
+use Illuminate\Support\Facades\DB;
 
 class ReportController extends Controller
 {
     /**
-     * Aplica los filtros comunes a la consulta
+     * Aplica filtros comunes para Index y Reportes PDF.
      */
     private function applyFilters($query, Request $request)
     {
@@ -28,11 +28,8 @@ class ReportController extends Controller
 
         // 2. Cuenta Específica (NUEVO)
         if ($request->filled('account_id')) {
-            $query->where('account_number', function($q) use ($request) {
-                $q->select('account_number')
-                  ->from('alarm_accounts')
-                  ->where('id', $request->account_id)
-                  ->limit(1);
+            $query->whereHas('account', function($q) use ($request) {
+                $q->where('id', $request->account_id);
             });
         }
 
@@ -63,9 +60,6 @@ class ReportController extends Controller
         return $query;
     }
 
-    /**
-     * PANTALLA PRINCIPAL
-     */
     public function index(Request $request)
     {
         $query = AlarmEvent::with(['account.customer', 'siaCode', 'incident']);
@@ -73,11 +67,10 @@ class ReportController extends Controller
 
         $events = $query->orderBy('created_at', 'desc')->paginate(20);
         
-        // Datos para filtros
-        $customers = Customer::orderBy('first_name')->select('id', 'first_name', 'last_name', 'business_name')->take(200)->get();
+        $customers = Customer::orderBy('first_name')->take(200)->get();
         $siaCodes = SiaCode::orderBy('code')->get();
         
-        // Cargar cuentas solo si hay cliente seleccionado
+        // Cargar cuentas si hay cliente seleccionado
         $accounts = collect();
         if ($request->filled('customer_id')) {
             $accounts = AlarmAccount::where('customer_id', $request->customer_id)->get();
@@ -86,36 +79,29 @@ class ReportController extends Controller
         return view('admin.reports.index', compact('events', 'customers', 'siaCodes', 'accounts'));
     }
 
-    /**
-     * REPORTE 1: LISTADO PLANO (Respeta todos los filtros)
-     */
+    // Reporte TIPO LISTA (Detallado)
     public function printList(Request $request)
     {
         $query = AlarmEvent::with(['account.customer', 'siaCode', 'incident']);
-        $query = $this->applyFilters($query, $request); // Aplica mismos filtros que el index
+        $query = $this->applyFilters($query, $request);
         
-        $events = $query->orderBy('created_at', 'desc')->get(); // Sin paginación
+        $events = $query->orderBy('created_at', 'desc')->get();
         $customer = $request->filled('customer_id') ? Customer::find($request->customer_id) : null;
 
         return view('admin.reports.print_list', compact('events', 'customer', 'request'));
     }
 
-    /**
-     * REPORTE 2: RESUMEN EJECUTIVO / GRÁFICO (Respeta todos los filtros)
-     */
+    // Reporte TIPO GRÁFICO (Resumen)
     public function printSummary(Request $request)
     {
-        // Consulta base filtrada
         $query = AlarmEvent::query();
         $query = $this->applyFilters($query, $request);
 
-        // Estadísticas Generales
         $total = $query->count();
-        $processed = (clone $query)->where('processed', true)->count();
         $incidents = (clone $query)->whereNotNull('incident_id')->count();
-        $auto = $processed - $incidents;
+        $auto = (clone $query)->where('processed', true)->whereNull('incident_id')->count();
 
-        // Top 5 Eventos (Para gráfica)
+        // Top 5 Eventos
         $topEvents = (clone $query)
             ->select('event_code', DB::raw('count(*) as total'))
             ->groupBy('event_code')
@@ -124,7 +110,7 @@ class ReportController extends Controller
             ->with('siaCode')
             ->get();
 
-        // Eventos por Día (Para gráfica lineal simple)
+        // Gráfica de Línea (por día)
         $eventsByDay = (clone $query)
             ->select(DB::raw('DATE(created_at) as date'), DB::raw('count(*) as total'))
             ->groupBy('date')
@@ -136,19 +122,11 @@ class ReportController extends Controller
         return view('admin.reports.print_graphical', compact('total', 'incidents', 'auto', 'topEvents', 'eventsByDay', 'customer', 'request'));
     }
 
-    /**
-     * REPORTE 3: DETALLE FORENSE (Incidente Individual)
-     */
     public function detail($id)
     {
-        $incident = Incident::with([
-            'alarmEvent.account.customer',
-            'alarmEvent.siaCode',
-            'alarmEvent.account.zones',
-            'logs.user', 
-            'operator'   
-        ])->findOrFail($id);
-
+        $incident = Incident::with(['alarmEvent.account.customer', 'alarmEvent.siaCode', 'logs.user', 'operator'])->findOrFail($id);
+        
+        // Historial de la MISMA cuenta
         $history = AlarmEvent::where('account_number', $incident->alarmEvent->account_number)
             ->where('id', '<', $incident->alarm_event_id)
             ->orderBy('created_at', 'desc')
