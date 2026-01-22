@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ServicePlanController;
 use App\Http\Controllers\Admin\GpsDeviceController;
+use App\Http\Controllers\Admin\FleetController; // <--- NUEVO: Importar controlador de Flotas
 
 /*
 |--------------------------------------------------------------------------
@@ -124,17 +125,18 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     // 7. MÓDULO DE RASTREO GPS Y FLOTAS
     // ----------------------------------------------------
     Route::prefix('gps')->name('gps.')->group(function () {
-        // Dispositivos (Inventario y Estado)
+        // Dispositivos Individuales
         Route::resource('devices', GpsDeviceController::class);
         
-        // Comandos Remotos (AJAX)
+        // Comandos Remotos
         Route::post('devices/{id}/command', [GpsDeviceController::class, 'sendCommand'])->name('devices.command');
 
-        // Historial de Ruta (AJAX para Mapa)
+        // Historial de Ruta (AJAX)
         Route::get('devices/{id}/route', [GpsDeviceController::class, 'getRoute'])->name('devices.route');
 
-        // Gestión de Flotas (Reportes, Rutas, Conductores) - Próximamente
-        Route::get('/fleet', function() { return "Módulo de Flotas en construcción"; })->name('fleet.index');
+        // Gestión de Flotas (Mapa Global)
+        Route::get('/fleet', [FleetController::class, 'index'])->name('fleet.index');
+        Route::get('/fleet/positions', [FleetController::class, 'positions'])->name('fleet.positions');
     });
 
 });
