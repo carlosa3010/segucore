@@ -43,7 +43,7 @@
                     @forelse($devices as $dev)
                         @php 
                             // Buscamos los datos de Traccar en el array que pasamos desde el controlador
-                            $traccar = $traccarData[$dev->unique_id] ?? null;
+                            $traccar = $traccarData[$dev->imei] ?? null;
                             $isOnline = $traccar && $traccar->status == 'online'; 
                             $lastUpdate = $traccar && $traccar->lastupdate ? \Carbon\Carbon::parse($traccar->lastupdate) : null;
                         @endphp
@@ -70,7 +70,7 @@
                                 </div>
                             </td>
                             <td class="px-4 py-3 font-mono text-xs text-yellow-500 tracking-wider">
-                                {{ $dev->unique_id }}
+                                {{ $dev->imei }}
                             </td>
                             <td class="px-4 py-3">
                                 <div class="text-white text-sm">{{ $dev->customer->business_name ?? $dev->customer->full_name }}</div>
