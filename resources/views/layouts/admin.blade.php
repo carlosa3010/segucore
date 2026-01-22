@@ -158,15 +158,11 @@
                 <h3 class="px-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-800 pb-1 mb-2">Configuración</h3>
                 
                 <a href="{{ route('admin.config.general.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white {{ request()->routeIs('admin.config.general.*') ? 'active' : '' }}">
-                    <span class="mr-3">⚙️</span> Ajustes & APIs
+                    <span class="mr-3">⚙️</span> Ajustes Generales
                 </a>
 
                 <a href="{{ route('admin.sia-codes.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white {{ request()->routeIs('admin.sia-codes.*') ? 'active' : '' }}">
                     <span class="mr-3">📋</span> Códigos SIA
-                </a>
-
-                <a href="#" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white">
-                    <span class="mr-3">🔗</span> Integraciones API
                 </a>
 
                 <a href="{{ route('admin.users.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
