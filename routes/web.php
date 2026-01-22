@@ -16,7 +16,7 @@ use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ServicePlanController;
 use App\Http\Controllers\Admin\GpsDeviceController;
-use App\Http\Controllers\Admin\FleetController; // <--- NUEVO: Importar controlador de Flotas
+use App\Http\Controllers\Admin\FleetController;
 
 /*
 |--------------------------------------------------------------------------
@@ -128,11 +128,15 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         // Dispositivos Individuales
         Route::resource('devices', GpsDeviceController::class);
         
-        // Comandos Remotos
+        // Comandos Remotos (AJAX)
         Route::post('devices/{id}/command', [GpsDeviceController::class, 'sendCommand'])->name('devices.command');
 
-        // Historial de Ruta (AJAX)
+        // Historial de Ruta (AJAX para Mapa)
         Route::get('devices/{id}/route', [GpsDeviceController::class, 'getRoute'])->name('devices.route');
+        
+        // --- NUEVAS RUTAS DE HISTORIAL POR FECHA ---
+        Route::get('devices/{id}/history', [GpsDeviceController::class, 'history'])->name('devices.history');
+        Route::get('devices/{id}/history-data', [GpsDeviceController::class, 'getHistoryData'])->name('devices.history-data');
 
         // Gestión de Flotas (Mapa Global)
         Route::get('/fleet', [FleetController::class, 'index'])->name('fleet.index');
