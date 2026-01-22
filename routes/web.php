@@ -17,8 +17,9 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ServicePlanController;
 use App\Http\Controllers\Admin\GpsDeviceController;
 use App\Http\Controllers\Admin\FleetController;
-use App\Http\Controllers\Admin\DriverController;   // <--- NUEVO
-use App\Http\Controllers\Admin\GeofenceController; // <--- NUEVO
+use App\Http\Controllers\Admin\DriverController;
+use App\Http\Controllers\Admin\GeofenceController;
+use App\Http\Controllers\Admin\DeviceAlertController; // <--- AGREGADO
 
 /*
 |--------------------------------------------------------------------------
@@ -36,7 +37,6 @@ Route::get('/mapa', [MonitoringController::class, 'map'])->name('monitor.map');
 Route::get('/api/live-events', [MonitoringController::class, 'getLiveEvents'])->name('api.live-events');
 
 // --- VERIFICACIÓN PÚBLICA DE DOCUMENTOS (QR) ---
-// Esta ruta es pública pero protegida por firma criptográfica (signed)
 Route::get('/verify/report/{id}', [PublicReportController::class, 'verify'])
     ->name('report.verify')
     ->middleware('signed');
@@ -57,7 +57,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::resource('customers', CustomerController::class);
     Route::post('customers/{id}/toggle-status', [CustomerController::class, 'toggleStatus'])->name('customers.toggle-status');
     
-    // Contactos
+    // Contactos de Clientes
     Route::post('customers/{id}/contacts', [CustomerController::class, 'storeContact'])->name('customers.contacts.store');
     Route::put('contacts/{id}', [CustomerController::class, 'updateContact'])->name('contacts.update');
     Route::delete('contacts/{id}', [CustomerController::class, 'destroyContact'])->name('contacts.destroy');
@@ -66,11 +66,11 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     // 3. GESTIÓN DE CUENTAS DE ALARMA (PANELES)
     Route::resource('accounts', AccountController::class); 
 
-    // Notas y Bitácora
+    // Notas y Bitácora de Cuentas
     Route::put('accounts/{id}/notes', [AccountController::class, 'updateNotes'])->name('accounts.notes.update');
     Route::post('accounts/{id}/log', [AccountController::class, 'storeLog'])->name('accounts.log.store');
 
-    // Sub-módulos
+    // Sub-módulos de Cuentas
     Route::post('accounts/{id}/partitions', [AccountController::class, 'storePartition'])->name('accounts.partitions.store');
     Route::put('partitions/{id}', [AccountController::class, 'updatePartition'])->name('partitions.update');
     Route::delete('partitions/{id}', [AccountController::class, 'destroyPartition'])->name('partitions.destroy');
@@ -88,7 +88,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::delete('zones/{id}', [AlarmZoneController::class, 'destroy'])->name('zones.destroy');
 
 
-    // 4. MÓDULO DE OPERACIONES
+    // 4. MÓDULO DE OPERACIONES (Incidentes)
     Route::prefix('operations')->group(function () {
         Route::get('/', [IncidentController::class, 'console'])->name('operations.console');
         Route::post('/take/{id}', [IncidentController::class, 'take'])->name('incidents.take');
@@ -136,7 +136,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         // Historial de Ruta (AJAX para Mapa)
         Route::get('devices/{id}/route', [GpsDeviceController::class, 'getRoute'])->name('devices.route');
         
-        // --- HISTORIAL & REPORTES ---
+        // --- Historial & Reportes ---
         Route::get('devices/{id}/history', [GpsDeviceController::class, 'history'])->name('devices.history');
         Route::get('devices/{id}/history-data', [GpsDeviceController::class, 'getHistoryData'])->name('devices.history-data');
         Route::get('devices/{id}/history/pdf', [GpsDeviceController::class, 'exportHistoryPdf'])->name('devices.history.pdf');
@@ -146,11 +146,14 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::get('/fleet/positions', [FleetController::class, 'positions'])->name('fleet.positions');
     });
 
-    // 8. GESTIÓN DE CONDUCTORES (NUEVO)
+    // 8. GESTIÓN DE CONDUCTORES
     Route::resource('drivers', DriverController::class);
 
-    // 9. GESTIÓN DE GEOCERCAS (NUEVO)
+    // 9. GESTIÓN DE GEOCERCAS
     Route::resource('geofences', GeofenceController::class);
+
+    // 10. ALERTAS
+    Route::get('alerts', [DeviceAlertController::class, 'index'])->name('alerts.index');
 
 });
 
