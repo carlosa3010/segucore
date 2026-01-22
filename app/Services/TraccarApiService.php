@@ -13,7 +13,6 @@ class TraccarApiService
 
     public function __construct()
     {
-        // Usa las claves que confirmaste que funcionan en tu entorno
         $this->baseUrl = config('services.traccar.base_url');
         $this->user = config('services.traccar.user');
         $this->password = config('services.traccar.password');
@@ -54,7 +53,6 @@ class TraccarApiService
             'uniqueId' => $uniqueId,
             'phone' => $phone,
             'model' => $model,
-            // 'disabled' => false,
         ]);
 
         return $response->json();
@@ -83,16 +81,14 @@ class TraccarApiService
      */
     public function getPositions()
     {
-        // Retorna las últimas posiciones conocidas de TODOS los dispositivos
         return $this->client()->get("{$this->baseUrl}/positions");
     }
 
     /**
-     * 3. Enviar Comandos (Apagado de Motor, etc)
+     * 3. Enviar Comandos
      */
     public function sendCommand($deviceId, $type, $attributes = [])
     {
-        // Tipos comunes: 'engineStop', 'engineResume', 'custom'
         $payload = [
             'deviceId' => $deviceId,
             'type' => $type,
@@ -110,10 +106,10 @@ class TraccarApiService
     }
 
     /**
-     * 4. Crear Geocerca (NUEVO: Requerido por GeofenceController)
-     * @param string $name Nombre de la zona
-     * @param string $area Cadena WKT (POLYGON((...)))
+     * 4. Gestión de Geocercas (CRUD)
      */
+    
+    // CREAR
     public function createGeofence($name, $area, $description = '')
     {
         $response = $this->client()->post("{$this->baseUrl}/geofences", [
@@ -123,13 +119,35 @@ class TraccarApiService
         ]);
 
         if ($response->successful()) {
-            return $response->json()['id']; // Retorna el ID creado en Traccar
+            return $response->json()['id'];
         }
 
-        // Loguear error para debug
         Log::error('Error creando geocerca en Traccar: ' . $response->body());
-        
-        // No lanzamos excepción para que no rompa la app, pero retornamos null
         return null;
+    }
+
+    // EDITAR (Nuevo)
+    public function updateGeofence($id, $name, $area, $description = '')
+    {
+        $response = $this->client()->put("{$this->baseUrl}/geofences/{$id}", [
+            'id' => $id,
+            'name' => $name,
+            'area' => $area,
+            'description' => $description,
+        ]);
+
+        if ($response->successful()) {
+            return true;
+        }
+
+        Log::error("Error actualizando geocerca {$id} en Traccar: " . $response->body());
+        return false;
+    }
+
+    // ELIMINAR (Nuevo)
+    public function deleteGeofence($traccarId)
+    {
+        $response = $this->client()->delete("{$this->baseUrl}/geofences/{$traccarId}");
+        return $response->successful();
     }
 }
