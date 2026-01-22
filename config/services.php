@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    // --- AGREGAR ESTO PARA QUE TRACCAR API FUNCIONE ---
+    'traccar' => [
+        'base_url' => env('TRACCAR_API_URL'),
+        'user' => env('TRACCAR_API_USER'),
+        'password' => env('TRACCAR_API_PASSWORD'),
+    ],
+
 ];
