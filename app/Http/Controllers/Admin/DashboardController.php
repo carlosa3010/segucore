@@ -8,9 +8,10 @@ use App\Models\Incident;
 use App\Models\GpsDevice;
 use App\Models\DeviceAlert;
 use App\Models\TraccarDevice;
-use App\Models\AlarmAccount; // <--- Importar
-use App\Models\AlarmEvent;   // <--- Importar
+use App\Models\AlarmAccount;
+use App\Models\AlarmEvent;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth; // Agregamos Auth por si acaso se usa en la vista
 
 class DashboardController extends Controller
 {
@@ -23,37 +24,40 @@ class DashboardController extends Controller
         // --- B. MONITOREO DE ALARMAS (KPIs) ---
         $totalAlarmAccounts = AlarmAccount::count();
         
-        // Asumiendo que tienes un campo 'monitoring_status' o similar
-        // Si no, usamos 'status' = 'active'
-        $activePanels = AlarmAccount::where('status', 'active')->count();
+        // CORRECCIÓN: Usamos 'service_status' en lugar de 'status'
+        $activePanels = AlarmAccount::where('service_status', 'active')->count();
         
-        // Señales recibidas HOY (Tráfico de la central)
+        // Señales recibidas HOY
         $signalsToday = AlarmEvent::whereDate('created_at', today())->count();
         
-        // Señales Críticas HOY (Pánicos, Robos, Fuego - Códigos SIA comunes)
-        // 110=Fuego, 120=Pánico, 130=Robo, 100=Emergencia Médica
+        // Señales Críticas HOY (Robo, Pánico, Fuego, Médica)
+        // Buscamos eventos cuyo código empiece por 110 (Fuego), 120 (Pánico), 130 (Robo), etc.
         $criticalSignals = AlarmEvent::whereDate('created_at', today())
-            ->whereIn(DB::raw('LEFT(event_code, 3)'), ['110', '120', '130', '100']) // Ejemplo lógica SIA
+            ->where(function($q) {
+                $q->where('event_code', 'like', '110%') // Fuego
+                  ->orWhere('event_code', 'like', '120%') // Pánico
+                  ->orWhere('event_code', 'like', '130%') // Robo
+                  ->orWhere('event_code', 'like', '100%'); // Médica
+            })
             ->count();
 
         // --- C. RASTREO GPS (KPIs) ---
         $totalDevices = GpsDevice::count();
         $onlineDevices = 0;
         try {
+            // Intentamos obtener el conteo real de Traccar
             $onlineDevices = TraccarDevice::where('status', 'online')->count();
-        } catch (\Exception $e) { }
+        } catch (\Exception $e) { 
+            // Si falla la conexión (p.ej. credenciales mal), asumimos 0 para no romper la página
+            $onlineDevices = 0;
+        }
         $offlineDevices = $totalDevices - $onlineDevices;
 
         // Alertas de Conducción (Últimas 24h)
         $gpsAlerts24h = DeviceAlert::where('created_at', '>=', now()->subDay())->count();
 
-        // --- D. FEED UNIFICADO (Alarmas + GPS) ---
-        // Combinamos las últimas alertas de GPS con los últimos eventos de Alarma
-        // Esto es un poco avanzado, para simplificar por ahora mostramos 
-        // dos listas o la lista de incidentes operativos.
-        
-        // Vamos a mostrar los últimos incidentes generados en Operaciones
-        $latestIncidents = Incident::with('customer')
+        // --- D. FEED DE INCIDENTES ---
+        $latestIncidents = Incident::with(['customer', 'user']) // Eager loading para optimizar
             ->orderBy('created_at', 'desc')
             ->take(5)
             ->get();
