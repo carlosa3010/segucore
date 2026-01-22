@@ -6,19 +6,30 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        //
+        // 1. Permitir GPS sin cliente (Uso Interno)
+        Schema::table('gps_devices', function (Blueprint $table) {
+            $table->unsignedBigInteger('customer_id')->nullable()->change();
+        });
+
+        // 2. Agregar campos de rastreo a la tabla de Guardias (Para la App)
+        Schema::table('guards', function (Blueprint $table) {
+            $table->decimal('last_lat', 10, 7)->nullable();
+            $table->decimal('last_lng', 10, 7)->nullable();
+            $table->timestamp('last_seen_at')->nullable();
+            $table->integer('battery_level')->nullable(); // Nivel de batería del celular
+        });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        //
+        Schema::table('gps_devices', function (Blueprint $table) {
+            $table->unsignedBigInteger('customer_id')->nullable(false)->change();
+        });
+        
+        Schema::table('guards', function (Blueprint $table) {
+            $table->dropColumn(['last_lat', 'last_lng', 'last_seen_at', 'battery_level']);
+        });
     }
 };
