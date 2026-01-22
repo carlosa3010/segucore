@@ -65,7 +65,7 @@
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(map);
     
     var markers = {};
-    const customerId = "{{ request('customer_id') }}"; // Obtener filtro actual
+    const customerId = "{{ request('customer_id') }}";
 
     function getIcon(status, speed) {
         let colorUrl = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-grey.png';
@@ -78,7 +78,6 @@
     }
 
     function updateFleet() {
-        // Pasamos el ID del cliente al endpoint AJAX
         let url = "{{ route('admin.gps.fleet.positions') }}" + (customerId ? "?customer_id=" + customerId : "");
 
         fetch(url)
@@ -109,24 +108,55 @@
     }
 
     function buildPopup(v) {
-        // CORRECCIÓN: Botón oscuro con texto blanco para legibilidad
+        // Lógica condicional: Persona (Batería) vs Vehículo (Motor)
+        let specificInfo = '';
+        
+        if (v.type === 'person') {
+            // Dispositivo Personal: Mostrar Batería
+            let batt = v.battery || 0;
+            let battColor = batt < 20 ? 'text-red-500' : 'text-green-600';
+            specificInfo = `
+                <div class="flex justify-between mb-2">
+                    <span class="text-gray-500">Batería:</span>
+                    <span class="font-bold ${battColor}">${batt}%</span>
+                </div>
+            `;
+        } else {
+            // Vehículo: Mostrar Ignición (Motor)
+            let ignClass = v.ignition ? 'text-green-600' : 'text-slate-500';
+            let ignText = v.ignition ? 'ENCENDIDO' : 'APAGADO';
+            specificInfo = `
+                <div class="flex justify-between mb-2">
+                    <span class="text-gray-500">Motor:</span>
+                    <span class="font-bold ${ignClass}">${ignText}</span>
+                </div>
+            `;
+        }
+
         return `
-            <div class="text-sm min-w-[160px]">
+            <div class="text-sm min-w-[180px]">
                 <strong class="block text-slate-900 text-base font-bold">${v.name}</strong>
-                <span class="text-slate-500 text-xs">${v.plate || 'Sin Placa'}</span>
+                <span class="text-slate-500 text-xs">${v.plate || 'ID: ' + v.imei}</span>
+                
                 <div class="my-2 border-t border-gray-200"></div>
+                
                 <div class="flex justify-between mb-1">
                     <span class="text-gray-500">Velocidad:</span>
                     <span class="font-bold text-gray-800">${v.speed} km/h</span>
                 </div>
-                <div class="flex justify-between mb-2">
-                    <span class="text-gray-500">Motor:</span>
-                    <span class="font-bold ${v.ignition ? 'text-green-600' : 'text-red-500'}">${v.ignition ? 'ON' : 'OFF'}</span>
+                
+                ${specificInfo}
+                
+                <div class="grid grid-cols-2 gap-2 mt-3">
+                    <a href="/admin/gps/devices/${v.id}/history" target="_blank" 
+                       class="text-center bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 py-1.5 rounded text-[10px] font-bold transition">
+                        📜 RUTA
+                    </a>
+                    <a href="/admin/gps/devices/${v.id}" target="_blank" 
+                       class="text-center bg-slate-700 hover:bg-slate-600 text-white py-1.5 rounded text-[10px] font-bold transition">
+                        🗺️ DETALLES
+                    </a>
                 </div>
-                <a href="/admin/gps/devices/${v.id}" target="_blank" 
-                   class="block w-full text-center bg-slate-700 hover:bg-slate-600 text-white py-2 rounded text-xs font-bold transition shadow">
-                    VER DETALLES ➜
-                </a>
             </div>
         `;
     }
