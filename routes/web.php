@@ -11,6 +11,9 @@ use App\Http\Controllers\Admin\IncidentController;
 use App\Http\Controllers\Admin\IncidentConfigController;
 use App\Http\Controllers\Admin\SiaCodeController;
 use App\Http\Controllers\Admin\AlarmZoneController;
+use App\Http\Controllers\Admin\ReportController; // <--- NUEVO
+use App\Http\Controllers\Admin\UserController;   // <--- NUEVO
+use App\Http\Controllers\Admin\ServicePlanController; // <--- NUEVO
 
 /*
 |--------------------------------------------------------------------------
@@ -46,7 +49,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     
     // Contactos
     Route::post('customers/{id}/contacts', [CustomerController::class, 'storeContact'])->name('customers.contacts.store');
-    Route::put('contacts/{id}', [CustomerController::class, 'updateContact'])->name('contacts.update'); // <--- NUEVA: Editar Contacto
+    Route::put('contacts/{id}', [CustomerController::class, 'updateContact'])->name('contacts.update');
     Route::delete('contacts/{id}', [CustomerController::class, 'destroyContact'])->name('contacts.destroy');
 
 
@@ -62,12 +65,12 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     
     // A. Particiones
     Route::post('accounts/{id}/partitions', [AccountController::class, 'storePartition'])->name('accounts.partitions.store');
-    Route::put('partitions/{id}', [AccountController::class, 'updatePartition'])->name('partitions.update'); // <--- NUEVA: Editar Partición
+    Route::put('partitions/{id}', [AccountController::class, 'updatePartition'])->name('partitions.update');
     Route::delete('partitions/{id}', [AccountController::class, 'destroyPartition'])->name('partitions.destroy');
 
     // B. Usuarios de Panel (Claves)
     Route::post('accounts/{id}/users', [AccountController::class, 'storePanelUser'])->name('accounts.users.store');
-    Route::put('panel-users/{id}', [AccountController::class, 'updatePanelUser'])->name('accounts.users.update'); // <--- NUEVA: Editar Usuario Panel
+    Route::put('panel-users/{id}', [AccountController::class, 'updatePanelUser'])->name('accounts.users.update');
     Route::delete('panel-users/{id}', [AccountController::class, 'destroyPanelUser'])->name('accounts.users.destroy');
 
     // C. Horarios (Schedules)
@@ -77,7 +80,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
     // D. Zonas (Controlador Dedicado)
     Route::post('accounts/{id}/zones', [AlarmZoneController::class, 'store'])->name('accounts.zones.store');
-    Route::put('zones/{id}', [AlarmZoneController::class, 'update'])->name('zones.update'); // <--- NUEVA: Editar Zona
+    Route::put('zones/{id}', [AlarmZoneController::class, 'update'])->name('zones.update');
     Route::delete('zones/{id}', [AlarmZoneController::class, 'destroy'])->name('zones.destroy');
 
 
@@ -112,6 +115,9 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     // 5. CONFIGURACIÓN DEL SISTEMA
     // ----------------------------------------------------
     Route::resource('sia-codes', SiaCodeController::class);
+    
+    // Gestión de Usuarios (Operadores)
+    Route::resource('users', UserController::class); // <--- NUEVO
 
     // Configuración Dinámica de Incidentes (Resoluciones y Motivos)
     Route::prefix('config')->name('config.')->group(function () {
@@ -124,6 +130,17 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::get('hold-reasons', [IncidentConfigController::class, 'indexHoldReasons'])->name('hold-reasons.index');
         Route::post('hold-reasons', [IncidentConfigController::class, 'storeHoldReason'])->name('hold-reasons.store');
         Route::delete('hold-reasons/{id}', [IncidentConfigController::class, 'destroyHoldReason'])->name('hold-reasons.destroy');
+
+        // Planes de Servicio (Facturación)
+        Route::resource('plans', ServicePlanController::class)->except(['create', 'edit', 'show']); // <--- NUEVO
+    });
+
+    // 6. MÓDULO DE REPORTES E INTELIGENCIA
+    // ----------------------------------------------------
+    Route::prefix('reports')->name('reports.')->group(function () {
+        Route::get('/', [ReportController::class, 'index'])->name('index');
+        Route::get('/summary', [ReportController::class, 'summary'])->name('summary'); // Resumen Cliente
+        Route::get('/detail/{id}', [ReportController::class, 'detail'])->name('detail'); // Detalle Incidente
     });
 
 });
