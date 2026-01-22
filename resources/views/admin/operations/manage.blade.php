@@ -244,27 +244,21 @@
         @csrf
         <div class="mb-4">
             <label class="block text-xs text-slate-500 uppercase font-bold mb-2">Motivo</label>
-            <select name="status" class="w-full bg-slate-800 border border-slate-600 p-2.5 rounded text-sm text-white focus:outline-none focus:border-blue-500">
-                @if(isset($holdReasons) && $holdReasons->count() > 0)
-                    @foreach($holdReasons as $reason)
-                        <option value="{{ $reason->code }}">{{ $reason->name }}</option>
-                    @endforeach
-                @else
-                    <option value="monitoring">⏳ Monitoreo Preventivo</option>
-                    <option value="police_dispatched">🚓 Policía en Camino</option>
-                    <option value="waiting_contact">📞 Esperando Contacto</option>
-                @endif
+            <select name="status" class="w-full bg-slate-800 border border-slate-600 p-2.5 rounded text-sm text-white">
+                @forelse($holdReasons as $reason)
+                    <option value="{{ $reason->code }}">{{ $reason->name }}</option>
+                @empty
+                    <option value="monitoring">Monitoreo Preventivo</option>
+                @endforelse
             </select>
         </div>
-        
         <div class="mb-6">
-            <label class="block text-xs text-slate-500 uppercase font-bold mb-2">Nota Interna</label>
-            <textarea name="note" class="w-full bg-slate-800 border border-slate-600 p-2.5 rounded text-sm text-white focus:outline-none focus:border-blue-500" rows="3" placeholder="Ej: Llamar en 15 min..."></textarea>
+            <label class="block text-xs text-slate-500 uppercase font-bold mb-2">Nota</label>
+            <textarea name="note" class="w-full bg-slate-800 border border-slate-600 p-2.5 rounded text-sm text-white" rows="3"></textarea>
         </div>
-        
         <div class="flex justify-end gap-2">
-            <button type="button" onclick="document.getElementById('holdModal').close()" class="text-slate-400 hover:text-white px-4 text-xs font-bold uppercase transition">Cancelar</button>
-            <button type="submit" class="bg-yellow-600 hover:bg-yellow-500 text-white px-6 py-2 rounded font-bold text-xs uppercase shadow-lg transition">Confirmar</button>
+            <button type="button" onclick="document.getElementById('holdModal').close()" class="text-slate-400 hover:text-white px-4 text-xs font-bold uppercase">Cancelar</button>
+            <button type="submit" class="bg-yellow-600 hover:bg-yellow-500 text-white px-6 py-2 rounded font-bold text-xs uppercase">Confirmar</button>
         </div>
     </form>
 </dialog>
