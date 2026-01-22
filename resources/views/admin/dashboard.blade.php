@@ -1,92 +1,114 @@
 @extends('layouts.admin')
-
-@section('title', 'Dashboard General - SeguCore')
+@section('title', 'Dashboard Principal')
 
 @section('content')
-    <h1 class="text-2xl font-bold text-white mb-6">Panel de Control</h1>
+<div class="space-y-6">
+    
+    <div class="flex justify-between items-end">
+        <div>
+            <h1 class="text-2xl font-bold text-white">Tablero de Control</h1>
+            <p class="text-slate-400 text-sm">Bienvenido, {{ Auth::user()->name }}</p>
+        </div>
+        <span class="text-xs text-slate-500 bg-slate-800 px-3 py-1 rounded border border-slate-700">
+            Última act: {{ now()->format('H:i:s') }}
+        </span>
+    </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div class="bg-[#1e293b] rounded-lg p-6 border border-gray-700 shadow-lg">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400 uppercase tracking-wider">Alarmas Activas</p>
-                    <p class="text-3xl font-bold text-red-500">{{ $stats['active_alarms'] }}</p>
-                </div>
-                <div class="p-3 bg-red-900/30 rounded-full text-red-500 text-xl">🔥</div>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+        <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 relative overflow-hidden group">
+            <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition transform group-hover:scale-110">
+                <span class="text-6xl">🚨</span>
+            </div>
+            <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider">Incidentes Abiertos</h3>
+            <p class="text-3xl font-bold text-white mt-1">{{ $openIncidents }}</p>
+            <div class="mt-2 text-xs {{ $incidentsToday > 0 ? 'text-red-400' : 'text-slate-500' }}">
+                {{ $incidentsToday }} nuevos hoy
             </div>
         </div>
 
-        <div class="bg-[#1e293b] rounded-lg p-6 border border-gray-700 shadow-lg">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400 uppercase tracking-wider">Clientes</p>
-                    <p class="text-3xl font-bold text-white">{{ $stats['total_customers'] }}</p>
-                </div>
-                <div class="p-3 bg-blue-900/30 rounded-full text-blue-500 text-xl">👥</div>
+        <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 relative overflow-hidden group">
+            <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition">
+                <span class="text-6xl text-blue-500">📡</span>
+            </div>
+            <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider">Flota Conectada</h3>
+            <div class="flex items-baseline gap-2 mt-1">
+                <p class="text-3xl font-bold text-green-400">{{ $onlineDevices }}</p>
+                <span class="text-sm text-slate-500">/ {{ $totalDevices }}</span>
+            </div>
+            <div class="mt-2 text-xs text-slate-500">
+                <span class="text-red-400">{{ $offlineDevices }}</span> sin señal
             </div>
         </div>
 
-        <div class="bg-[#1e293b] rounded-lg p-6 border border-gray-700 shadow-lg">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400 uppercase tracking-wider">GPS Activos</p>
-                    <p class="text-3xl font-bold text-[#C6F211]">{{ $stats['active_gps'] }}</p>
-                </div>
-                <div class="p-3 bg-yellow-900/30 rounded-full text-yellow-500 text-xl">🛰️</div>
+        <a href="{{ route('admin.alerts.index') }}" class="bg-slate-800 p-4 rounded-lg border border-slate-700 relative overflow-hidden group hover:border-red-500/50 transition cursor-pointer">
+            <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition">
+                <span class="text-6xl text-red-500">🔔</span>
             </div>
-        </div>
+            <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider">Alertas Recientes</h3>
+            <p class="text-3xl font-bold text-white mt-1">{{ $recentAlerts }}</p>
+            <div class="mt-2 text-xs font-bold {{ $unreadAlerts > 0 ? 'text-yellow-400 animate-pulse' : 'text-slate-500' }}">
+                {{ $unreadAlerts }} sin leer
+            </div>
+        </a>
 
-        <div class="bg-[#1e293b] rounded-lg p-6 border border-gray-700 shadow-lg">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400 uppercase tracking-wider">Incidentes Hoy</p>
-                    <p class="text-3xl font-bold text-gray-200">{{ $stats['incidents_today'] }}</p>
-                </div>
-                <div class="p-3 bg-gray-700/50 rounded-full text-gray-400 text-xl">📋</div>
+        <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 relative overflow-hidden">
+            <div class="absolute right-0 top-0 p-4 opacity-10">
+                <span class="text-6xl text-purple-500">👥</span>
+            </div>
+            <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Clientes</h3>
+            <p class="text-3xl font-bold text-white mt-1">{{ $totalCustomers }}</p>
+            <div class="mt-2 text-xs text-blue-400 hover:underline">
+                <a href="{{ route('admin.customers.index') }}">Ver directorio →</a>
             </div>
         </div>
     </div>
 
-    <div class="bg-[#1e293b] rounded-lg border border-gray-700 overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-700 flex justify-between items-center">
-            <h3 class="text-lg font-bold text-white">🚨 Eventos Críticos Recientes (Sin procesar)</h3>
-            <a href="{{ route('admin.operations.console') }}" class="text-sm text-[#C6F211] hover:underline">Ir a Consola Operativa &rarr;</a>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <div class="lg:col-span-2 bg-slate-800 rounded-lg border border-slate-700 p-4">
+            <h3 class="text-white font-bold text-sm mb-4 border-b border-slate-700 pb-2">Últimos Eventos de Flota</h3>
+            <div class="space-y-3">
+                @forelse($latestEvents as $event)
+                <div class="flex items-start gap-3 p-2 hover:bg-slate-700/50 rounded transition">
+                    <div class="w-8 h-8 rounded bg-slate-900 flex items-center justify-center text-lg shadow-sm border border-slate-600">
+                        @if($event->type == 'overspeed') 🏎️ @elseif($event->type == 'geofence') 🌐 @else ⚠️ @endif
+                    </div>
+                    <div>
+                        <p class="text-sm text-white">
+                            <span class="font-bold text-blue-400">{{ $event->device->name ?? 'Desconocido' }}</span>: 
+                            {{ $event->message }}
+                        </p>
+                        <p class="text-xs text-slate-500">{{ $event->created_at->diffForHumans() }}</p>
+                    </div>
+                </div>
+                @empty
+                <div class="text-center py-8 text-slate-500 italic">No hay eventos recientes.</div>
+                @endforelse
+            </div>
         </div>
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm text-left text-gray-400">
-                <thead class="text-xs text-gray-200 uppercase bg-gray-800">
-                    <tr>
-                        <th class="px-6 py-3">Hora</th>
-                        <th class="px-6 py-3">Prioridad</th>
-                        <th class="px-6 py-3">Evento</th>
-                        <th class="px-6 py-3">Cuenta</th>
-                        <th class="px-6 py-3">Zona</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($recentCritical as $event)
-                        <tr class="border-b border-gray-700 hover:bg-gray-700/50">
-                            <td class="px-6 py-4 font-mono text-white">{{ $event->created_at->format('H:i:s') }}</td>
-                            <td class="px-6 py-4">
-                                @if($event->priority >= 5)
-                                    <span class="bg-red-900 text-red-200 text-xs px-2 py-1 rounded font-bold">CRÍTICO</span>
-                                @else
-                                    <span class="bg-orange-900 text-orange-200 text-xs px-2 py-1 rounded">ALTO</span>
-                                @endif
-                            </td>
-                            <td class="px-6 py-4 font-bold text-white">{{ $event->sia_desc }}</td>
-                            <td class="px-6 py-4">{{ $event->account_number }}</td>
-                            <td class="px-6 py-4">{{ $event->zone }}</td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="5" class="px-6 py-8 text-center text-gray-500">
-                                No hay eventos críticos pendientes en este momento.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+
+        <div class="bg-slate-800 rounded-lg border border-slate-700 p-4">
+            <h3 class="text-white font-bold text-sm mb-4 border-b border-slate-700 pb-2">Acciones Rápidas</h3>
+            <div class="grid grid-cols-2 gap-3">
+                <a href="{{ route('admin.operations.console') }}" target="_blank" class="flex flex-col items-center justify-center p-4 bg-red-900/20 border border-red-900/50 rounded hover:bg-red-900/40 transition">
+                    <span class="text-2xl mb-1">🚨</span>
+                    <span class="text-xs font-bold text-red-200">Consola</span>
+                </a>
+                <a href="{{ route('admin.gps.fleet.index') }}" class="flex flex-col items-center justify-center p-4 bg-blue-900/20 border border-blue-900/50 rounded hover:bg-blue-900/40 transition">
+                    <span class="text-2xl mb-1">🛰️</span>
+                    <span class="text-xs font-bold text-blue-200">Mapa Flota</span>
+                </a>
+                <a href="{{ route('admin.customers.create') }}" class="flex flex-col items-center justify-center p-4 bg-slate-700 rounded hover:bg-slate-600 transition">
+                    <span class="text-2xl mb-1">👤</span>
+                    <span class="text-xs text-slate-200">+ Cliente</span>
+                </a>
+                <a href="{{ route('admin.gps.devices.create') }}" class="flex flex-col items-center justify-center p-4 bg-slate-700 rounded hover:bg-slate-600 transition">
+                    <span class="text-2xl mb-1">🚗</span>
+                    <span class="text-xs text-slate-200">+ GPS</span>
+                </a>
+            </div>
         </div>
     </div>
+</div>
 @endsection
