@@ -33,7 +33,7 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div>
                     <label class="block text-xs font-bold uppercase text-yellow-500 mb-2">IMEI (Identificador)</label>
-                    <input type="text" name="unique_id" placeholder="Ej: 8654320..." class="w-full bg-slate-900 border border-yellow-600/50 rounded p-2.5 text-sm text-white focus:border-yellow-500 font-mono" required>
+                    <input type="text" name="imei" placeholder="Ej: 8654320..." class="w-full bg-slate-900 border border-yellow-600/50 rounded p-2.5 text-sm text-white focus:border-yellow-500 font-mono" required>
                     <p class="text-[10px] text-slate-500 mt-1">Este ID debe ser único en Traccar.</p>
                 </div>
 
