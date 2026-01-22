@@ -6,9 +6,9 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 @php
-    // Preparar datos
+    // Preparar datos iniciales (para la carga rápida de PHP)
     $pos = $liveData ? $liveData->position : null;
-    $lat = $pos ? $pos->latitude : 10.0; // Default Vzla
+    $lat = $pos ? $pos->latitude : 10.0; // Default
     $lon = $pos ? $pos->longitude : -69.0;
     
     // Velocidad: Traccar usa Nudos (Knots). 1 Knot = 1.852 Km/h
@@ -60,7 +60,7 @@
                 
                 <div class="grid grid-cols-2 gap-4">
                     <div class="bg-slate-900/50 p-3 rounded border border-slate-700 text-center">
-                        <span class="block text-2xl font-bold text-blue-400">{{ $speedKmh }} <span class="text-xs text-slate-500">km/h</span></span>
+                        <span class="block text-2xl font-bold text-blue-400" id="disp-speed">{{ $speedKmh }} <span class="text-xs text-slate-500">km/h</span></span>
                         <span class="text-[10px] text-slate-400 uppercase">Velocidad</span>
                     </div>
 
@@ -114,11 +114,11 @@
                 <div id="map" class="w-full h-full rounded z-0"></div>
                 
                 @if(!$pos)
-                <div class="absolute inset-0 bg-black/60 z-10 flex items-center justify-center rounded">
+                <div id="no-signal-overlay" class="absolute inset-0 bg-black/60 z-10 flex items-center justify-center rounded">
                     <div class="text-center p-6 bg-slate-900 border border-slate-600 rounded-lg shadow-2xl">
                         <div class="text-4xl mb-2">📡</div>
-                        <h3 class="text-xl font-bold text-white">Esperando primera señal...</h3>
-                        <p class="text-slate-400 text-sm mt-2">El dispositivo aún no ha reportado ubicación al servidor.</p>
+                        <h3 class="text-xl font-bold text-white">Esperando señal...</h3>
+                        <p class="text-slate-400 text-sm mt-2">Conectando con satélites...</p>
                     </div>
                 </div>
                 @endif
@@ -128,47 +128,85 @@
 </div>
 
 <script>
-    @if($pos)
-        // --- CASO 1: HAY SEÑAL GPS ---
-        // Coordenadas reales
-        const lat = {{ $lat }};
-        const lon = {{ $lon }};
-        const name = "{{ $device->name }}";
-        const speed = "{{ $speedKmh }} km/h";
+    // --- 1. CONFIGURACIÓN DEL MAPA ---
+    var map = L.map('map').setView([{{ $lat }}, {{ $lon }}], 15);
 
-        var map = L.map('map').setView([lat, lon], 15);
+    // Capa OpenStreetMap (Claro / Estándar)
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+    }).addTo(map);
 
-        // CAPA DE MAPA: OpenStreetMap (Claro)
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 19
-        }).addTo(map);
+    // Icono del Vehículo
+    var carIcon = L.icon({
+        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41]
+    });
 
-        // Icono personalizado Azul
-        var carIcon = L.icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-        });
+    // Variables globales para actualizar capas
+    var routePolyline = null;
+    var currentMarker = null;
 
-        // Marcador con Popup
-        L.marker([lat, lon], {icon: carIcon}).addTo(map)
-            .bindPopup(`<b>${name}</b><br>Velocidad: ${speed}<br>Lat: ${lat}<br>Lon: ${lon}`)
-            .openPopup();
-    @else
-        // --- CASO 2: SIN SEÑAL (Mapa por defecto) ---
-        var map = L.map('map').setView([10.0, -69.0], 6); // Centrado en Vzla
-        
-        // CAPA DE MAPA: OpenStreetMap (Claro)
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
-    @endif
+    // --- 2. FUNCIÓN DE RASTREO (AJAX) ---
+    function updateTracking() {
+        fetch("{{ route('admin.gps.devices.route', $device->id) }}")
+            .then(res => res.json())
+            .then(data => {
+                if(data.length > 0) {
+                    // Ocultar overlay de "Esperando señal" si existe
+                    const overlay = document.getElementById('no-signal-overlay');
+                    if(overlay) overlay.style.display = 'none';
 
-    // Lógica para enviar comandos (Engine Stop / Resume)
+                    // 1. Extraer coordenadas para la línea [lat, lng]
+                    var path = data.map(p => [p.lat, p.lng]);
+                    var latest = data[0]; // La última posición (más reciente)
+
+                    // 2. Dibujar/Actualizar la Línea de Ruta (Trazo)
+                    if (routePolyline) {
+                        map.removeLayer(routePolyline);
+                    }
+                    routePolyline = L.polyline(path, {
+                        color: 'blue',
+                        weight: 4,
+                        opacity: 0.7,
+                        dashArray: '5, 10', // Punteado
+                        lineCap: 'round'
+                    }).addTo(map);
+
+                    // 3. Dibujar/Actualizar el Marcador (Auto)
+                    if (currentMarker) {
+                        currentMarker.setLatLng([latest.lat, latest.lng]);
+                    } else {
+                        currentMarker = L.marker([latest.lat, latest.lng], {icon: carIcon}).addTo(map);
+                    }
+
+                    // Actualizar Popup y Centrar
+                    currentMarker.bindPopup(`
+                        <b>{{ $device->name }}</b><br>
+                        Velocidad: ${latest.speed} km/h<br>
+                        Hora: ${latest.time}
+                    `); // No abrimos popup automático para no molestar
+
+                    // Actualizar el velocímetro en pantalla si existe el elemento
+                    const speedEl = document.getElementById('disp-speed');
+                    if(speedEl) speedEl.innerHTML = `${latest.speed} <span class="text-xs text-slate-500">km/h</span>`;
+                }
+            })
+            .catch(err => console.error("Error actualizando GPS:", err));
+    }
+
+    // --- 3. INICIAR RASTREO ---
+    updateTracking(); // Carga inicial inmediata
+    
+    // Actualizar cada 10 segundos (Tiempo real)
+    setInterval(updateTracking, 10000); 
+
+
+    // --- 4. COMANDOS ---
     function sendCommand(type) {
         if(!confirm('¿CONFIRMAR ACCIÓN? Se enviará el comando al dispositivo.')) return;
 
@@ -182,13 +220,10 @@
         })
         .then(res => res.json())
         .then(data => {
-            if(data.success) {
-                alert('✅ Comando enviado correctamente a Traccar API.');
-            } else {
-                alert('❌ Error al enviar comando. Verifique conexión.');
-            }
+            if(data.success) alert('✅ Comando enviado correctamente.');
+            else alert('❌ Error al enviar comando. Verifique conexión.');
         })
-        .catch(err => alert('Error de red al conectar con el servidor.'));
+        .catch(err => alert('Error de red.'));
     }
 </script>
 @endsection
