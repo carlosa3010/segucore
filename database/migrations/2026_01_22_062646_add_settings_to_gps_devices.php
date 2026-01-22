@@ -6,23 +6,29 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::table('gps_devices', function (Blueprint $table) {
-            // Agregamos las columnas nuevas
-            $table->integer('speed_limit')->default(80)->after('plate_number'); // Límite de velocidad
-            $table->decimal('odometer', 10, 2)->default(0)->after('speed_limit'); // Odómetro virtual
+            // Verifica si las columnas ya existen para evitar error de duplicado
+            if (!Schema::hasColumn('gps_devices', 'speed_limit')) {
+                $table->integer('speed_limit')->default(80)->after('plate_number');
+            }
+            if (!Schema::hasColumn('gps_devices', 'odometer')) {
+                $table->decimal('odometer', 10, 2)->default(0)->after('speed_limit');
+            }
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        
+        Schema::table('gps_devices', function (Blueprint $table) {
+            // Verifica si existen antes de intentar borrarlas
+            if (Schema::hasColumn('gps_devices', 'speed_limit')) {
+                $table->dropColumn('speed_limit');
+            }
+            if (Schema::hasColumn('gps_devices', 'odometer')) {
+                $table->dropColumn('odometer');
+            }
+        });
     }
 };
