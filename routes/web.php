@@ -2,7 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MonitoringController;
-use App\Http\Controllers\PublicReportController; // <--- NUEVO: Para verificación QR
+use App\Http\Controllers\PublicReportController;
 
 // Controladores del Panel Admin
 use App\Http\Controllers\Admin\DashboardController;
@@ -32,7 +32,6 @@ Route::get('/mapa', [MonitoringController::class, 'map'])->name('monitor.map');
 Route::get('/api/live-events', [MonitoringController::class, 'getLiveEvents'])->name('api.live-events');
 
 // --- VERIFICACIÓN PÚBLICA DE DOCUMENTOS (QR) ---
-// Esta ruta es pública pero protegida por firma criptográfica (signed)
 Route::get('/verify/report/{id}', [PublicReportController::class, 'verify'])
     ->name('report.verify')
     ->middleware('signed');
@@ -51,7 +50,6 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
     // 2. GESTIÓN DE CLIENTES (CRM)
     Route::resource('customers', CustomerController::class);
-    // Acciones extra de clientes
     Route::post('customers/{id}/toggle-status', [CustomerController::class, 'toggleStatus'])->name('customers.toggle-status');
     
     // Contactos
@@ -61,96 +59,69 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
 
 
     // 3. GESTIÓN DE CUENTAS DE ALARMA (PANELES)
-    // ----------------------------------------------------
     Route::resource('accounts', AccountController::class); 
 
-    // Notas Operativas y Bitácora
+    // Notas y Bitácora
     Route::put('accounts/{id}/notes', [AccountController::class, 'updateNotes'])->name('accounts.notes.update');
     Route::post('accounts/{id}/log', [AccountController::class, 'storeLog'])->name('accounts.log.store');
 
-    // --- Sub-módulos de Configuración Técnica ---
-    
-    // A. Particiones
+    // Sub-módulos
     Route::post('accounts/{id}/partitions', [AccountController::class, 'storePartition'])->name('accounts.partitions.store');
     Route::put('partitions/{id}', [AccountController::class, 'updatePartition'])->name('partitions.update');
     Route::delete('partitions/{id}', [AccountController::class, 'destroyPartition'])->name('partitions.destroy');
 
-    // B. Usuarios de Panel (Claves)
     Route::post('accounts/{id}/users', [AccountController::class, 'storePanelUser'])->name('accounts.users.store');
     Route::put('panel-users/{id}', [AccountController::class, 'updatePanelUser'])->name('accounts.users.update');
     Route::delete('panel-users/{id}', [AccountController::class, 'destroyPanelUser'])->name('accounts.users.destroy');
 
-    // C. Horarios (Schedules)
     Route::post('accounts/{id}/schedules/temp', [AccountController::class, 'storeTempSchedule'])->name('accounts.schedules.temp.store');
     Route::post('accounts/{id}/schedules/weekly', [AccountController::class, 'storeWeeklySchedule'])->name('accounts.schedules.weekly.store');
     Route::delete('schedules/{id}', [AccountController::class, 'destroySchedule'])->name('schedules.destroy');
 
-    // D. Zonas (Controlador Dedicado)
     Route::post('accounts/{id}/zones', [AlarmZoneController::class, 'store'])->name('accounts.zones.store');
     Route::put('zones/{id}', [AlarmZoneController::class, 'update'])->name('zones.update');
     Route::delete('zones/{id}', [AlarmZoneController::class, 'destroy'])->name('zones.destroy');
 
 
-    // 4. MÓDULO DE OPERACIONES (MONITOREO ACTIVO)
-    // ----------------------------------------------------
+    // 4. MÓDULO DE OPERACIONES
     Route::prefix('operations')->group(function () {
-        
-        // Consola de eventos (Cola de espera)
         Route::get('/', [IncidentController::class, 'console'])->name('operations.console');
-
-        // Acciones sobre Incidentes
-        // a. Tomar un evento -> Crea Ticket
         Route::post('/take/{id}', [IncidentController::class, 'take'])->name('incidents.take');
-
-        // b. Crear Evento Manual (Ticket sin señal)
         Route::post('/manual-event', [IncidentController::class, 'storeManual'])->name('incidents.manual');
-        
-        // c. Pantalla de Gestión (Mapa, llamadas, bitácora)
         Route::get('/incident/{id}', [IncidentController::class, 'manage'])->name('operations.manage');
-        
-        // d. Poner en Espera (Hold)
         Route::post('/incident/{id}/hold', [IncidentController::class, 'hold'])->name('incidents.hold');
-        
-        // e. Cerrar Incidente
         Route::post('/incident/{id}/close', [IncidentController::class, 'close'])->name('incidents.close');
-
-        // f. Agregar Nota Manual (Bitácora Viva)
         Route::post('/incident/{id}/note', [IncidentController::class, 'addNote'])->name('incidents.add-note');
     });
 
 
     // 5. CONFIGURACIÓN DEL SISTEMA
-    // ----------------------------------------------------
     Route::resource('sia-codes', SiaCodeController::class);
-    
-    // Gestión de Usuarios (Operadores)
     Route::resource('users', UserController::class);
 
-    // Configuración Dinámica de Incidentes (Resoluciones y Motivos)
     Route::prefix('config')->name('config.')->group(function () {
-        // Resoluciones
         Route::get('resolutions', [IncidentConfigController::class, 'indexResolutions'])->name('resolutions.index');
         Route::post('resolutions', [IncidentConfigController::class, 'storeResolution'])->name('resolutions.store');
         Route::delete('resolutions/{id}', [IncidentConfigController::class, 'destroyResolution'])->name('resolutions.destroy');
         
-        // Motivos de Espera
         Route::get('hold-reasons', [IncidentConfigController::class, 'indexHoldReasons'])->name('hold-reasons.index');
         Route::post('hold-reasons', [IncidentConfigController::class, 'storeHoldReason'])->name('hold-reasons.store');
         Route::delete('hold-reasons/{id}', [IncidentConfigController::class, 'destroyHoldReason'])->name('hold-reasons.destroy');
 
-        // Planes de Servicio (Facturación)
         Route::resource('plans', ServicePlanController::class)->except(['create', 'edit', 'show']);
     });
 
-    // 6. MÓDULO DE REPORTES E INTELIGENCIA
-    // ----------------------------------------------------
+    // 6. MÓDULO DE REPORTES (Actualizado)
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
-        Route::get('/summary', [ReportController::class, 'summary'])->name('summary'); // Resumen Cliente
-        Route::get('/detail/{id}', [ReportController::class, 'detail'])->name('detail'); // Detalle Incidente
+        // Reporte Listado (Tablas)
+        Route::get('/list', [ReportController::class, 'printList'])->name('list');
+        // Reporte Gráfico (Resumen)
+        Route::get('/summary', [ReportController::class, 'printSummary'])->name('summary');
+        // Detalle Forense
+        Route::get('/detail/{id}', [ReportController::class, 'detail'])->name('detail');
     });
 
 });
 
-// Autenticación (Generadas por Laravel Breeze/Auth)
 require __DIR__.'/auth.php';
