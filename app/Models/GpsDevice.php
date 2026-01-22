@@ -11,18 +11,16 @@ class GpsDevice extends Model
 
     protected $fillable = [
         'customer_id',
+        'driver_id', // <--- Asegúrate de que esto esté en fillable
         'name',
-        'imei', // <--- CAMBIO AQUI
-        'phone_number',
-        'sim_card_id',
+        'imei',
         'device_model',
+        'phone_number',
         'plate_number',
         'vehicle_type',
-        'driver_name',
-        'installation_date',
         'subscription_status',
         'speed_limit',
-        'odometer',
+        'odometer'
     ];
 
     public function customer()
@@ -30,15 +28,15 @@ class GpsDevice extends Model
         return $this->belongsTo(Customer::class);
     }
 
+    // Relación con Conductor
     public function driver()
     {
         return $this->belongsTo(Driver::class);
     }
 
-    // Relación con Traccar
-    public function traccarData()
+    // Relación con Geocercas (Muchos a Muchos)
+    public function geofences()
     {
-        // Enlace: 'imei' local <---> 'uniqueid' remoto
-        return $this->setConnection('traccar')->hasOne(TraccarDevice::class, 'uniqueid', 'imei');
+        return $this->belongsToMany(Geofence::class, 'geofence_gps_device');
     }
 }
