@@ -107,12 +107,18 @@
                             </td>
                             <td class="px-4 py-3 text-right">
                                 <div class="flex justify-end items-center gap-2">
-                                    <a href="{{ route('admin.gps.devices.show', $dev->id) }}" class="p-1.5 rounded hover:bg-slate-700 text-blue-400 hover:text-blue-300 transition" title="Ver Mapa y Detalles">
+                                    <a href="{{ route('admin.gps.devices.show', $dev->id) }}" class="p-1.5 rounded hover:bg-slate-700 text-blue-400 hover:text-blue-300 transition" title="Mapa en Vivo">
                                         🗺️
                                     </a>
+                                    
+                                    <a href="{{ route('admin.gps.devices.history', $dev->id) }}" class="p-1.5 rounded hover:bg-slate-700 text-green-400 hover:text-green-300 transition" title="Historial de Ruta">
+                                        📜
+                                    </a>
+
                                     <a href="{{ route('admin.gps.devices.edit', $dev->id) }}" class="p-1.5 rounded hover:bg-slate-700 text-yellow-400 hover:text-yellow-300 transition" title="Editar">
                                         ✏️
                                     </a>
+                                    
                                     <form action="{{ route('admin.gps.devices.destroy', $dev->id) }}" method="POST" onsubmit="return confirm('¿Estás seguro de eliminar este dispositivo? Esto lo borrará de Traccar también.')">
                                         @csrf @method('DELETE')
                                         <button type="submit" class="p-1.5 rounded hover:bg-red-900/50 text-red-400 hover:text-red-300 transition" title="Eliminar">
