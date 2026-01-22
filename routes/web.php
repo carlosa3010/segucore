@@ -15,7 +15,7 @@ use App\Http\Controllers\Admin\AlarmZoneController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ServicePlanController;
-use App\Http\Controllers\Admin\GpsDeviceController; // <--- NUEVO
+use App\Http\Controllers\Admin\GpsDeviceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -113,18 +113,15 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::resource('plans', ServicePlanController::class)->except(['create', 'edit', 'show']);
     });
 
-    // 6. MÓDULO DE REPORTES (Inteligencia)
+    // 6. MÓDULO DE REPORTES
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
-        // Reporte Listado (Tablas)
         Route::get('/list', [ReportController::class, 'printList'])->name('list');
-        // Reporte Gráfico (Resumen)
         Route::get('/summary', [ReportController::class, 'printSummary'])->name('summary');
-        // Detalle Forense
         Route::get('/detail/{id}', [ReportController::class, 'detail'])->name('detail');
     });
 
-    // 7. MÓDULO DE RASTREO GPS Y FLOTAS (NUEVO)
+    // 7. MÓDULO DE RASTREO GPS Y FLOTAS
     // ----------------------------------------------------
     Route::prefix('gps')->name('gps.')->group(function () {
         // Dispositivos (Inventario y Estado)
@@ -132,6 +129,9 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         
         // Comandos Remotos (AJAX)
         Route::post('devices/{id}/command', [GpsDeviceController::class, 'sendCommand'])->name('devices.command');
+
+        // Historial de Ruta (AJAX para Mapa)
+        Route::get('devices/{id}/route', [GpsDeviceController::class, 'getRoute'])->name('devices.route');
 
         // Gestión de Flotas (Reportes, Rutas, Conductores) - Próximamente
         Route::get('/fleet', function() { return "Módulo de Flotas en construcción"; })->name('fleet.index');
