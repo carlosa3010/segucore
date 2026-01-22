@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\GpsDevice;
 use App\Models\TraccarDevice;
+use App\Models\Customer;
 use Illuminate\Http\Request;
 
 class FleetController extends Controller
@@ -14,14 +15,23 @@ class FleetController extends Controller
      */
     public function index(Request $request)
     {
-        // 1. Obtener todos los dispositivos locales
-        $devices = GpsDevice::with('customer')->orderBy('name')->get();
+        // 1. Query base de dispositivos
+        $query = GpsDevice::with('customer')->orderBy('name');
+
+        // Aplicar Filtro por Cliente si existe en el request
+        if ($request->filled('customer_id')) {
+            $query->where('customer_id', $request->customer_id);
+        }
+
+        $devices = $query->get();
+        
+        // Obtener lista de clientes para el dropdown
+        $customers = Customer::orderBy('first_name')->get();
 
         // 2. Obtener IDs de Traccar
         $imeis = $devices->pluck('imei')->toArray();
         
         // 3. Obtener datos de última posición masiva desde Traccar
-        // Usamos 'with' position para no hacer N consultas
         $traccarData = [];
         try {
             $traccarData = TraccarDevice::whereIn('uniqueid', $imeis)
@@ -30,7 +40,7 @@ class FleetController extends Controller
                 ->keyBy('uniqueid');
         } catch (\Exception $e) { }
 
-        // 4. Calcular Estadísticas Rápidas
+        // 4. Calcular Estadísticas Rápidas (Sobre los resultados filtrados)
         $stats = [
             'total' => $devices->count(),
             'online' => 0,
@@ -44,7 +54,7 @@ class FleetController extends Controller
             if ($tData) {
                 if ($tData->status == 'online') {
                     $stats['online']++;
-                    // Si velocidad > 1 nudo (aprox 2km/h), consideramos movimiento
+                    // Si velocidad > 1 nudo (aprox 1.8 km/h), consideramos movimiento
                     if ($tData->position && $tData->position->speed > 1) {
                         $stats['moving']++;
                     } else {
@@ -58,15 +68,22 @@ class FleetController extends Controller
             }
         }
 
-        return view('admin.gps.fleet.index', compact('devices', 'stats'));
+        return view('admin.gps.fleet.index', compact('devices', 'stats', 'customers'));
     }
 
     /**
-     * AJAX: Devuelve posiciones JSON de toda la flota para actualizar el mapa
+     * AJAX: Devuelve posiciones JSON de la flota (Filtrada o completa)
      */
-    public function positions()
+    public function positions(Request $request)
     {
-        $devices = GpsDevice::all();
+        // Aplicamos el mismo filtro al AJAX para que el mapa coincida con la lista
+        $query = GpsDevice::query();
+        
+        if ($request->filled('customer_id')) {
+            $query->where('customer_id', $request->customer_id);
+        }
+        
+        $devices = $query->get();
         $imeis = $devices->pluck('imei')->toArray();
 
         try {
@@ -75,20 +92,22 @@ class FleetController extends Controller
                 ->get();
 
             $features = $traccarDevices->map(function($td) use ($devices) {
-                // Cruzar con datos locales para tener el nombre bonito
+                // Cruzar con datos locales para obtener nombre y placa
                 $localDev = $devices->firstWhere('imei', $td->uniqueid);
                 
-                if (!$td->position) return null;
+                if (!$td->position || !$localDev) return null;
 
                 return [
-                    'id' => $localDev ? $localDev->id : $td->id,
-                    'name' => $localDev ? $localDev->name : $td->name,
+                    'id' => $localDev->id,
+                    'name' => $localDev->name,
+                    'plate' => $localDev->plate_number ?? '', // Dato extra para el popup
                     'imei' => $td->uniqueid,
                     'lat' => $td->position->latitude,
                     'lng' => $td->position->longitude,
                     'speed' => round($td->position->speed * 1.852), // Km/h
                     'status' => $td->status,
-                    'course' => $td->position->course, // Dirección (grados)
+                    'ignition' => $td->position->attributes['ignition'] ?? false, // Dato extra ignición
+                    'course' => $td->position->course,
                     'last_update' => \Carbon\Carbon::parse($td->lastupdate)->diffForHumans(null, true, true)
                 ];
             })->filter(); // Eliminar nulos
