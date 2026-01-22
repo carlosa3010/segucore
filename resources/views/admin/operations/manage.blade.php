@@ -234,7 +234,7 @@
     </div>
 </div>
 
-<dialog id="holdModal" class="m-auto bg-slate-900 text-white p-0 rounded-lg border border-slate-700 shadow-2xl backdrop:bg-black/90 w-full max-w-sm open:animate-fade-in text-left">
+<dialog id="holdModal" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-900 text-white p-0 rounded-lg border border-slate-700 shadow-2xl backdrop:bg-black/90 w-full max-w-sm open:animate-fade-in text-left z-50">
     <div class="p-4 border-b border-slate-800 bg-slate-950 flex justify-between items-center">
         <h3 class="font-bold text-sm uppercase text-slate-300">Poner Incidente en Espera</h3>
         <button type="button" onclick="document.getElementById('holdModal').close()" class="text-slate-500 hover:text-white font-bold px-2">✕</button>
@@ -244,21 +244,27 @@
         @csrf
         <div class="mb-4">
             <label class="block text-xs text-slate-500 uppercase font-bold mb-2">Motivo</label>
-            <select name="status" class="w-full bg-slate-800 border border-slate-600 p-2.5 rounded text-sm text-white">
-                @forelse($holdReasons as $reason)
-                    <option value="{{ $reason->code }}">{{ $reason->name }}</option>
-                @empty
-                    <option value="monitoring">Monitoreo Preventivo</option>
-                @endforelse
+            <select name="status" class="w-full bg-slate-800 border border-slate-600 p-2.5 rounded text-sm text-white focus:outline-none focus:border-blue-500">
+                @if(isset($holdReasons) && $holdReasons->count() > 0)
+                    @foreach($holdReasons as $reason)
+                        <option value="{{ $reason->code }}">{{ $reason->name }}</option>
+                    @endforeach
+                @else
+                    <option value="monitoring">⏳ Monitoreo Preventivo</option>
+                    <option value="police_dispatched">🚓 Policía en Camino</option>
+                    <option value="waiting_contact">📞 Esperando Contacto</option>
+                @endif
             </select>
         </div>
+        
         <div class="mb-6">
-            <label class="block text-xs text-slate-500 uppercase font-bold mb-2">Nota</label>
-            <textarea name="note" class="w-full bg-slate-800 border border-slate-600 p-2.5 rounded text-sm text-white" rows="3"></textarea>
+            <label class="block text-xs text-slate-500 uppercase font-bold mb-2">Nota Interna</label>
+            <textarea name="note" class="w-full bg-slate-800 border border-slate-600 p-2.5 rounded text-sm text-white focus:outline-none focus:border-blue-500" rows="3" placeholder="Ej: Llamar en 15 min..."></textarea>
         </div>
+        
         <div class="flex justify-end gap-2">
-            <button type="button" onclick="document.getElementById('holdModal').close()" class="text-slate-400 hover:text-white px-4 text-xs font-bold uppercase">Cancelar</button>
-            <button type="submit" class="bg-yellow-600 hover:bg-yellow-500 text-white px-6 py-2 rounded font-bold text-xs uppercase">Confirmar</button>
+            <button type="button" onclick="document.getElementById('holdModal').close()" class="text-slate-400 hover:text-white px-4 text-xs font-bold uppercase transition">Cancelar</button>
+            <button type="submit" class="bg-yellow-600 hover:bg-yellow-500 text-white px-6 py-2 rounded font-bold text-xs uppercase shadow-lg transition">Confirmar</button>
         </div>
     </form>
 </dialog>
