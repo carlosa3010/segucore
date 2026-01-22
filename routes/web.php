@@ -16,7 +16,9 @@ use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ServicePlanController;
 use App\Http\Controllers\Admin\GpsDeviceController;
-use App\Http\Controllers\Admin\FleetController; 
+use App\Http\Controllers\Admin\FleetController;
+use App\Http\Controllers\Admin\DriverController;   // <--- NUEVO
+use App\Http\Controllers\Admin\GeofenceController; // <--- NUEVO
 
 /*
 |--------------------------------------------------------------------------
@@ -137,12 +139,18 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         // --- HISTORIAL & REPORTES ---
         Route::get('devices/{id}/history', [GpsDeviceController::class, 'history'])->name('devices.history');
         Route::get('devices/{id}/history-data', [GpsDeviceController::class, 'getHistoryData'])->name('devices.history-data');
-        Route::get('devices/{id}/history/pdf', [GpsDeviceController::class, 'exportHistoryPdf'])->name('devices.history.pdf'); // <--- NUEVA RUTA PDF
+        Route::get('devices/{id}/history/pdf', [GpsDeviceController::class, 'exportHistoryPdf'])->name('devices.history.pdf');
 
         // Gestión de Flotas (Mapa Global)
         Route::get('/fleet', [FleetController::class, 'index'])->name('fleet.index');
         Route::get('/fleet/positions', [FleetController::class, 'positions'])->name('fleet.positions');
     });
+
+    // 8. GESTIÓN DE CONDUCTORES (NUEVO)
+    Route::resource('drivers', DriverController::class);
+
+    // 9. GESTIÓN DE GEOCERCAS (NUEVO)
+    Route::resource('geofences', GeofenceController::class);
 
 });
 
