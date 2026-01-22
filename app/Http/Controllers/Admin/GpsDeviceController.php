@@ -8,6 +8,7 @@ use App\Models\Customer;
 use App\Models\TraccarDevice;
 use App\Services\TraccarApiService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule; // <--- AGREGAR ESTO
 
 class GpsDeviceController extends Controller
 {
@@ -25,13 +26,12 @@ class GpsDeviceController extends Controller
         if ($request->has('search')) {
             $s = $request->search;
             $query->where('name', 'LIKE', "%$s%")
-                  ->orWhere('imei', 'LIKE', "%$s%") // <--- CAMBIO
+                  ->orWhere('imei', 'LIKE', "%$s%")
                   ->orWhere('plate_number', 'LIKE', "%$s%");
         }
 
         $devices = $query->orderBy('created_at', 'desc')->paginate(20);
 
-        // Usamos 'imei' para buscar en Traccar
         $imeis = $devices->pluck('imei')->toArray();
         $traccarData = [];
         try {
@@ -52,38 +52,45 @@ class GpsDeviceController extends Controller
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
             'name' => 'required|string|max:100',
-            'imei' => 'required|string|unique:gps_devices,imei', // <--- CAMBIO
+            // CORRECCIÓN AQUÍ: Ignorar registros eliminados (SoftDeletes)
+            'imei' => [
+                'required',
+                'string',
+                Rule::unique('gps_devices', 'imei')->whereNull('deleted_at')
+            ],
             'device_model' => 'required|string',
             'phone_number' => 'nullable|string',
             'plate_number' => 'nullable|string',
             'vehicle_type' => 'required',
         ]);
 
+        // Crear dispositivo localmente
         $device = GpsDevice::create($validated + ['subscription_status' => 'active']);
 
-        // Sincronizar con API (Pasamos el imei como uniqueId)
+        // Sincronizar con API Traccar
         try {
             $this->traccarApi->syncDevice(
                 $device->name,
-                $device->imei, // <--- CAMBIO
+                $device->imei,
                 $device->phone_number,
                 $device->device_model
             );
         } catch (\Exception $e) {
             return redirect()->route('admin.gps.devices.index')
-                ->with('warning', 'Guardado localmente, pero falló conexión API Traccar.');
+                ->with('warning', 'Dispositivo creado localmente, pero no se pudo conectar con la API de Traccar.');
         }
 
         return redirect()->route('admin.gps.devices.index')
-            ->with('success', 'Dispositivo registrado correctamente.');
+            ->with('success', 'Dispositivo GPS registrado y sincronizado correctamente.');
     }
 
     public function show($id)
     {
         $device = GpsDevice::with('customer')->findOrFail($id);
+        
         $liveData = null;
         try {
-            $liveData = TraccarDevice::where('uniqueid', $device->imei)->first(); // <--- CAMBIO
+            $liveData = TraccarDevice::where('uniqueid', $device->imei)->first();
         } catch (\Exception $e) { }
 
         return view('admin.gps.devices.show', compact('device', 'liveData'));
@@ -113,20 +120,21 @@ class GpsDeviceController extends Controller
         try {
             $this->traccarApi->syncDevice(
                 $device->name,
-                $device->imei, // <--- CAMBIO
+                $device->imei,
                 $device->phone_number,
                 $device->device_model
             );
         } catch (\Exception $e) { }
 
-        return back()->with('success', 'Dispositivo actualizado.');
+        return back()->with('success', 'Datos del dispositivo actualizados.');
     }
 
     public function destroy($id)
     {
         $device = GpsDevice::findOrFail($id);
-        $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first(); // <--- CAMBIO
-
+        
+        // Intentar borrar de Traccar API
+        $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
         if ($traccarDevice) {
             try {
                 $this->traccarApi->deleteDevice($traccarDevice->id);
@@ -134,15 +142,17 @@ class GpsDeviceController extends Controller
         }
 
         $device->delete();
-        return redirect()->route('admin.gps.devices.index')->with('success', 'Eliminado.');
-    }
 
+        return redirect()->route('admin.gps.devices.index')->with('success', 'Dispositivo eliminado.');
+    }
+    
     public function sendCommand(Request $request, $id)
     {
         $device = GpsDevice::findOrFail($id);
-        $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->firstOrFail(); // <--- CAMBIO
+        $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->firstOrFail();
         
         $type = $request->input('type');
+        
         $success = $this->traccarApi->sendCommand($traccarDevice->id, $type);
         
         return response()->json(['success' => $success]);
