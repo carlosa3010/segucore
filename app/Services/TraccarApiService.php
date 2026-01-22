@@ -7,104 +7,110 @@ use Illuminate\Support\Facades\Log;
 
 class TraccarApiService
 {
-    protected $baseUrl;
+    protected $url;
     protected $user;
-    protected $password;
+    protected $pass;
 
     public function __construct()
     {
-        $this->baseUrl = config('services.traccar.base_url');
+        $this->url = config('services.traccar.url'); // Ej: http://64.23.146.136:8082/api
         $this->user = config('services.traccar.user');
-        $this->password = config('services.traccar.password');
+        $this->pass = config('services.traccar.pass');
     }
 
     /**
-     * Helper para peticiones HTTP con Autenticación
+     * Sincronizar (Crear o Actualizar) Dispositivo
      */
-    private function client()
+    public function syncDevice($name, $uniqueId, $phone, $model)
     {
-        return Http::withBasicAuth($this->user, $this->password)
-            ->acceptJson()
-            ->timeout(10); // 10 segundos timeout
-    }
+        // 1. Buscar si existe
+        $search = Http::withBasicAuth($this->user, $this->pass)
+            ->get("{$this->url}/devices", ['uniqueId' => $uniqueId]);
 
-    /**
-     * 1. Sincronizar/Crear Dispositivo
-     */
-    public function syncDevice($name, $uniqueId, $phone = null, $model = null)
-    {
-        // Primero buscamos si ya existe por uniqueId
-        $search = $this->client()->get("{$this->baseUrl}/devices", ['uniqueId' => $uniqueId]);
-        
         if ($search->successful() && count($search->json()) > 0) {
-            // Si existe, actualizamos
-            $traccarId = $search->json()[0]['id'];
-            return $this->updateDevice($traccarId, $name, $uniqueId, $phone, $model);
+            // ACTUALIZAR
+            $deviceId = $search->json()[0]['id'];
+            Http::withBasicAuth($this->user, $this->pass)
+                ->put("{$this->url}/devices/{$deviceId}", [
+                    'id' => $deviceId,
+                    'name' => $name,
+                    'uniqueId' => $uniqueId,
+                    'phone' => $phone,
+                    'model' => $model,
+                ]);
+            return $deviceId;
         } else {
-            // Si no existe, creamos
-            return $this->createDevice($name, $uniqueId, $phone, $model);
+            // CREAR NUEVO
+            $response = Http::withBasicAuth($this->user, $this->pass)
+                ->post("{$this->url}/devices", [
+                    'name' => $name,
+                    'uniqueId' => $uniqueId,
+                    'phone' => $phone,
+                    'model' => $model,
+                ]);
+            
+            if ($response->successful()) {
+                return $response->json()['id'];
+            }
         }
+
+        return null;
     }
 
-    public function createDevice($name, $uniqueId, $phone, $model)
-    {
-        $response = $this->client()->post("{$this->baseUrl}/devices", [
-            'name' => $name,
-            'uniqueId' => $uniqueId,
-            'phone' => $phone,
-            'model' => $model,
-            // 'disabled' => false,
-        ]);
-
-        return $response->json();
-    }
-
-    public function updateDevice($id, $name, $uniqueId, $phone, $model)
-    {
-        $response = $this->client()->put("{$this->baseUrl}/devices/{$id}", [
-            'id' => $id,
-            'name' => $name,
-            'uniqueId' => $uniqueId,
-            'phone' => $phone,
-            'model' => $model,
-        ]);
-
-        return $response->json();
-    }
-
+    /**
+     * Eliminar Dispositivo
+     */
     public function deleteDevice($traccarId)
     {
-        return $this->client()->delete("{$this->baseUrl}/devices/{$traccarId}");
+        Http::withBasicAuth($this->user, $this->pass)
+            ->delete("{$this->url}/devices/{$traccarId}");
     }
 
     /**
-     * 2. Obtener Posiciones en Tiempo Real
+     * Enviar Comando (Corte de motor, etc)
      */
-    public function getPositions()
+    public function sendCommand($deviceId, $type)
     {
-        // Retorna las últimas posiciones conocidas de TODOS los dispositivos
-        return $this->client()->get("{$this->baseUrl}/positions");
-    }
-
-    /**
-     * 3. Enviar Comandos (Apagado de Motor, etc)
-     */
-    public function sendCommand($deviceId, $type, $attributes = [])
-    {
-        // Tipos comunes: 'engineStop', 'engineResume', 'custom'
-        $payload = [
+        $cmdData = [
             'deviceId' => $deviceId,
-            'type' => $type,
-            'attributes' => $attributes
+            'type' => $type // 'engineStop' o 'engineResume'
         ];
 
-        $response = $this->client()->post("{$this->baseUrl}/commands/send", $payload);
-        
-        if ($response->failed()) {
-            Log::error('Error enviando comando Traccar', ['payload' => $payload, 'error' => $response->body()]);
-            return false;
+        // Mapeo de comandos personalizados si usas computed attributes en Traccar
+        // O si usas comandos estándar:
+        /*
+        if ($type === 'engineStop') {
+            $cmdData['type'] = 'engineStop'; 
+        }
+        */
+
+        $response = Http::withBasicAuth($this->user, $this->pass)
+            ->post("{$this->url}/commands/send", $cmdData);
+
+        return $response->successful();
+    }
+
+    /**
+     * Crear Geocerca (NUEVO - Soluciona el error)
+     * @param string $name Nombre de la zona
+     * @param string $area Cadena WKT (POLYGON((...)))
+     */
+    public function createGeofence($name, $area, $description = '')
+    {
+        $response = Http::withBasicAuth($this->user, $this->pass)
+            ->post("{$this->url}/geofences", [
+                'name' => $name,
+                'area' => $area,
+                'description' => $description,
+            ]);
+
+        if ($response->successful()) {
+            return $response->json()['id']; // Retorna el ID creado en Traccar
         }
 
-        return true;
+        // Loguear error para debug
+        Log::error('Error creando geocerca en Traccar: ' . $response->body());
+        
+        throw new \Exception("No se pudo sincronizar la geocerca con Traccar.");
     }
 }
