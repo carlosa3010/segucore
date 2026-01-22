@@ -70,7 +70,7 @@ class GpsDeviceController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'customer_id' => 'required|exists:customers,id',
+            'customer_id' => 'nullable|exists:customers,id',
             'driver_id'   => 'nullable|exists:drivers,id',
             'name' => 'required|string|max:100',
             'imei' => [
