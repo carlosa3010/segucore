@@ -19,12 +19,12 @@ class AlarmEvent extends Model
         'raw_data',
         'received_at',
         'processed',
-        'processed_at' // <--- Faltaba este campo vital
+        'processed_at'
     ];
 
     protected $casts = [
         'received_at' => 'datetime',
-        'processed_at' => 'datetime', // <--- Importante para operaciones de fecha
+        'processed_at' => 'datetime',
         'processed' => 'boolean',
     ];
 
@@ -38,16 +38,23 @@ class AlarmEvent extends Model
 
     /**
      * Relación: Un evento corresponde a una definición de código SIA.
-     * Esto soluciona el error "undefined relationship [siaCode]".
      */
     public function siaCode()
     {
-        // belongsTo(Modelo, FK_local, Owner_Key_remota)
         return $this->belongsTo(SiaCode::class, 'event_code', 'code');
     }
 
     /**
-     * Helper opcional para compatibilidad
+     * Relación: Un evento puede haber generado UN Incidente de atención.
+     * ESTA ES LA RELACIÓN QUE FALTABA
+     */
+    public function incident()
+    {
+        return $this->hasOne(Incident::class);
+    }
+
+    /**
+     * Helper opcional para descripción
      */
     public function getSiaCodeDescriptionAttribute()
     {
