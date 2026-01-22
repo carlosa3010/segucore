@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\AlarmEvent;
-use App\Models\AlarmAccount;
 use App\Models\Customer;
 use App\Models\Incident;
 use App\Models\SiaCode;
@@ -14,25 +13,22 @@ use Carbon\Carbon;
 class ReportController extends Controller
 {
     /**
-     * 1. LISTADO GENERAL CON FILTROS
+     * 1. PANTALLA PRINCIPAL DE REPORTES (BUSCADOR)
      */
     public function index(Request $request)
     {
         $query = AlarmEvent::with(['account.customer', 'siaCode', 'incident']);
 
-        // Filtro por Cliente
+        // --- FILTROS ---
+
+        // 1. Por Cliente
         if ($request->filled('customer_id')) {
             $query->whereHas('account', function($q) use ($request) {
                 $q->where('customer_id', $request->customer_id);
             });
         }
 
-        // Filtro por Cuenta (Abonado)
-        if ($request->filled('account_id')) {
-            $query->where('alarm_account_id', $request->account_id);
-        }
-
-        // Filtro de Fechas
+        // 2. Por Rango de Fechas
         if ($request->filled('date_from')) {
             $query->whereDate('created_at', '>=', $request->date_from);
         }
@@ -40,32 +36,34 @@ class ReportController extends Controller
             $query->whereDate('created_at', '<=', $request->date_to);
         }
 
-        // Filtro por Estado de Proceso
+        // 3. Por Código SIA (Tipo de Evento)
+        if ($request->filled('sia_code')) {
+            $query->where('event_code', $request->sia_code);
+        }
+
+        // 4. Por Estado (Procesado / Pendiente / Con Incidente)
         if ($request->filled('status')) {
-            if ($request->status == 'processed') {
-                $query->where('processed', true);
+            if ($request->status == 'incident') {
+                $query->whereNotNull('incident_id'); // Solo los que generaron ticket
+            } elseif ($request->status == 'auto') {
+                $query->where('processed', true)->whereNull('incident_id'); // Procesados automáticamente
             } elseif ($request->status == 'pending') {
                 $query->where('processed', false);
             }
         }
 
-        // Filtro por Prioridad (Tipo)
-        if ($request->filled('priority')) {
-            $query->whereHas('siaCode', function($q) use ($request) {
-                $q->where('priority', '>=', $request->priority);
-            });
-        }
+        // Resultados paginados
+        $events = $query->orderBy('created_at', 'desc')->paginate(20);
+        
+        // Datos para los selectores del filtro (AQUÍ ESTABA EL ERROR, FALTABA ENVIAR ESTO)
+        $customers = Customer::orderBy('first_name')->take(200)->get(); 
+        $siaCodes = SiaCode::orderBy('code')->get();
 
-        $events = $query->orderBy('created_at', 'desc')->paginate(50);
-        
-        // Cargar listas para los selects
-        $customers = Customer::orderBy('first_name')->take(100)->get();
-        
-        return view('admin.reports.index', compact('events', 'customers'));
+        return view('admin.reports.index', compact('events', 'customers', 'siaCodes'));
     }
 
     /**
-     * 2. REPORTE RESUMEN POR CLIENTE (Imprimible)
+     * 2. GENERAR REPORTE IMPRESO POR CLIENTE
      */
     public function summary(Request $request)
     {
@@ -77,7 +75,7 @@ class ReportController extends Controller
 
         $customer = Customer::with('accounts')->findOrFail($request->customer_id);
         
-        // Obtener eventos del rango
+        // Obtener todos los eventos del periodo
         $events = AlarmEvent::whereHas('account', function($q) use ($customer) {
                 $q->where('customer_id', $customer->id);
             })
@@ -85,39 +83,42 @@ class ReportController extends Controller
                 Carbon::parse($request->date_from)->startOfDay(), 
                 Carbon::parse($request->date_to)->endOfDay()
             ])
-            ->with(['siaCode', 'incident'])
+            ->with(['siaCode', 'incident']) 
             ->orderBy('created_at', 'desc')
             ->get();
 
-        // Estadísticas para el resumen
+        // Calcular Estadísticas
         $stats = [
             'total' => $events->count(),
-            'processed' => $events->where('processed', true)->count(),
             'incidents' => $events->whereNotNull('incident')->count(),
+            'auto' => $events->where('processed', true)->whereNull('incident')->count(),
+            
+            // Análisis de Resoluciones (si existe incidente)
             'false_alarms' => $events->filter(fn($e) => $e->incident && $e->incident->result == 'false_alarm')->count(),
-            'real_alarms' => $events->filter(fn($e) => $e->incident && str_contains($e->incident->result, 'real'))->count(),
+            'real_alarms' => $events->filter(fn($e) => $e->incident && in_array($e->incident->result, ['real_police', 'real_medical', 'real_fire']))->count(),
         ];
 
         return view('admin.reports.print_summary', compact('customer', 'events', 'stats', 'request'));
     }
 
     /**
-     * 3. REPORTE DETALLADO DE INCIDENTE (Imprimible para Autoridades)
+     * 3. GENERAR REPORTE DETALLADO DE UN INCIDENTE (FORENSE)
      */
-    public function detail($incidentId)
+    public function detail($id)
     {
         $incident = Incident::with([
             'alarmEvent.account.customer',
             'alarmEvent.siaCode',
             'alarmEvent.account.zones',
-            'logs.user'
-        ])->findOrFail($incidentId);
+            'logs.user', 
+            'operator'   
+        ])->findOrFail($id);
 
-        // Historial de los 15 eventos previos de esa misma cuenta para contexto
+        // Historial de contexto (10 eventos anteriores de esa cuenta)
         $history = AlarmEvent::where('account_number', $incident->alarmEvent->account_number)
             ->where('id', '<', $incident->alarm_event_id)
             ->orderBy('created_at', 'desc')
-            ->take(15)
+            ->take(10)
             ->with('siaCode')
             ->get();
 
