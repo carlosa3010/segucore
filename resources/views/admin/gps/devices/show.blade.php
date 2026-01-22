@@ -129,6 +129,7 @@
 
 <script>
     @if($pos)
+        // --- CASO 1: HAY SEÑAL GPS ---
         // Coordenadas reales
         const lat = {{ $lat }};
         const lon = {{ $lon }};
@@ -137,13 +138,13 @@
 
         var map = L.map('map').setView([lat, lon], 15);
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '© OpenStreetMap contributors & CartoDB',
-            subdomains: 'abcd',
+        // CAPA DE MAPA: OpenStreetMap (Claro)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors',
             maxZoom: 19
         }).addTo(map);
 
-        // Icono personalizado (Opcional, si no usa el default azul)
+        // Icono personalizado Azul
         var carIcon = L.icon({
             iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
             shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -153,21 +154,24 @@
             shadowSize: [41, 41]
         });
 
+        // Marcador con Popup
         L.marker([lat, lon], {icon: carIcon}).addTo(map)
             .bindPopup(`<b>${name}</b><br>Velocidad: ${speed}<br>Lat: ${lat}<br>Lon: ${lon}`)
             .openPopup();
     @else
-        // Mapa default si no hay datos
-        var map = L.map('map').setView([10.0, -69.0], 6);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+        // --- CASO 2: SIN SEÑAL (Mapa por defecto) ---
+        var map = L.map('map').setView([10.0, -69.0], 6); // Centrado en Vzla
+        
+        // CAPA DE MAPA: OpenStreetMap (Claro)
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
     @endif
 
-    // Lógica para enviar comandos
+    // Lógica para enviar comandos (Engine Stop / Resume)
     function sendCommand(type) {
         if(!confirm('¿CONFIRMAR ACCIÓN? Se enviará el comando al dispositivo.')) return;
 
-        // Mostrar loading o deshabilitar botón podría ser buena idea aquí
-        
         fetch("{{ route('admin.gps.devices.command', $device->id) }}", {
             method: 'POST',
             headers: {
@@ -184,7 +188,7 @@
                 alert('❌ Error al enviar comando. Verifique conexión.');
             }
         })
-        .catch(err => alert('Error de red.'));
+        .catch(err => alert('Error de red al conectar con el servidor.'));
     }
 </script>
 @endsection
