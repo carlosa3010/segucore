@@ -22,7 +22,8 @@ use App\Http\Controllers\Admin\GeofenceController;
 use App\Http\Controllers\Admin\DeviceAlertController;
 use App\Http\Controllers\Admin\PatrolController;
 use App\Http\Controllers\Admin\GuardController;
-use App\Http\Controllers\Admin\SecurityMapController; // <--- IMPORTANTE
+use App\Http\Controllers\Admin\SecurityMapController;
+use App\Http\Controllers\Admin\GeneralSettingController; // <--- NUEVO
 
 /*
 |--------------------------------------------------------------------------
@@ -107,7 +108,16 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::resource('sia-codes', SiaCodeController::class);
     Route::resource('users', UserController::class);
 
+    // --- NUEVO: PERFIL DE USUARIO ---
+    Route::get('profile/password', [UserController::class, 'changePasswordView'])->name('profile.password');
+    Route::post('profile/password', [UserController::class, 'updatePassword'])->name('profile.password.update');
+
     Route::prefix('config')->name('config.')->group(function () {
+        // --- NUEVO: AJUSTES GENERALES ---
+        Route::get('general', [GeneralSettingController::class, 'index'])->name('general.index');
+        Route::post('general', [GeneralSettingController::class, 'update'])->name('general.update');
+
+        // Resoluciones
         Route::get('resolutions', [IncidentConfigController::class, 'indexResolutions'])->name('resolutions.index');
         Route::post('resolutions', [IncidentConfigController::class, 'storeResolution'])->name('resolutions.store');
         Route::delete('resolutions/{id}', [IncidentConfigController::class, 'destroyResolution'])->name('resolutions.destroy');
