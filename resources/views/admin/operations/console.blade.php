@@ -116,7 +116,7 @@
     </div>
 </div>
 
-<dialog id="manualEventModal" class="m-auto bg-slate-900 text-white p-0 rounded-lg border border-slate-700 shadow-2xl backdrop:bg-black/90 w-full max-w-md open:animate-fade-in text-left">
+<dialog id="manualEventModal" class="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-slate-900 text-white p-0 rounded-lg border border-slate-700 shadow-2xl backdrop:bg-black/90 w-full max-w-md open:animate-fade-in text-left z-50">
     <div class="p-4 border-b border-slate-800 bg-slate-950 flex justify-between items-center">
         <h3 class="font-bold text-sm uppercase text-white flex items-center gap-2">
             <span>🚨</span> Generar Incidente Manual
@@ -126,30 +126,41 @@
     
     <form action="{{ route('admin.incidents.manual') }}" method="POST" class="p-6">
         @csrf
+        
         <div class="mb-4">
             <label class="block text-xs text-slate-400 uppercase font-bold mb-2">Cuenta / Cliente</label>
             <select name="account_id" class="w-full bg-slate-800 border border-slate-600 p-2.5 rounded text-sm text-white focus:outline-none focus:border-blue-500" required>
                 <option value="" disabled selected>Buscar cuenta...</option>
                 @foreach($accounts as $acc)
-                    <option value="{{ $acc->id }}">{{ $acc->account_number }} - {{ $acc->branch_name }}</option>
+                    <option value="{{ $acc->id }}">
+                        {{ $acc->account_number }} - {{ $acc->branch_name }} 
+                        ({{ $acc->customer->business_name ?? $acc->customer->full_name }})
+                    </option>
                 @endforeach
             </select>
+            <p class="text-[10px] text-slate-500 mt-1">Seleccione la cuenta que reporta la emergencia.</p>
         </div>
+
         <div class="mb-4">
             <label class="block text-xs text-slate-400 uppercase font-bold mb-2">Tipo de Incidente</label>
             <select name="event_code" class="w-full bg-slate-800 border border-slate-600 p-2.5 rounded text-sm text-white focus:outline-none focus:border-blue-500" required>
+                <option value="" disabled selected>Seleccione Clasificación...</option>
                 @foreach($siaCodes as $code)
                     <option value="{{ $code->code }}">{{ $code->code }} - {{ $code->description }}</option>
                 @endforeach
             </select>
         </div>
+
         <div class="mb-6">
-            <label class="block text-xs text-slate-400 uppercase font-bold mb-2">Nota</label>
-            <textarea name="note" class="w-full bg-slate-800 border border-slate-600 p-2.5 rounded text-sm text-white" rows="3" required></textarea>
+            <label class="block text-xs text-slate-400 uppercase font-bold mb-2">Descripción del Reporte</label>
+            <textarea name="note" class="w-full bg-slate-800 border border-slate-600 p-2.5 rounded text-sm text-white focus:outline-none focus:border-blue-500" rows="3" placeholder="Ej: Cliente llama indicando robo en proceso..." required></textarea>
         </div>
+        
         <div class="flex justify-end gap-2 pt-4 border-t border-slate-800">
-            <button type="button" onclick="document.getElementById('manualEventModal').close()" class="text-slate-400 hover:text-white px-4 text-xs font-bold uppercase">Cancelar</button>
-            <button type="submit" class="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded font-bold text-xs uppercase shadow-lg">Crear</button>
+            <button type="button" onclick="document.getElementById('manualEventModal').close()" class="text-slate-400 hover:text-white px-4 text-xs font-bold uppercase transition">Cancelar</button>
+            <button type="submit" class="bg-red-600 hover:bg-red-500 text-white px-6 py-2 rounded font-bold text-xs uppercase shadow-lg transition flex items-center gap-2">
+                <span>⚡</span> Crear Incidente Ahora
+            </button>
         </div>
     </form>
 </dialog>
