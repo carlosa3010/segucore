@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\AlarmZoneController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\ServicePlanController;
+use App\Http\Controllers\Admin\GpsDeviceController; // <--- NUEVO
 
 /*
 |--------------------------------------------------------------------------
@@ -32,6 +33,7 @@ Route::get('/mapa', [MonitoringController::class, 'map'])->name('monitor.map');
 Route::get('/api/live-events', [MonitoringController::class, 'getLiveEvents'])->name('api.live-events');
 
 // --- VERIFICACIÓN PÚBLICA DE DOCUMENTOS (QR) ---
+// Esta ruta es pública pero protegida por firma criptográfica (signed)
 Route::get('/verify/report/{id}', [PublicReportController::class, 'verify'])
     ->name('report.verify')
     ->middleware('signed');
@@ -111,7 +113,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::resource('plans', ServicePlanController::class)->except(['create', 'edit', 'show']);
     });
 
-    // 6. MÓDULO DE REPORTES (Actualizado)
+    // 6. MÓDULO DE REPORTES (Inteligencia)
     Route::prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [ReportController::class, 'index'])->name('index');
         // Reporte Listado (Tablas)
@@ -120,6 +122,19 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::get('/summary', [ReportController::class, 'printSummary'])->name('summary');
         // Detalle Forense
         Route::get('/detail/{id}', [ReportController::class, 'detail'])->name('detail');
+    });
+
+    // 7. MÓDULO DE RASTREO GPS Y FLOTAS (NUEVO)
+    // ----------------------------------------------------
+    Route::prefix('gps')->name('gps.')->group(function () {
+        // Dispositivos (Inventario y Estado)
+        Route::resource('devices', GpsDeviceController::class);
+        
+        // Comandos Remotos (AJAX)
+        Route::post('devices/{id}/command', [GpsDeviceController::class, 'sendCommand'])->name('devices.command');
+
+        // Gestión de Flotas (Reportes, Rutas, Conductores) - Próximamente
+        Route::get('/fleet', function() { return "Módulo de Flotas en construcción"; })->name('fleet.index');
     });
 
 });
