@@ -103,6 +103,10 @@
                     <span class="mr-3">📡</span> Mapa en Vivo
                 </a>
 
+                <a href="{{ route('admin.alerts.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-red-400 hover:bg-gray-800 hover:text-red-300 {{ request()->routeIs('admin.alerts.*') ? 'active' : '' }}">
+                    <span class="mr-3 text-lg animate-pulse">🔔</span> Alertas
+                </a>
+
                 <a href="{{ route('admin.gps.devices.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white {{ request()->routeIs('admin.gps.devices.*') ? 'active' : '' }}">
                     <span class="mr-3">🛰️</span> Dispositivos
                 </a>
