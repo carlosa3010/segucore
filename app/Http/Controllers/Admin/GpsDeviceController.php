@@ -264,4 +264,7 @@ class GpsDeviceController extends Controller
 
         return response()->json($positions);
     }
+
+
+    
 }
