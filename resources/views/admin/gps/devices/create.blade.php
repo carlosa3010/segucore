@@ -15,14 +15,14 @@
             
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div>
-                    <label class="block text-xs font-bold uppercase text-slate-400 mb-2">Cliente Propietario</label>
-                    <select name="customer_id" class="w-full bg-slate-900 border border-slate-600 rounded p-2.5 text-sm text-white focus:border-blue-500" required>
-                        <option value="">-- Seleccionar --</option>
-                        @foreach($customers as $c)
-                            <option value="{{ $c->id }}">{{ $c->business_name ?? $c->full_name }} ({{ $c->national_id }})</option>
-                        @endforeach
-                    </select>
-                </div>
+    <label class="block text-xs uppercase text-slate-400 mb-1">Cliente Asignado</label>
+    <select name="customer_id" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-white">
+        <option value="">🏢 USO INTERNO / PATRULLA SEGUSMART</option> @foreach($customers as $customer)
+            <option value="{{ $customer->id }}">{{ $customer->business_name }}</option>
+        @endforeach
+    </select>
+    <p class="text-[10px] text-slate-500 mt-1">Deje vacío si es un vehículo de la empresa de seguridad.</p>
+</div>
 
                 <div>
                     <label class="block text-xs font-bold uppercase text-slate-400 mb-2">Nombre / Alias</label>
