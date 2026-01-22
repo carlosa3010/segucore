@@ -5,7 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\GpsDevice;
 use App\Models\Customer;
-use App\Models\Driver; // <--- NUEVO: Importar modelo Driver
+use App\Models\Driver;
+use App\Models\Geofence; // <--- Importante: Importar modelo Geofence
 use App\Models\TraccarDevice;
 use App\Models\TraccarPosition;
 use App\Services\TraccarApiService;
@@ -55,10 +56,12 @@ class GpsDeviceController extends Controller
     public function create()
     {
         $customers = Customer::where('is_active', true)->orderBy('first_name')->get();
-        // Cargar lista de conductores activos
-        $drivers = Driver::where('status', 'active')->orderBy('full_name')->get();
         
-        return view('admin.gps.devices.create', compact('customers', 'drivers'));
+        // Cargar listas para los select
+        $drivers = Driver::where('status', 'active')->orderBy('full_name')->get();
+        $geofences = Geofence::orderBy('name')->get(); // <--- Cargar geocercas
+        
+        return view('admin.gps.devices.create', compact('customers', 'drivers', 'geofences'));
     }
 
     /**
@@ -68,7 +71,7 @@ class GpsDeviceController extends Controller
     {
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
-            'driver_id' => 'nullable|exists:drivers,id', // <--- Validación Driver
+            'driver_id'   => 'nullable|exists:drivers,id',
             'name' => 'required|string|max:100',
             'imei' => [
                 'required',
@@ -79,10 +82,17 @@ class GpsDeviceController extends Controller
             'phone_number' => 'nullable|string',
             'plate_number' => 'nullable|string',
             'vehicle_type' => 'required',
+            'geofences'    => 'nullable|array', // <--- Validar array de geocercas
+            'geofences.*'  => 'exists:geofences,id'
         ]);
 
         // Crear en SeguCore
         $device = GpsDevice::create($validated + ['subscription_status' => 'active']);
+
+        // Asignar Geocercas (Tabla Pivote)
+        if ($request->has('geofences')) {
+            $device->geofences()->sync($request->geofences);
+        }
 
         // Sincronizar con API Traccar
         try {
@@ -98,7 +108,7 @@ class GpsDeviceController extends Controller
         }
 
         return redirect()->route('admin.gps.devices.index')
-            ->with('success', 'Dispositivo GPS registrado y sincronizado.');
+            ->with('success', 'Dispositivo GPS registrado y asignado correctamente.');
     }
 
     /**
@@ -106,7 +116,8 @@ class GpsDeviceController extends Controller
      */
     public function show($id)
     {
-        $device = GpsDevice::with(['customer', 'driver'])->findOrFail($id);
+        // Cargar geocercas para mostrarlas en el detalle si se desea
+        $device = GpsDevice::with(['customer', 'driver', 'geofences'])->findOrFail($id);
         
         // Datos en vivo + Posición (lat/lon/velocidad)
         $liveData = null;
@@ -124,11 +135,13 @@ class GpsDeviceController extends Controller
      */
     public function edit($id)
     {
-        $device = GpsDevice::findOrFail($id);
+        $device = GpsDevice::with('geofences')->findOrFail($id); // Cargar geocercas asignadas
+        
         $customers = Customer::where('is_active', true)->orderBy('first_name')->get();
         $drivers = Driver::where('status', 'active')->orderBy('full_name')->get();
+        $geofences = Geofence::orderBy('name')->get();
 
-        return view('admin.gps.devices.edit', compact('device', 'customers', 'drivers'));
+        return view('admin.gps.devices.edit', compact('device', 'customers', 'drivers', 'geofences'));
     }
 
     /**
@@ -140,16 +153,22 @@ class GpsDeviceController extends Controller
         
         $validated = $request->validate([
             'name' => 'required|string|max:100',
-            'driver_id' => 'nullable|exists:drivers,id', // <--- Validación Driver
+            'driver_id' => 'nullable|exists:drivers,id',
             'device_model' => 'required|string',
             'phone_number' => 'nullable|string',
             'plate_number' => 'nullable|string',
             'subscription_status' => 'required|in:active,suspended',
             'speed_limit' => 'nullable|integer|min:0',
             'odometer' => 'nullable|numeric|min:0',
+            'geofences' => 'nullable|array', // <--- Validar array
+            'geofences.*' => 'exists:geofences,id'
         ]);
 
         $device->update($validated);
+
+        // Sincronizar Geocercas (Tabla Pivote)
+        // El método sync() elimina las que no estén en el array y agrega las nuevas
+        $device->geofences()->sync($request->input('geofences', []));
 
         try {
             $this->traccarApi->syncDevice(
