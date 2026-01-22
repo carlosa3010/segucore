@@ -26,7 +26,7 @@ class ReportController extends Controller
             });
         }
 
-        // 2. Cuenta Específica (NUEVO)
+        // 2. Cuenta Específica
         if ($request->filled('account_id')) {
             $query->whereHas('account', function($q) use ($request) {
                 $q->where('id', $request->account_id);
@@ -46,12 +46,12 @@ class ReportController extends Controller
             $query->where('event_code', $request->sia_code);
         }
 
-        // 5. Estado
+        // 5. Estado (CORREGIDO: Usar has/doesntHave en lugar de incident_id)
         if ($request->filled('status')) {
             if ($request->status == 'incident') {
-                $query->whereNotNull('incident_id');
+                $query->has('incident'); // Solo eventos que tienen un incidente asociado
             } elseif ($request->status == 'auto') {
-                $query->where('processed', true)->whereNull('incident_id');
+                $query->where('processed', true)->doesntHave('incident'); // Procesados sin incidente
             } elseif ($request->status == 'pending') {
                 $query->where('processed', false);
             }
@@ -70,7 +70,6 @@ class ReportController extends Controller
         $customers = Customer::orderBy('first_name')->take(200)->get();
         $siaCodes = SiaCode::orderBy('code')->get();
         
-        // Cargar cuentas si hay cliente seleccionado
         $accounts = collect();
         if ($request->filled('customer_id')) {
             $accounts = AlarmAccount::where('customer_id', $request->customer_id)->get();
@@ -97,9 +96,12 @@ class ReportController extends Controller
         $query = AlarmEvent::query();
         $query = $this->applyFilters($query, $request);
 
+        // CORRECCIÓN AQUÍ TAMBIÉN PARA CONTEOS
         $total = $query->count();
-        $incidents = (clone $query)->whereNotNull('incident_id')->count();
-        $auto = (clone $query)->where('processed', true)->whereNull('incident_id')->count();
+        
+        // Clonamos query base para sub-conteos
+        $incidents = (clone $query)->has('incident')->count();
+        $auto = (clone $query)->where('processed', true)->doesntHave('incident')->count();
 
         // Top 5 Eventos
         $topEvents = (clone $query)
@@ -126,7 +128,6 @@ class ReportController extends Controller
     {
         $incident = Incident::with(['alarmEvent.account.customer', 'alarmEvent.siaCode', 'logs.user', 'operator'])->findOrFail($id);
         
-        // Historial de la MISMA cuenta
         $history = AlarmEvent::where('account_number', $incident->alarmEvent->account_number)
             ->where('id', '<', $incident->alarm_event_id)
             ->orderBy('created_at', 'desc')
