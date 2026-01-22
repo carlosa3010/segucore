@@ -10,6 +10,7 @@ use App\Models\TraccarPosition;
 use App\Services\TraccarApiService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Barryvdh\DomPDF\Facade\Pdf; // Importar al inicio
 
 class GpsDeviceController extends Controller
 {
