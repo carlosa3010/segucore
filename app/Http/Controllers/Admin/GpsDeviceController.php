@@ -5,12 +5,13 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\GpsDevice;
 use App\Models\Customer;
+use App\Models\Driver; // <--- NUEVO: Importar modelo Driver
 use App\Models\TraccarDevice;
 use App\Models\TraccarPosition;
 use App\Services\TraccarApiService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Barryvdh\DomPDF\Facade\Pdf; // Importar al inicio
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class GpsDeviceController extends Controller
 {
@@ -26,7 +27,8 @@ class GpsDeviceController extends Controller
      */
     public function index(Request $request)
     {
-        $query = GpsDevice::with('customer');
+        // Cargamos también la relación 'driver'
+        $query = GpsDevice::with(['customer', 'driver']);
 
         if ($request->has('search')) {
             $s = $request->search;
@@ -53,7 +55,10 @@ class GpsDeviceController extends Controller
     public function create()
     {
         $customers = Customer::where('is_active', true)->orderBy('first_name')->get();
-        return view('admin.gps.devices.create', compact('customers'));
+        // Cargar lista de conductores activos
+        $drivers = Driver::where('status', 'active')->orderBy('full_name')->get();
+        
+        return view('admin.gps.devices.create', compact('customers', 'drivers'));
     }
 
     /**
@@ -63,6 +68,7 @@ class GpsDeviceController extends Controller
     {
         $validated = $request->validate([
             'customer_id' => 'required|exists:customers,id',
+            'driver_id' => 'nullable|exists:drivers,id', // <--- Validación Driver
             'name' => 'required|string|max:100',
             'imei' => [
                 'required',
@@ -100,7 +106,7 @@ class GpsDeviceController extends Controller
      */
     public function show($id)
     {
-        $device = GpsDevice::with('customer')->findOrFail($id);
+        $device = GpsDevice::with(['customer', 'driver'])->findOrFail($id);
         
         // Datos en vivo + Posición (lat/lon/velocidad)
         $liveData = null;
@@ -120,7 +126,9 @@ class GpsDeviceController extends Controller
     {
         $device = GpsDevice::findOrFail($id);
         $customers = Customer::where('is_active', true)->orderBy('first_name')->get();
-        return view('admin.gps.devices.edit', compact('device', 'customers'));
+        $drivers = Driver::where('status', 'active')->orderBy('full_name')->get();
+
+        return view('admin.gps.devices.edit', compact('device', 'customers', 'drivers'));
     }
 
     /**
@@ -132,12 +140,13 @@ class GpsDeviceController extends Controller
         
         $validated = $request->validate([
             'name' => 'required|string|max:100',
+            'driver_id' => 'nullable|exists:drivers,id', // <--- Validación Driver
             'device_model' => 'required|string',
             'phone_number' => 'nullable|string',
             'plate_number' => 'nullable|string',
             'subscription_status' => 'required|in:active,suspended',
-            'speed_limit' => 'nullable|integer|min:0', // <--- Validación nuevo campo
-            'odometer' => 'nullable|numeric|min:0',    // <--- Validación nuevo campo
+            'speed_limit' => 'nullable|integer|min:0',
+            'odometer' => 'nullable|numeric|min:0',
         ]);
 
         $device->update($validated);
@@ -235,11 +244,9 @@ class GpsDeviceController extends Controller
 
         // 1. Procesar fechas: Convertir Entrada (Local) -> Query (UTC)
         if ($request->filled('from') && $request->filled('to')) {
-            // Si el usuario eligió fechas, asumimos que están en su hora local
             $from = \Carbon\Carbon::parse($request->input('from'), $tz)->setTimezone('UTC');
             $to = \Carbon\Carbon::parse($request->input('to'), $tz)->setTimezone('UTC');
         } else {
-            // Default: Últimas 12 horas (Calculado desde ahora)
             $from = now()->subHours(12)->setTimezone('UTC');
             $to = now()->setTimezone('UTC');
         }
@@ -256,7 +263,7 @@ class GpsDeviceController extends Controller
                 return [
                     'lat' => $p->latitude,
                     'lng' => $p->longitude,
-                    'speed' => round($p->speed * 1.852), // Nudos a Km/h
+                    'speed' => round($p->speed * 1.852), 
                     // 3. Salida: Convertir DB (UTC) -> Visualización (Local)
                     'time' => \Carbon\Carbon::parse($p->fixtime)->setTimezone($tz)->format('d/m H:i'),
                     'course' => $p->course
@@ -266,24 +273,34 @@ class GpsDeviceController extends Controller
         return response()->json($positions);
     }
 
-
-   /**
+    /**
      * 12. EXPORTAR HISTORIAL A PDF
      */
     public function exportHistoryPdf(Request $request, $id)
     {
-        $device = GpsDevice::with('customer')->findOrFail($id);
+        $device = GpsDevice::with('customer', 'driver')->findOrFail($id);
         
-        $from = $request->input('from') ? \Carbon\Carbon::parse($request->input('from')) : now()->subHours(12);
-        $to = $request->input('to') ? \Carbon\Carbon::parse($request->input('to')) : now();
+        // Zona horaria para procesar los inputs correctamente
+        $tz = 'America/Caracas';
 
-        // Obtener datos (Reutilizamos lógica, pero directo para la vista)
+        if ($request->filled('from') && $request->filled('to')) {
+            $from = \Carbon\Carbon::parse($request->input('from'), $tz);
+            $to = \Carbon\Carbon::parse($request->input('to'), $tz);
+        } else {
+            $from = now($tz)->subHours(12);
+            $to = now($tz);
+        }
+
+        // Obtener datos (Consulta a Traccar en UTC)
         $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
         $positions = collect([]);
 
         if ($traccarDevice) {
             $positions = TraccarPosition::where('deviceid', $traccarDevice->id)
-                ->whereBetween('fixtime', [$from->copy()->setTimezone('UTC'), $to->copy()->setTimezone('UTC')])
+                ->whereBetween('fixtime', [
+                    $from->copy()->setTimezone('UTC'), 
+                    $to->copy()->setTimezone('UTC')
+                ])
                 ->orderBy('fixtime', 'asc')
                 ->get();
         }
@@ -292,5 +309,5 @@ class GpsDeviceController extends Controller
         $pdf = Pdf::loadView('admin.gps.devices.pdf_history', compact('device', 'positions', 'from', 'to'));
         
         return $pdf->download("Historial_{$device->name}_{$from->format('Ymd')}.pdf");
-    } 
+    }
 }
