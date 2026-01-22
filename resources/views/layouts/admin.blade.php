@@ -98,11 +98,21 @@
 
             <div class="mt-6">
                 <h3 class="px-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-800 pb-1 mb-2">Rastreo GPS</h3>
-                <a href="{{ route('admin.gps.devices.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white {{ request()->routeIs('admin.gps.devices.*') ? 'active' : '' }}">
-                    <span class="mr-3">🛰️</span> Dispositivos GPS
-                </a>
+                
                 <a href="{{ route('admin.gps.fleet.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-400 hover:bg-gray-800 hover:text-white {{ request()->routeIs('admin.gps.fleet.*') ? 'active' : '' }}">
-                    <span class="mr-3">🚚</span> Gestión de Flotas
+                    <span class="mr-3">📡</span> Mapa en Vivo
+                </a>
+
+                <a href="{{ route('admin.gps.devices.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white {{ request()->routeIs('admin.gps.devices.*') ? 'active' : '' }}">
+                    <span class="mr-3">🛰️</span> Dispositivos
+                </a>
+
+                <a href="{{ route('admin.drivers.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white {{ request()->routeIs('admin.drivers.*') ? 'active' : '' }}">
+                    <span class="mr-3">👮</span> Conductores
+                </a>
+
+                <a href="{{ route('admin.geofences.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white {{ request()->routeIs('admin.geofences.*') ? 'active' : '' }}">
+                    <span class="mr-3">🌐</span> Geocercas
                 </a>
             </div>
 
