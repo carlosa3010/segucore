@@ -20,7 +20,7 @@ class GpsDevice extends Model
         'vehicle_type',
         'driver_name',
         'installation_date',
-        'subscription_status'
+        'subscription_status',
         'speed_limit',
          'odometer',
     ];
