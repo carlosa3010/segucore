@@ -157,8 +157,8 @@
             <div class="mt-6 mb-10">
                 <h3 class="px-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-800 pb-1 mb-2">Configuración</h3>
                 
-                <a href="#" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white">
-                    <span class="mr-3">⚙️</span> Ajustes Globales
+                <a href="{{ route('admin.config.general.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white {{ request()->routeIs('admin.config.general.*') ? 'active' : '' }}">
+                    <span class="mr-3">⚙️</span> Ajustes & APIs
                 </a>
 
                 <a href="{{ route('admin.sia-codes.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white {{ request()->routeIs('admin.sia-codes.*') ? 'active' : '' }}">
@@ -211,7 +211,7 @@
                     </div>
 
                     <div class="py-1">
-                        <a href="#" class="flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition group">
+                        <a href="{{ route('admin.profile.password') }}" class="flex items-center px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition group">
                             <span class="mr-3 text-lg group-hover:scale-110 transition">🔑</span> Cambiar Clave
                         </a>
                     </div>
