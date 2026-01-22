@@ -20,8 +20,9 @@ use App\Http\Controllers\Admin\FleetController;
 use App\Http\Controllers\Admin\DriverController;
 use App\Http\Controllers\Admin\GeofenceController;
 use App\Http\Controllers\Admin\DeviceAlertController;
-use App\Http\Controllers\Admin\PatrolController; // <--- NUEVO
-use App\Http\Controllers\Admin\GuardController;  // <--- NUEVO
+use App\Http\Controllers\Admin\PatrolController;
+use App\Http\Controllers\Admin\GuardController;
+use App\Http\Controllers\Admin\SecurityMapController; // <--- IMPORTANTE
 
 /*
 |--------------------------------------------------------------------------
@@ -141,7 +142,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::get('devices/{id}/history-data', [GpsDeviceController::class, 'getHistoryData'])->name('devices.history-data');
         Route::get('devices/{id}/history/pdf', [GpsDeviceController::class, 'exportHistoryPdf'])->name('devices.history.pdf');
 
-        // Flotas
+        // Flotas (Vista General)
         Route::get('/fleet', [FleetController::class, 'index'])->name('fleet.index');
         Route::get('/fleet/positions', [FleetController::class, 'positions'])->name('fleet.positions');
     });
@@ -155,9 +156,13 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     // 10. ALERTAS
     Route::get('alerts', [DeviceAlertController::class, 'index'])->name('alerts.index');
 
-    // 11. SEGURIDAD FÍSICA (NUEVO)
+    // 11. SEGURIDAD FÍSICA (PATRULLAS, GUARDIAS Y MAPA TÁCTICO)
     Route::resource('patrols', PatrolController::class);
     Route::resource('guards', GuardController::class);
+    
+    // Mapa Táctico Operativo (Unifica GPS + Guardias App)
+    Route::get('security-map', [SecurityMapController::class, 'index'])->name('security.map.index');
+    Route::get('security-map/data', [SecurityMapController::class, 'positions'])->name('security.map.data');
 
 });
 
