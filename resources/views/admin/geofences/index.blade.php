@@ -28,6 +28,11 @@
                     <td class="px-4 py-3 font-mono text-xs text-yellow-500">{{ $geo->traccar_geofence_id ?? 'PENDIENTE' }}</td>
                     <td class="px-4 py-3 text-right">
                         <div class="flex justify-end gap-2">
+                            
+                            <a href="{{ route('admin.geofences.edit', $geo->id) }}" class="bg-slate-700 hover:bg-yellow-600/80 text-yellow-400 hover:text-white p-1.5 rounded transition" title="Editar">
+                                ✏️
+                            </a>
+
                             <form action="{{ route('admin.geofences.destroy', $geo->id) }}" method="POST" onsubmit="return confirm('¿Estás seguro de eliminar la geocerca {{ $geo->name }}? Esto dejará de monitorear la zona.')">
                                 @csrf
                                 @method('DELETE')
