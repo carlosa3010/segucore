@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MonitoringController;
+use App\Http\Controllers\PublicReportController; // <--- NUEVO: Para verificación QR
 
 // Controladores del Panel Admin
 use App\Http\Controllers\Admin\DashboardController;
@@ -11,9 +12,9 @@ use App\Http\Controllers\Admin\IncidentController;
 use App\Http\Controllers\Admin\IncidentConfigController;
 use App\Http\Controllers\Admin\SiaCodeController;
 use App\Http\Controllers\Admin\AlarmZoneController;
-use App\Http\Controllers\Admin\ReportController; // <--- NUEVO
-use App\Http\Controllers\Admin\UserController;   // <--- NUEVO
-use App\Http\Controllers\Admin\ServicePlanController; // <--- NUEVO
+use App\Http\Controllers\Admin\ReportController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\ServicePlanController;
 
 /*
 |--------------------------------------------------------------------------
@@ -29,6 +30,12 @@ Route::get('/mapa', [MonitoringController::class, 'map'])->name('monitor.map');
 
 // API Interna (Para actualización en tiempo real vía AJAX)
 Route::get('/api/live-events', [MonitoringController::class, 'getLiveEvents'])->name('api.live-events');
+
+// --- VERIFICACIÓN PÚBLICA DE DOCUMENTOS (QR) ---
+// Esta ruta es pública pero protegida por firma criptográfica (signed)
+Route::get('/verify/report/{id}', [PublicReportController::class, 'verify'])
+    ->name('report.verify')
+    ->middleware('signed');
 
 
 /*
@@ -117,7 +124,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::resource('sia-codes', SiaCodeController::class);
     
     // Gestión de Usuarios (Operadores)
-    Route::resource('users', UserController::class); // <--- NUEVO
+    Route::resource('users', UserController::class);
 
     // Configuración Dinámica de Incidentes (Resoluciones y Motivos)
     Route::prefix('config')->name('config.')->group(function () {
@@ -132,7 +139,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
         Route::delete('hold-reasons/{id}', [IncidentConfigController::class, 'destroyHoldReason'])->name('hold-reasons.destroy');
 
         // Planes de Servicio (Facturación)
-        Route::resource('plans', ServicePlanController::class)->except(['create', 'edit', 'show']); // <--- NUEVO
+        Route::resource('plans', ServicePlanController::class)->except(['create', 'edit', 'show']);
     });
 
     // 6. MÓDULO DE REPORTES E INTELIGENCIA
