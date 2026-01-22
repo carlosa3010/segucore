@@ -92,13 +92,20 @@ class TraccarApiService
         $payload = [
             'deviceId' => $deviceId,
             'type' => $type,
-            'attributes' => $attributes
+            // CORRECCIÓN: (object) fuerza a PHP a enviar "{}" en lugar de "[]"
+            'attributes' => empty($attributes) ? (object)[] : $attributes
         ];
 
-        $response = $this->client()->post("{$this->baseUrl}/commands/send", $payload);
+        // Usar asJson() para asegurar la cabecera Content-Type: application/json
+        $response = $this->client()->asJson()->post("{$this->baseUrl}/commands/send", $payload);
         
         if ($response->failed()) {
-            Log::error('Error enviando comando Traccar', ['payload' => $payload, 'error' => $response->body()]);
+            // Es útil ver el error real en el log (storage/logs/laravel.log)
+            Log::error('Error enviando comando Traccar', [
+                'payload' => $payload, 
+                'status' => $response->status(),
+                'error' => $response->body()
+            ]);
             return false;
         }
 
