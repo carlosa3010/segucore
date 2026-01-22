@@ -69,13 +69,20 @@ class GuardAppController extends Controller
      */
     public function updateLocation(Request $request)
     {
-        // Aquí podrías guardar en una tabla local o reenviar a Traccar
-        // Si el guardia tiene una patrulla con GPS físico, esto podría ser redundante,
-        // pero si va a pie, el celular es el tracker.
-        
-        // Simulación: Guardar última posición en cache o DB rápida
+        $request->validate([
+            'lat' => 'required|numeric',
+            'lng' => 'required|numeric',
+            'battery' => 'nullable|integer'
+        ]);
+
         $guard = $this->getGuard();
-        // Cache::put("guard_loc_{$guard->id}", $request->only('lat', 'lng'), 300);
+        
+        $guard->update([
+            'last_lat' => $request->lat,
+            'last_lng' => $request->lng,
+            'battery_level' => $request->battery,
+            'last_seen_at' => now()
+        ]);
         
         return response()->json(['success' => true]);
     }
