@@ -2,60 +2,96 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <title>Informe de Incidente #{{ $incident->id }}</title>
+    <title>Informe Oficial #{{ str_pad($incident->id, 6, '0', STR_PAD_LEFT) }}</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        body { font-family: monospace; font-size: 13px; color: #000; }
-        .container { max-width: 800px; margin: 0 auto; border: 1px solid #000; padding: 20px; }
-        h1 { text-align: center; text-transform: uppercase; border-bottom: 2px solid #000; padding-bottom: 10px; }
-        .section { margin-top: 20px; border-top: 1px dashed #666; padding-top: 10px; }
-        .section-title { font-weight: bold; text-transform: uppercase; background: #eee; padding: 5px; display: block; margin-bottom: 10px; }
-        .row { display: flex; margin-bottom: 5px; }
-        .label { font-weight: bold; width: 150px; }
+        body { font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #000; line-height: 1.3; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        
+        /* HEADER */
+        .header-table { width: 100%; border-bottom: 2px solid #000; margin-bottom: 15px; padding-bottom: 10px; }
+        .logo-img { height: 60px; width: auto; object-fit: contain; } /* Ajusta alto según tu logo */
+        .company-info { text-align: right; font-size: 10px; }
+
+        /* TITULO */
+        h1 { text-align: center; text-transform: uppercase; font-size: 18px; margin: 10px 0 20px 0; letter-spacing: 1px; }
+
+        /* SECCIONES Y TABLAS */
+        .section { margin-top: 25px; border: 1px solid #000; padding: 10px; page-break-inside: avoid; /* EVITA CORTES A MITAD DE SECCIÓN */ }
+        .section-title { font-weight: bold; text-transform: uppercase; background: #eee; display: block; margin: -10px -10px 10px -10px; padding: 5px 10px; border-bottom: 1px solid #000; font-size: 11px; }
+        
+        .row { display: flex; margin-bottom: 4px; }
+        .label { font-weight: bold; width: 140px; color: #333; }
         .value { flex: 1; }
+
         table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 5px; }
-        th, td { border: 1px solid #999; padding: 4px; text-align: left; }
-        .history-item { color: #666; font-size: 10px; }
+        th, td { border: 1px solid #999; padding: 5px; text-align: left; }
+        th { background-color: #f0f0f0; }
+        
+        /* ESTILOS DE IMPRESIÓN ESPECÍFICOS */
+        @media print {
+            body { -webkit-print-color-adjust: exact; }
+            .no-print { display: none; }
+            tr { page-break-inside: avoid; } /* Evita cortar filas de tabla */
+            .page-break { page-break-before: always; }
+        }
+
+        /* SEGURIDAD */
+        .security-footer { margin-top: 30px; border-top: 1px dashed #000; padding-top: 15px; display: flex; align-items: center; justify-content: space-between; page-break-inside: avoid; }
+        .qr-container { width: 80px; height: 80px; }
+        .hash-code { font-family: 'OCR A Std', monospace; font-size: 14px; font-weight: bold; letter-spacing: 2px; }
     </style>
 </head>
-<body onload="window.print()">
+<body>
+
+    <div class="no-print" style="position: fixed; top: 0; right: 0; padding: 10px; background: #ddd; opacity: 0.9;">
+        <button onclick="window.print()" style="font-size: 16px; padding: 10px 20px; cursor: pointer; font-weight: bold;">🖨️ IMPRIMIR / GUARDAR PDF</button>
+    </div>
 
     <div class="container">
-        <h1>Informe de Incidente #{{ str_pad($incident->id, 6, '0', STR_PAD_LEFT) }}</h1>
+        
+        <table class="header-table">
+            <tr>
+                <td style="border:none; width: 30%;">
+                    <img src="{{ asset('images/logo-white.png') }}" alt="SEGUSMART" class="logo-img" style="filter: invert(1);"> 
+                </td>
+                <td style="border:none; width: 70%; text-align: right;">
+                    <strong>SEGUSMART 24, C.A.</strong><br>
+                    RIF: J-50462276-0<br>
+                    Centro de Control y Monitoreo 24/7<br>
+                    Barquisimeto, Venezuela
+                </td>
+            </tr>
+        </table>
 
-        <div class="row">
-            <span class="label">FECHA/HORA:</span>
-            <span class="value">{{ $incident->created_at->format('d/m/Y H:i:s') }}</span>
-        </div>
-        <div class="row">
-            <span class="label">ABONADO:</span>
-            <span class="value"><strong>{{ $incident->alarmEvent->account_number }}</strong> - {{ $incident->alarmEvent->account->branch_name }}</span>
-        </div>
-        <div class="row">
-            <span class="label">CLIENTE:</span>
-            <span class="value">{{ $incident->alarmEvent->account->customer->full_name }} ({{ $incident->alarmEvent->account->customer->national_id }})</span>
-        </div>
-        <div class="row">
-            <span class="label">DIRECCIÓN:</span>
-            <span class="value">{{ $incident->alarmEvent->account->installation_address }}</span>
+        <h1>Informe Técnico de Incidente #{{ str_pad($incident->id, 6, '0', STR_PAD_LEFT) }}</h1>
+
+        <div class="section">
+            <span class="section-title">Información del Cliente y Cuenta</span>
+            <div class="row"><span class="label">CLIENTE:</span><span class="value">{{ $incident->alarmEvent->account->customer->full_name }}</span></div>
+            <div class="row"><span class="label">ID LEGAL:</span><span class="value">{{ $incident->alarmEvent->account->customer->national_id }}</span></div>
+            <div class="row"><span class="label">CUENTA:</span><span class="value"><strong>{{ $incident->alarmEvent->account_number }}</strong> - {{ $incident->alarmEvent->account->branch_name }}</span></div>
+            <div class="row"><span class="label">DIRECCIÓN:</span><span class="value">{{ $incident->alarmEvent->account->installation_address }}</span></div>
         </div>
 
         <div class="section">
-            <span class="section-title">Detalle de la Señal</span>
+            <span class="section-title">Detalle del Evento Disparador</span>
+            <div class="row"><span class="label">FECHA/HORA:</span><span class="value"><strong>{{ $incident->created_at->format('d/m/Y H:i:s') }}</strong></span></div>
             <div class="row"><span class="label">CÓDIGO SIA:</span><span class="value">{{ $incident->alarmEvent->event_code }}</span></div>
-            <div class="row"><span class="label">DESCRIPCIÓN:</span><span class="value"><strong>{{ $incident->alarmEvent->siaCode->description }}</strong></span></div>
-            <div class="row"><span class="label">ZONA:</span><span class="value">{{ $incident->alarmEvent->zone }} ({{ $incident->alarmEvent->zone_name ?? 'No definida' }})</span></div>
-            <div class="row"><span class="label">TRAMA RAW:</span><span class="value" style="font-size: 10px;">{{ $incident->alarmEvent->raw_data }}</span></div>
+            <div class="row"><span class="label">DESCRIPCIÓN:</span><span class="value">{{ $incident->alarmEvent->siaCode->description }}</span></div>
+            <div class="row"><span class="label">ZONA / ÁREA:</span><span class="value">Zona {{ $incident->alarmEvent->zone }} | Partición {{ $incident->alarmEvent->partition }}</span></div>
+            <div class="row"><span class="label">ORIGEN:</span><span class="value">{{ $incident->alarmEvent->ip_address ?? 'GPRS/Telefónico' }}</span></div>
         </div>
 
         <div class="section">
-            <span class="section-title">Bitácora de Gestión (Cronología)</span>
+            <span class="section-title">Cronología de Atención (Bitácora)</span>
             <table>
                 <thead>
                     <tr>
                         <th width="15%">Hora</th>
                         <th width="15%">Operador</th>
-                        <th width="10%">Tipo</th>
-                        <th width="60%">Descripción</th>
+                        <th width="10%">Acción</th>
+                        <th width="60%">Detalle</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -72,42 +108,44 @@
         </div>
 
         <div class="section">
-            <span class="section-title">Cierre y Resolución</span>
-            <div class="row">
-                <span class="label">RESULTADO:</span>
-                <span class="value" style="text-transform: uppercase;">{{ $incident->result }}</span>
-            </div>
-            <div class="row">
-                <span class="label">INFORME FINAL:</span>
-                <span class="value" style="border: 1px solid #ccc; padding: 5px; display: block;">
-                    {{ $incident->notes }}
-                </span>
-            </div>
-            <div class="row" style="margin-top: 10px;">
-                <span class="label">CERRADO POR:</span>
-                <span class="value">{{ $incident->operator->name ?? 'N/A' }} a las {{ $incident->closed_at ? $incident->closed_at->format('d/m/Y H:i') : '---' }}</span>
+            <span class="section-title">Cierre y Conclusión</span>
+            <div class="row"><span class="label">RESULTADO:</span><span class="value" style="font-weight: bold; text-transform: uppercase;">{{ $incident->result }}</span></div>
+            <div class="row"><span class="label">CIERRE:</span><span class="value">{{ $incident->closed_at ? $incident->closed_at->format('d/m/Y H:i:s') : 'ABIERO' }}</span></div>
+            <div style="margin-top: 10px; border: 1px solid #ccc; padding: 5px; background: #fafafa;">
+                <strong>Nota Final del Operador:</strong><br>
+                {{ $incident->notes }}
             </div>
         </div>
 
-        <div class="section">
-            <span class="section-title">Contexto (Últimos 15 Eventos Previos)</span>
-            <table>
-                @foreach($history as $h)
-                <tr class="history-item">
-                    <td width="20%">{{ $h->created_at->format('d/m H:i') }}</td>
-                    <td width="10%">{{ $h->event_code }}</td>
-                    <td>{{ $h->siaCode->description ?? '' }}</td>
-                    <td width="10%">Z:{{ $h->zone }}</td>
-                </tr>
-                @endforeach
-            </table>
+        @php
+            // Generar Hash de Seguridad Visual (8 caracteres del MD5 de ID + Fecha + AppKey)
+            $securityHash = strtoupper(substr(md5($incident->id . $incident->created_at . config('app.key')), 0, 8));
+            // Generar URL Firmada (Expira en 1 año o nunca, según necesidad. Signed URL es segura)
+            $verificationUrl = URL::signedRoute('report.verify', ['id' => $incident->id]);
+        @endphp
+
+        <div class="security-footer">
+            <div style="flex: 1;">
+                <strong>VERIFICACIÓN DE AUTENTICIDAD</strong><br>
+                <small>Escanee el código QR para validar la integridad de este documento físico en nuestros servidores.</small><br><br>
+                SERIAL DE SEGURIDAD:<br>
+                <span class="hash-code">#{{ $securityHash }}-{{ $incident->id }}</span>
+            </div>
+            <div id="qrcode" class="qr-container"></div>
         </div>
 
-        <div style="text-align: center; margin-top: 40px; font-size: 10px;">
-            __________________________<br>
-            Firma Supervisor
-        </div>
     </div>
+
+    <script type="text/javascript">
+        new QRCode(document.getElementById("qrcode"), {
+            text: "{{ $verificationUrl }}",
+            width: 80,
+            height: 80,
+            colorDark : "#000000",
+            colorLight : "#ffffff",
+            correctLevel : QRCode.CorrectLevel.M
+        });
+    </script>
 
 </body>
 </html>
