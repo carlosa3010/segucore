@@ -2,113 +2,136 @@
 @section('title', 'Dashboard Principal')
 
 @section('content')
-<div class="space-y-6">
+<div class="space-y-8">
     
-    <div class="flex justify-between items-end">
+    <div class="flex justify-between items-end border-b border-slate-800 pb-4">
         <div>
-            <h1 class="text-2xl font-bold text-white">Tablero de Control</h1>
-            <p class="text-slate-400 text-sm">Bienvenido, {{ Auth::user()->name }}</p>
+            <h1 class="text-3xl font-bold text-white tracking-tight">Centro de Comando</h1>
+            <p class="text-slate-400 text-sm mt-1">Visión general del sistema Segusmart</p>
         </div>
-        <span class="text-xs text-slate-500 bg-slate-800 px-3 py-1 rounded border border-slate-700">
-            Última act: {{ now()->format('H:i:s') }}
-        </span>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        
-        <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 relative overflow-hidden group">
-            <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition transform group-hover:scale-110">
-                <span class="text-6xl">🚨</span>
+        <div class="flex gap-3">
+            <div class="text-right hidden sm:block">
+                <span class="block text-2xl font-bold text-white">{{ $totalCustomers }}</span>
+                <span class="text-xs text-slate-500 uppercase font-bold">Clientes Totales</span>
             </div>
-            <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider">Incidentes Abiertos</h3>
-            <p class="text-3xl font-bold text-white mt-1">{{ $openIncidents }}</p>
-            <div class="mt-2 text-xs {{ $incidentsToday > 0 ? 'text-red-400' : 'text-slate-500' }}">
-                {{ $incidentsToday }} nuevos hoy
-            </div>
-        </div>
-
-        <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 relative overflow-hidden group">
-            <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition">
-                <span class="text-6xl text-blue-500">📡</span>
-            </div>
-            <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider">Flota Conectada</h3>
-            <div class="flex items-baseline gap-2 mt-1">
-                <p class="text-3xl font-bold text-green-400">{{ $onlineDevices }}</p>
-                <span class="text-sm text-slate-500">/ {{ $totalDevices }}</span>
-            </div>
-            <div class="mt-2 text-xs text-slate-500">
-                <span class="text-red-400">{{ $offlineDevices }}</span> sin señal
-            </div>
-        </div>
-
-        <a href="{{ route('admin.alerts.index') }}" class="bg-slate-800 p-4 rounded-lg border border-slate-700 relative overflow-hidden group hover:border-red-500/50 transition cursor-pointer">
-            <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition">
-                <span class="text-6xl text-red-500">🔔</span>
-            </div>
-            <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider">Alertas Recientes</h3>
-            <p class="text-3xl font-bold text-white mt-1">{{ $recentAlerts }}</p>
-            <div class="mt-2 text-xs font-bold {{ $unreadAlerts > 0 ? 'text-yellow-400 animate-pulse' : 'text-slate-500' }}">
-                {{ $unreadAlerts }} sin leer
-            </div>
-        </a>
-
-        <div class="bg-slate-800 p-4 rounded-lg border border-slate-700 relative overflow-hidden">
-            <div class="absolute right-0 top-0 p-4 opacity-10">
-                <span class="text-6xl text-purple-500">👥</span>
-            </div>
-            <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Clientes</h3>
-            <p class="text-3xl font-bold text-white mt-1">{{ $totalCustomers }}</p>
-            <div class="mt-2 text-xs text-blue-400 hover:underline">
-                <a href="{{ route('admin.customers.index') }}">Ver directorio →</a>
+            <div class="text-right hidden sm:block border-l border-slate-700 pl-3">
+                <span class="block text-2xl font-bold text-red-500">{{ $openIncidents }}</span>
+                <span class="text-xs text-slate-500 uppercase font-bold">Incidentes Activos</span>
             </div>
         </div>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        <div class="lg:col-span-2 bg-slate-800 rounded-lg border border-slate-700 p-4">
-            <h3 class="text-white font-bold text-sm mb-4 border-b border-slate-700 pb-2">Últimos Eventos de Flota</h3>
-            <div class="space-y-3">
-                @forelse($latestEvents as $event)
-                <div class="flex items-start gap-3 p-2 hover:bg-slate-700/50 rounded transition">
-                    <div class="w-8 h-8 rounded bg-slate-900 flex items-center justify-center text-lg shadow-sm border border-slate-600">
-                        @if($event->type == 'overspeed') 🏎️ @elseif($event->type == 'geofence') 🌐 @else ⚠️ @endif
-                    </div>
-                    <div>
-                        <p class="text-sm text-white">
-                            <span class="font-bold text-blue-400">{{ $event->device->name ?? 'Desconocido' }}</span>: 
-                            {{ $event->message }}
-                        </p>
-                        <p class="text-xs text-slate-500">{{ $event->created_at->diffForHumans() }}</p>
-                    </div>
+    <div>
+        <h2 class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+            <span class="w-2 h-2 bg-purple-500 rounded-full"></span> Seguridad Electrónica (Alarmas)
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <div class="bg-slate-800 p-5 rounded-lg border border-slate-700 relative overflow-hidden">
+                <div class="absolute right-0 top-0 p-4 opacity-10"><span class="text-5xl text-purple-500">📟</span></div>
+                <div class="text-sm text-slate-400 mb-1">Cuentas Abonadas</div>
+                <div class="text-3xl font-bold text-white">{{ $totalAlarmAccounts }}</div>
+                <div class="mt-2 flex items-center gap-2 text-xs">
+                    <span class="text-green-400 font-bold">{{ $activePanels }} Activas</span>
+                    <span class="text-slate-600">|</span>
+                    <span class="text-slate-500">{{ $totalAlarmAccounts - $activePanels }} Inactivas</span>
                 </div>
-                @empty
-                <div class="text-center py-8 text-slate-500 italic">No hay eventos recientes.</div>
-                @endforelse
+            </div>
+
+            <div class="bg-slate-800 p-5 rounded-lg border border-slate-700 relative overflow-hidden">
+                <div class="absolute right-0 top-0 p-4 opacity-10"><span class="text-5xl text-blue-500">📶</span></div>
+                <div class="text-sm text-slate-400 mb-1">Señales Recibidas (Hoy)</div>
+                <div class="text-3xl font-bold text-white">{{ $signalsToday }}</div>
+                <div class="mt-2 text-xs text-blue-400">Eventos procesados por el receptor</div>
+            </div>
+
+            <div class="bg-slate-800 p-5 rounded-lg border border-slate-700 relative overflow-hidden {{ $criticalSignals > 0 ? 'ring-1 ring-red-500 bg-red-900/10' : '' }}">
+                <div class="absolute right-0 top-0 p-4 opacity-10"><span class="text-5xl text-red-500">🔥</span></div>
+                <div class="text-sm text-slate-400 mb-1">Eventos Críticos (24h)</div>
+                <div class="text-3xl font-bold {{ $criticalSignals > 0 ? 'text-red-400' : 'text-white' }}">{{ $criticalSignals }}</div>
+                <div class="mt-2 text-xs text-slate-500">Robo, Pánico, Fuego, Médica</div>
             </div>
         </div>
+    </div>
 
-        <div class="bg-slate-800 rounded-lg border border-slate-700 p-4">
-            <h3 class="text-white font-bold text-sm mb-4 border-b border-slate-700 pb-2">Acciones Rápidas</h3>
-            <div class="grid grid-cols-2 gap-3">
-                <a href="{{ route('admin.operations.console') }}" target="_blank" class="flex flex-col items-center justify-center p-4 bg-red-900/20 border border-red-900/50 rounded hover:bg-red-900/40 transition">
-                    <span class="text-2xl mb-1">🚨</span>
-                    <span class="text-xs font-bold text-red-200">Consola</span>
+    <div>
+        <h2 class="text-slate-400 text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+            <span class="w-2 h-2 bg-blue-500 rounded-full"></span> Gestión de Flota (GPS)
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            <div class="bg-slate-800 p-5 rounded-lg border border-slate-700 relative overflow-hidden">
+                <div class="absolute right-0 top-0 p-4 opacity-10"><span class="text-5xl text-cyan-500">🛰️</span></div>
+                <div class="text-sm text-slate-400 mb-1">Total Vehículos</div>
+                <div class="text-3xl font-bold text-white">{{ $totalDevices }}</div>
+                <div class="mt-2 w-full bg-slate-700 rounded-full h-1.5">
+                    @php $percent = $totalDevices > 0 ? ($onlineDevices/$totalDevices)*100 : 0; @endphp
+                    <div class="bg-green-500 h-1.5 rounded-full" style="width: {{ $percent }}%"></div>
+                </div>
+                <div class="mt-1 text-[10px] text-slate-400 flex justify-between">
+                    <span>{{ $onlineDevices }} Online</span>
+                    <span>{{ $offlineDevices }} Offline</span>
+                </div>
+            </div>
+
+            <a href="{{ route('admin.alerts.index') }}" class="bg-slate-800 p-5 rounded-lg border border-slate-700 relative overflow-hidden hover:bg-slate-750 transition group cursor-pointer">
+                <div class="absolute right-0 top-0 p-4 opacity-10 group-hover:opacity-20 transition"><span class="text-5xl text-yellow-500">⚠️</span></div>
+                <div class="text-sm text-slate-400 mb-1">Alertas de Conducción</div>
+                <div class="text-3xl font-bold text-white">{{ $gpsAlerts24h }}</div>
+                <div class="mt-2 text-xs text-yellow-500 font-medium">Ver historial de excesos →</div>
+            </a>
+
+            <div class="grid grid-rows-2 gap-2">
+                <a href="{{ route('admin.gps.fleet.index') }}" class="bg-blue-900/20 border border-blue-800/50 hover:bg-blue-900/40 rounded-lg flex items-center justify-center gap-2 text-blue-300 font-bold text-sm transition">
+                    🗺️ Mapa en Vivo
                 </a>
-                <a href="{{ route('admin.gps.fleet.index') }}" class="flex flex-col items-center justify-center p-4 bg-blue-900/20 border border-blue-900/50 rounded hover:bg-blue-900/40 transition">
-                    <span class="text-2xl mb-1">🛰️</span>
-                    <span class="text-xs font-bold text-blue-200">Mapa Flota</span>
-                </a>
-                <a href="{{ route('admin.customers.create') }}" class="flex flex-col items-center justify-center p-4 bg-slate-700 rounded hover:bg-slate-600 transition">
-                    <span class="text-2xl mb-1">👤</span>
-                    <span class="text-xs text-slate-200">+ Cliente</span>
-                </a>
-                <a href="{{ route('admin.gps.devices.create') }}" class="flex flex-col items-center justify-center p-4 bg-slate-700 rounded hover:bg-slate-600 transition">
-                    <span class="text-2xl mb-1">🚗</span>
-                    <span class="text-xs text-slate-200">+ GPS</span>
+                <a href="{{ route('admin.gps.devices.create') }}" class="bg-slate-700 border border-slate-600 hover:bg-slate-600 rounded-lg flex items-center justify-center gap-2 text-white font-bold text-sm transition">
+                    + Nuevo GPS
                 </a>
             </div>
         </div>
     </div>
+
+    <div class="bg-slate-800 rounded-lg border border-slate-700">
+        <div class="p-4 border-b border-slate-700 flex justify-between items-center">
+            <h3 class="font-bold text-white text-sm">🚨 Últimos Incidentes Operativos</h3>
+            <a href="{{ route('admin.operations.console') }}" class="text-xs text-blue-400 hover:text-blue-300">Ir a Consola →</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left text-slate-400">
+                <thead class="bg-slate-900/50 text-xs uppercase">
+                    <tr>
+                        <th class="px-4 py-3">Hora</th>
+                        <th class="px-4 py-3">Cliente</th>
+                        <th class="px-4 py-3">Tipo</th>
+                        <th class="px-4 py-3">Estado</th>
+                        <th class="px-4 py-3">Atendido Por</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700">
+                    @forelse($latestIncidents as $inc)
+                    <tr>
+                        <td class="px-4 py-3">{{ $inc->created_at->format('H:i') }}</td>
+                        <td class="px-4 py-3 font-medium text-white">{{ $inc->customer->business_name ?? 'N/A' }}</td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-0.5 rounded text-[10px] bg-slate-700 text-white">{{ $inc->priority ?? 'ALARM' }}</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            @if($inc->status == 'open') <span class="text-red-400 animate-pulse">● Abierto</span>
+                            @elseif($inc->status == 'closed') <span class="text-green-400">● Cerrado</span>
+                            @else <span class="text-yellow-400">● En Proceso</span> @endif
+                        </td>
+                        <td class="px-4 py-3 text-xs">{{ $inc->user->name ?? 'Sistema' }}</td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="5" class="p-6 text-center italic text-slate-500">No hay incidentes recientes en la bitácora.</td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </div>
+
 </div>
 @endsection
