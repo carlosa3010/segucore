@@ -210,20 +210,30 @@
     function sendCommand(type) {
         if(!confirm('¿CONFIRMAR ACCIÓN? Se enviará el comando al dispositivo.')) return;
 
+        // Mostrar loading o deshabilitar botones temporalmente (Opcional)
+        
         fetch("{{ route('admin.gps.devices.command', $device->id) }}", {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json', // Importante para recibir JSON de vuelta
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
             body: JSON.stringify({ type: type })
         })
-        .then(res => res.json())
-        .then(data => {
-            if(data.success) alert('✅ Comando enviado correctamente.');
-            else alert('❌ Error al enviar comando. Verifique conexión.');
+        .then(async res => {
+            const data = await res.json();
+            if(res.ok && data.success) {
+                alert('✅ Comando enviado correctamente a la cola.');
+            } else {
+                console.error("Error comando:", data);
+                alert('❌ Error al enviar comando. Revise el log o la conexión con Traccar.');
+            }
         })
-        .catch(err => alert('Error de red.'));
+        .catch(err => {
+            console.error(err);
+            alert('Error de red al conectar con el servidor.');
+        });
     }
 </script>
 @endsection
