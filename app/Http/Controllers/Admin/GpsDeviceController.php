@@ -86,11 +86,15 @@ class GpsDeviceController extends Controller
 
     public function show($id)
     {
+        // 1. Buscamos el dispositivo local
         $device = GpsDevice::with('customer')->findOrFail($id);
         
+        // 2. Buscamos datos en vivo de Traccar INCLUYENDO la posición
         $liveData = null;
         try {
-            $liveData = TraccarDevice::where('uniqueid', $device->imei)->first();
+            $liveData = TraccarDevice::where('uniqueid', $device->imei) // Recordar usar 'imei' si ya hiciste el cambio
+                ->with('position') // <--- CARGA LA COORDENADA
+                ->first();
         } catch (\Exception $e) { }
 
         return view('admin.gps.devices.show', compact('device', 'liveData'));
