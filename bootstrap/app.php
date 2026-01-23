@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -12,11 +13,21 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // --- AGREGAR ESTO ---
+        
+        // 1. Alias para el Video Wall (Ya lo tenías)
         $middleware->alias([
             'video.wall' => \App\Http\Middleware\EnsureVideoWallAccess::class,
-            // 'role' => \Spatie\Permission\Middleware\Role::class, // (Recomendado instalar a futuro)
         ]);
+
+        // 2. SOLUCIÓN A TU PROBLEMA: Redirección Inteligente
+        $middleware->redirectGuestsTo(function (Request $request) {
+            // Si intenta entrar por el dominio de cliente, mándalo al login de cliente
+            if ($request->getHost() === 'cliente.segusmart24.com') {
+                return route('client.login');
+            }
+            // Si no, mándalo al login normal (Admin)
+            return route('login');
+        });
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
