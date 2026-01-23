@@ -5,7 +5,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        // 1. Planes de Servicio (Si no existe, se crea)
+        // 1. Planes de Servicio
         if (!Schema::hasTable('service_plans')) {
             Schema::create('service_plans', function (Blueprint $table) {
                 $table->id();
@@ -19,7 +19,7 @@ return new class extends Migration {
             });
         }
 
-        // 2. Clientes (Si no existe, se crea)
+        // 2. Clientes
         if (!Schema::hasTable('customers')) {
             Schema::create('customers', function (Blueprint $table) {
                 $table->id();
@@ -40,7 +40,7 @@ return new class extends Migration {
             });
         }
 
-        // 3. Modificar Usuarios (BLINDADO: Verifica antes de agregar)
+        // 3. Usuarios (Blindado)
         Schema::table('users', function (Blueprint $table) {
             if (!Schema::hasColumn('users', 'customer_id')) {
                 $table->foreignId('customer_id')->nullable()->after('id')->constrained('customers')->nullOnDelete();
@@ -92,7 +92,7 @@ return new class extends Migration {
             });
         }
 
-        // 6. Alarmas
+        // 6. Alarmas (Cuentas)
         if (!Schema::hasTable('alarm_accounts')) {
             Schema::create('alarm_accounts', function (Blueprint $table) {
                 $table->id();
@@ -107,6 +107,18 @@ return new class extends Migration {
                 $table->string('device_model')->nullable();
                 $table->text('notes')->nullable();
                 $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
+
+        // 6.1 ZONAS DE ALARMA (¡ESTA ES LA QUE FALTABA!)
+        if (!Schema::hasTable('alarm_zones')) {
+            Schema::create('alarm_zones', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('alarm_account_id')->constrained('alarm_accounts')->cascadeOnDelete();
+                $table->string('zone_number'); // Ej: 001
+                $table->string('name');
+                $table->string('type')->nullable(); // Instantánea, Retardada
                 $table->timestamps();
             });
         }
@@ -144,9 +156,9 @@ return new class extends Migration {
     public function down(): void {
         Schema::dropIfExists('sia_codes');
         Schema::dropIfExists('geofences');
+        Schema::dropIfExists('alarm_zones'); // Borrar zonas al revertir
         Schema::dropIfExists('alarm_accounts');
         Schema::dropIfExists('gps_devices');
         Schema::dropIfExists('drivers');
-        // No borramos customers ni columnas de users para evitar pérdida de datos crítica en rollback
     }
 };
