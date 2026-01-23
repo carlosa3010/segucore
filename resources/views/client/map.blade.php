@@ -88,10 +88,12 @@
             .then(res => res.json())
             .then(data => {
                 const listContainer = document.getElementById('assets-list');
-                listContainer.innerHTML = ''; // Limpiar loader
+                listContainer.innerHTML = ''; 
 
                 if(data.assets.length === 0) {
-                    listContainer.innerHTML = '<p class="text-center text-gray-500">No hay servicios activos.</p>';
+                    listContainer.innerHTML = '<div class="p-4 text-center text-gray-400 bg-gray-800 rounded">No se encontraron servicios activos para su cuenta.</div>';
+                    // Centrar mapa por defecto si no hay datos
+                    map.setView([10.4806, -66.9036], 6); 
                     return;
                 }
 
