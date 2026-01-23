@@ -13,11 +13,12 @@ class GpsDevice extends Model
     protected $fillable = [
         'imei',
         'customer_id',
+        'driver_id',       // <--- Campo FK
         'name',
-        'plate_number',    // <--- Nuevo
+        'plate_number',
         'model',
         'sim_card_number',
-        'speed_limit',     // <--- Nuevo
+        'speed_limit',
         'status',
         'last_latitude',
         'last_longitude',
@@ -34,8 +35,15 @@ class GpsDevice extends Model
         'last_longitude' => 'decimal:7',
     ];
 
+    // Relación con Cliente
     public function customer()
     {
         return $this->belongsTo(Customer::class);
+    }
+
+    // RELACIÓN FALTANTE (La causa del error)
+    public function driver()
+    {
+        return $this->belongsTo(Driver::class);
     }
 }
