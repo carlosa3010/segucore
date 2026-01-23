@@ -5,7 +5,20 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
     public function up(): void {
-        // 1. Planes de Servicio
+        
+        // --- 1. MÓDULO ADMINISTRATIVO ---
+        
+        // Configuración Global
+        if (!Schema::hasTable('settings')) {
+            Schema::create('settings', function (Blueprint $table) {
+                $table->id();
+                $table->string('key')->unique();
+                $table->text('value')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        // Planes de Servicio
         if (!Schema::hasTable('service_plans')) {
             Schema::create('service_plans', function (Blueprint $table) {
                 $table->id();
@@ -19,7 +32,7 @@ return new class extends Migration {
             });
         }
 
-        // 2. Clientes
+        // Clientes
         if (!Schema::hasTable('customers')) {
             Schema::create('customers', function (Blueprint $table) {
                 $table->id();
@@ -40,7 +53,49 @@ return new class extends Migration {
             });
         }
 
-        // 3. Usuarios (Blindado)
+        // Contactos de Clientes
+        if (!Schema::hasTable('customer_contacts')) {
+            Schema::create('customer_contacts', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
+                $table->string('name');
+                $table->string('relation')->nullable(); // Dueño, Gerente, Vecino
+                $table->string('phone_1');
+                $table->string('phone_2')->nullable();
+                $table->boolean('has_keys')->default(false);
+                $table->integer('priority')->default(1);
+                $table->timestamps();
+            });
+        }
+
+        // Facturas
+        if (!Schema::hasTable('invoices')) {
+            Schema::create('invoices', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
+                $table->string('invoice_number')->unique();
+                $table->date('issue_date');
+                $table->date('due_date');
+                $table->decimal('total', 10, 2);
+                $table->string('status')->default('unpaid'); // unpaid, paid, cancelled
+                $table->timestamps();
+            });
+        }
+
+        // Pagos
+        if (!Schema::hasTable('payments')) {
+            Schema::create('payments', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('invoice_id')->constrained('invoices')->cascadeOnDelete();
+                $table->decimal('amount', 10, 2);
+                $table->date('payment_date');
+                $table->string('method')->nullable(); // transfer, cash
+                $table->string('reference')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        // Modificar Usuarios (Relaciones)
         Schema::table('users', function (Blueprint $table) {
             if (!Schema::hasColumn('users', 'customer_id')) {
                 $table->foreignId('customer_id')->nullable()->after('id')->constrained('customers')->nullOnDelete();
@@ -53,7 +108,9 @@ return new class extends Migration {
             }
         });
 
-        // 4. Conductores
+        // --- 2. MÓDULO DE FLOTAS Y GPS ---
+
+        // Conductores
         if (!Schema::hasTable('drivers')) {
             Schema::create('drivers', function (Blueprint $table) {
                 $table->id();
@@ -68,7 +125,7 @@ return new class extends Migration {
             });
         }
 
-        // 5. GPS
+        // GPS
         if (!Schema::hasTable('gps_devices')) {
             Schema::create('gps_devices', function (Blueprint $table) {
                 $table->id();
@@ -92,7 +149,39 @@ return new class extends Migration {
             });
         }
 
-        // 6. Alarmas (Cuentas)
+        // Geocercas
+        if (!Schema::hasTable('geofences')) {
+            Schema::create('geofences', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
+                $table->foreignId('gps_device_id')->nullable()->constrained('gps_devices')->cascadeOnDelete();
+                $table->string('name');
+                $table->text('description')->nullable();
+                $table->string('type')->default('circle');
+                $table->json('coordinates');
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
+
+        // Alertas de Dispositivo (Excesos de velocidad, etc)
+        if (!Schema::hasTable('device_alerts')) {
+            Schema::create('device_alerts', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('gps_device_id')->constrained('gps_devices')->cascadeOnDelete();
+                $table->string('type'); // speed, geofence, sos
+                $table->string('message');
+                $table->decimal('latitude', 10, 7)->nullable();
+                $table->decimal('longitude', 10, 7)->nullable();
+                $table->timestamp('occurred_at');
+                $table->boolean('read')->default(false);
+                $table->timestamps();
+            });
+        }
+
+        // --- 3. MÓDULO DE ALARMAS Y MONITOREO ---
+
+        // Cuentas de Alarma
         if (!Schema::hasTable('alarm_accounts')) {
             Schema::create('alarm_accounts', function (Blueprint $table) {
                 $table->id();
@@ -111,34 +200,33 @@ return new class extends Migration {
             });
         }
 
-        // 6.1 ZONAS DE ALARMA (¡ESTA ES LA QUE FALTABA!)
+        // Zonas
         if (!Schema::hasTable('alarm_zones')) {
             Schema::create('alarm_zones', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('alarm_account_id')->constrained('alarm_accounts')->cascadeOnDelete();
-                $table->string('zone_number'); // Ej: 001
+                $table->string('zone_number');
                 $table->string('name');
-                $table->string('type')->nullable(); // Instantánea, Retardada
+                $table->string('type')->nullable();
                 $table->timestamps();
             });
         }
 
-        // 7. Geocercas
-        if (!Schema::hasTable('geofences')) {
-            Schema::create('geofences', function (Blueprint $table) {
+        // Eventos de Alarma (Historial)
+        if (!Schema::hasTable('alarm_events')) {
+            Schema::create('alarm_events', function (Blueprint $table) {
                 $table->id();
-                $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
-                $table->foreignId('gps_device_id')->nullable()->constrained('gps_devices')->cascadeOnDelete();
-                $table->string('name');
-                $table->text('description')->nullable();
-                $table->string('type')->default('circle');
-                $table->json('coordinates');
-                $table->boolean('is_active')->default(true);
+                $table->foreignId('alarm_account_id')->constrained('alarm_accounts')->cascadeOnDelete();
+                $table->string('code'); // SIA Code
+                $table->string('description')->nullable();
+                $table->string('raw_data')->nullable();
+                $table->timestamp('received_at')->useCurrent();
+                $table->boolean('processed')->default(false);
                 $table->timestamps();
             });
         }
-        
-        // 8. Códigos SIA
+
+        // Códigos SIA
         if (!Schema::hasTable('sia_codes')) {
             Schema::create('sia_codes', function (Blueprint $table) {
                 $table->id();
@@ -151,14 +239,139 @@ return new class extends Migration {
                 $table->timestamps();
             });
         }
+
+        // --- 4. MÓDULO DE SEGURIDAD FÍSICA Y RONDAS ---
+
+        // Guardias
+        if (!Schema::hasTable('guards')) {
+            Schema::create('guards', function (Blueprint $table) {
+                $table->id();
+                $table->string('first_name');
+                $table->string('last_name');
+                $table->string('dni')->unique();
+                $table->string('phone')->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
+
+        // Patrullas/Rondas (Definición)
+        if (!Schema::hasTable('patrols')) {
+            Schema::create('patrols', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->text('description')->nullable();
+                $table->foreignId('customer_id')->nullable()->constrained('customers');
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
+
+        // Rondas Ejecutadas
+        if (!Schema::hasTable('patrol_rounds')) {
+            Schema::create('patrol_rounds', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('patrol_id')->constrained('patrols');
+                $table->foreignId('guard_id')->nullable()->constrained('guards');
+                $table->timestamp('start_time');
+                $table->timestamp('end_time')->nullable();
+                $table->string('status')->default('in_progress'); // in_progress, completed, incomplete
+                $table->text('notes')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        // --- 5. MÓDULO DE INCIDENTES (EL QUE FALTABA) ---
+
+        // Incidentes (Ticket principal)
+        if (!Schema::hasTable('incidents')) {
+            Schema::create('incidents', function (Blueprint $table) {
+                $table->id();
+                $table->string('title');
+                $table->text('description')->nullable();
+                
+                // Relaciones polimórficas o directas opcionales
+                $table->foreignId('customer_id')->nullable()->constrained('customers')->nullOnDelete();
+                $table->foreignId('alarm_account_id')->nullable()->constrained('alarm_accounts')->nullOnDelete();
+                $table->foreignId('gps_device_id')->nullable()->constrained('gps_devices')->nullOnDelete();
+                $table->foreignId('created_by')->nullable()->constrained('users'); // Operador
+                
+                $table->string('priority')->default('medium'); // low, medium, high, critical
+                $table->string('status')->default('open'); // open, in_progress, resolved, closed
+                
+                $table->timestamp('occurred_at')->nullable();
+                $table->timestamp('resolved_at')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        // Bitácora de Incidentes
+        if (!Schema::hasTable('incident_logs')) {
+            Schema::create('incident_logs', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('incident_id')->constrained('incidents')->cascadeOnDelete();
+                $table->foreignId('user_id')->nullable()->constrained('users');
+                $table->text('action'); // Descripción de lo que se hizo
+                $table->string('type')->default('comment'); // comment, status_change, file
+                $table->timestamps();
+            });
+        }
+
+        // Resoluciones / Motivos de Cierre
+        if (!Schema::hasTable('incident_resolutions')) {
+            Schema::create('incident_resolutions', function (Blueprint $table) {
+                $table->id();
+                $table->string('name');
+                $table->string('code')->unique(); // Ej: FALSA_ALARMA
+                $table->timestamps();
+            });
+        }
+        
+        // Motivos de Espera (Hold)
+        if (!Schema::hasTable('incident_hold_reasons')) {
+            Schema::create('incident_hold_reasons', function (Blueprint $table) {
+                $table->id();
+                $table->string('reason');
+                $table->timestamps();
+            });
+        }
     }
 
     public function down(): void {
+        // Borrar en orden inverso de dependencia
+        Schema::dropIfExists('incident_hold_reasons');
+        Schema::dropIfExists('incident_resolutions');
+        Schema::dropIfExists('incident_logs');
+        Schema::dropIfExists('incidents');
+        
+        Schema::dropIfExists('patrol_rounds');
+        Schema::dropIfExists('patrols');
+        Schema::dropIfExists('guards');
+        
         Schema::dropIfExists('sia_codes');
-        Schema::dropIfExists('geofences');
-        Schema::dropIfExists('alarm_zones'); // Borrar zonas al revertir
+        Schema::dropIfExists('alarm_events');
+        Schema::dropIfExists('alarm_zones');
         Schema::dropIfExists('alarm_accounts');
+        
+        Schema::dropIfExists('device_alerts');
+        Schema::dropIfExists('geofences');
         Schema::dropIfExists('gps_devices');
         Schema::dropIfExists('drivers');
+        
+        Schema::dropIfExists('payments');
+        Schema::dropIfExists('invoices');
+        Schema::dropIfExists('customer_contacts');
+        
+        // Limpieza de Users
+        if (Schema::hasColumn('users', 'customer_id')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropForeign(['customer_id']);
+                $table->dropColumn(['customer_id', 'role', 'is_active']);
+            });
+        }
+        
+        Schema::dropIfExists('customers');
+        Schema::dropIfExists('service_plans');
+        Schema::dropIfExists('settings');
     }
 };
