@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\Customer; // <--- IMPORTANTE: Importar el modelo Customer
+use App\Models\Customer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
@@ -17,9 +17,7 @@ class UserController extends Controller
      */
     public function index()
     {
-        // Cargamos la relación 'customer' para ver en la tabla a quién pertenece el usuario
         $users = User::with('customer')->orderBy('name')->paginate(10);
-        
         return view('admin.users.index', compact('users'));
     }
 
@@ -28,8 +26,9 @@ class UserController extends Controller
      */
     public function create()
     {
-        // Enviamos la lista de clientes para llenar el <select>
-        $customers = Customer::orderBy('name')->get();
+        // CORRECCIÓN SQL: Ordenamos por Razón Social y luego por Nombre
+        // Usamos COALESCE para que SQL ordene por el que no sea nulo
+        $customers = Customer::orderByRaw('COALESCE(business_name, first_name) ASC')->get();
         
         return view('admin.users.create', compact('customers'));
     }
@@ -44,7 +43,7 @@ class UserController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role' => ['required', 'in:admin,supervisor,operator,client'],
-            'customer_id' => ['nullable', 'exists:customers,id'], // <--- Validación del cliente
+            'customer_id' => ['nullable', 'exists:customers,id'],
         ]);
 
         User::create([
@@ -52,7 +51,7 @@ class UserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role,
-            'customer_id' => $request->customer_id, // <--- Guardamos la relación
+            'customer_id' => $request->customer_id,
             'is_active' => $request->has('is_active') ? true : false,
         ]);
 
@@ -64,13 +63,12 @@ class UserController extends Controller
      */
     public function edit(User $user)
     {
-        // REGLA: Un Supervisor no puede editar a un Admin
         if (Auth::user()->role === 'supervisor' && $user->role === 'admin') {
             return redirect()->route('admin.users.index')->with('error', 'No tienes permisos para editar a un Administrador.');
         }
 
-        // Enviamos la lista de clientes para el select
-        $customers = Customer::orderBy('name')->get();
+        // CORRECCIÓN SQL: Igual aquí, ordenamos por columnas reales
+        $customers = Customer::orderByRaw('COALESCE(business_name, first_name) ASC')->get();
 
         return view('admin.users.edit', compact('user', 'customers'));
     }
@@ -80,7 +78,6 @@ class UserController extends Controller
      */
     public function update(Request $request, User $user)
     {
-        // REGLA: Un Supervisor no puede editar a un Admin ni promoverse a sí mismo
         if (Auth::user()->role === 'supervisor' && $user->role === 'admin') {
             return back()->with('error', 'Acción no autorizada sobre un Administrador.');
         }
@@ -89,24 +86,20 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
             'role' => ['required', 'in:admin,supervisor,operator,client'],
-            'customer_id' => ['nullable', 'exists:customers,id'], // <--- Validación
+            'customer_id' => ['nullable', 'exists:customers,id'],
         ]);
 
-        // Actualizar datos básicos
         $user->name = $request->name;
         $user->email = $request->email;
         $user->role = $request->role;
-        $user->customer_id = $request->customer_id; // <--- Actualizamos la relación
+        $user->customer_id = $request->customer_id;
         
-        // Manejo de suspensión (Checkbox)
-        // Si el usuario se está editando a sí mismo, impedimos que se desactive
         if ($user->id === Auth::id()) {
             $user->is_active = true;
         } else {
             $user->is_active = $request->has('is_active');
         }
 
-        // Actualizar password solo si se escribe algo
         if ($request->filled('password')) {
             $request->validate([
                 'password' => ['confirmed', Rules\Password::defaults()],
@@ -124,14 +117,12 @@ class UserController extends Controller
      */
     public function destroy(User $user)
     {
-        // REGLA 1: No puedes eliminar tu propia cuenta
         if ($user->id === Auth::id()) {
             return back()->with('error', 'Por seguridad, no puedes eliminar tu propia cuenta.');
         }
 
-        // REGLA 2: Los Supervisores NO pueden eliminar usuarios, solo suspenderlos
         if (Auth::user()->role === 'supervisor') {
-            return back()->with('error', 'Acción denegada: Los supervisores no tienen permiso para eliminar registros. Contacte a un Administrador.');
+            return back()->with('error', 'Acción denegada: Los supervisores no tienen permiso para eliminar registros.');
         }
 
         $user->delete();
@@ -139,21 +130,11 @@ class UserController extends Controller
         return redirect()->route('admin.users.index')->with('success', 'Usuario eliminado del sistema.');
     }
 
-    // ==========================================================
-    // CAMBIO DE CONTRASEÑA (Perfil Propio)
-    // ==========================================================
-
-    /**
-     * Vista para cambiar mi propia contraseña.
-     */
     public function changePasswordView()
     {
         return view('admin.users.change_password');
     }
 
-    /**
-     * Procesar el cambio de contraseña propio.
-     */
     public function updatePassword(Request $request)
     {
         $request->validate([
