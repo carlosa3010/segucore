@@ -322,6 +322,4 @@ class DatabaseSeeder extends Seeder
                 'is_active' => true,
             ]);
             $this->command->info('✅ Usuario Cliente creado: cliente@laesperanza.com');
-        }
-    }
-}
+    
