@@ -374,4 +374,7 @@ return new class extends Migration {
         Schema::dropIfExists('service_plans');
         Schema::dropIfExists('settings');
     }
+    Illuminate\Database\QueryException
+vendor/laravel/framework/src/Illuminate/Database/Connection.php:838
+SQLSTATE[42S22]: Column not found: 1054 Unknown column 'service_status' in 'where clause' (Connection: mysql, Host: dbaas-db-8356021-do-user-31969017-0.m.db.ondigitalocean.com, Port: 25060, Database: segusmart_core, SQL: select count(*) as aggregate from `alarm_accounts` where `service_status` = active)
 };
