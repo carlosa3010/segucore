@@ -11,27 +11,11 @@ class Customer extends Model
     use HasFactory;
 
     protected $fillable = [
-        'code',
-        'first_name',
-        'last_name',
-        'business_name',
-        'dni_cif',
-        'email',
-        'phone_1',
-        'phone_2',
-        'address',
-        'city',
-        'postal_code',
-        'country',
-        'notes',
-        'is_active',
-        'type'
+        'code', 'first_name', 'last_name', 'business_name', 'dni_cif',
+        'email', 'phone_1', 'phone_2', 'address', 'city', 'postal_code',
+        'country', 'notes', 'is_active', 'type'
     ];
 
-    /**
-     * Accessor para obtener el nombre automáticamente (Razón Social o Nombre + Apellido)
-     * Uso: $customer->name
-     */
     protected function name(): Attribute
     {
         return Attribute::make(
@@ -41,31 +25,10 @@ class Customer extends Model
         );
     }
 
-    // --- RELACIONES OBLIGATORIAS ---
-
-    public function accounts()
-    {
-        return $this->hasMany(AlarmAccount::class);
-    }
-
-    public function gpsDevices()
-    {
-        return $this->hasMany(GpsDevice::class);
-    }
-
-    // ESTA ES LA QUE FALTABA Y CAUSABA EL ERROR
-    public function invoices()
-    {
-        return $this->hasMany(Invoice::class);
-    }
-    
-    public function users()
-    {
-        return $this->hasMany(User::class);
-    }
-    
-    public function contacts()
-    {
-        return $this->hasMany(CustomerContact::class);
-    }
+    // Relaciones
+    public function accounts() { return $this->hasMany(AlarmAccount::class); }
+    public function gpsDevices() { return $this->hasMany(GpsDevice::class); }
+    public function invoices() { return $this->hasMany(Invoice::class); }
+    public function users() { return $this->hasMany(User::class); }
+    public function contacts() { return $this->hasMany(CustomerContact::class); }
 }
