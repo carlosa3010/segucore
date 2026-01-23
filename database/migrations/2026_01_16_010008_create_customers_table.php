@@ -7,37 +7,39 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration
 {
     public function up(): void
-{
-    Schema::create('customers', function (Blueprint $table) {
-        $table->id();
-        
-        // IDENTIFICACIÓN
-        $table->enum('type', ['person', 'company'])->default('person'); // Persona o Empresa
-        $table->string('national_id')->unique(); // CI o RIF (J-123456789)
-        
-        // DATOS LEGALES / PERSONALES
-        $table->string('first_name')->nullable(); // Nombre Rep. Legal o Persona
-        $table->string('last_name')->nullable();  // Apellido Rep. Legal o Persona
-        $table->string('business_name')->nullable(); // Razón Social (Solo empresas)
-        
-        // CONTACTO ADMINISTRATIVO (FACTURACIÓN)
-        $table->string('email')->nullable();
-        $table->string('phone_1');
-        $table->string('phone_2')->nullable();
-        $table->text('address_billing'); // Dirección Fiscal
-        $table->string('city');
-        
-        // SEGURIDAD MAESTRA (Aplica si no se define específica por cuenta)
-        $table->string('monitoring_password')->nullable();
-        $table->string('duress_password')->nullable();
-        
-        // ESTADO
-        $table->boolean('is_active')->default(true);
-        $table->text('notes')->nullable();
-
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('customers', function (Blueprint $table) {
+            $table->id();
+            
+            // TIPO Y DATOS PRINCIPALES
+            $table->enum('type', ['person', 'company'])->default('person');
+            $table->string('dni_cif')->unique()->comment('Cédula o RIF'); // <--- ESTA ES LA CLAVE
+            
+            $table->string('first_name')->nullable();
+            $table->string('last_name')->nullable();
+            $table->string('business_name')->nullable();
+            
+            // CONTACTO
+            $table->string('email')->nullable();
+            $table->string('phone_1')->nullable();
+            $table->string('phone_2')->nullable();
+            
+            // DIRECCIÓN
+            $table->text('address')->nullable(); // Dirección fiscal/principal
+            $table->text('address_billing')->nullable();
+            $table->string('city')->nullable();
+            $table->string('postal_code')->nullable();
+            $table->string('country')->default('Venezuela');
+            
+            // DATOS DE MONITOREO
+            $table->string('monitoring_password')->nullable()->comment('Palabra clave verbal');
+            
+            // ESTADO
+            $table->text('notes')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+    }
 
     public function down(): void
     {
