@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Customer; // <--- IMPORTANTE: Importar el modelo Customer
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
@@ -16,9 +17,9 @@ class UserController extends Controller
      */
     public function index()
     {
-        // Excluimos al usuario actual de la lista para evitar bloqueos accidentales en la vista rápida
-        // aunque la validación real está en destroy
-        $users = User::orderBy('name')->paginate(10);
+        // Cargamos la relación 'customer' para ver en la tabla a quién pertenece el usuario
+        $users = User::with('customer')->orderBy('name')->paginate(10);
+        
         return view('admin.users.index', compact('users'));
     }
 
@@ -27,7 +28,10 @@ class UserController extends Controller
      */
     public function create()
     {
-        return view('admin.users.create');
+        // Enviamos la lista de clientes para llenar el <select>
+        $customers = Customer::orderBy('name')->get();
+        
+        return view('admin.users.create', compact('customers'));
     }
 
     /**
@@ -40,6 +44,7 @@ class UserController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
             'role' => ['required', 'in:admin,supervisor,operator,client'],
+            'customer_id' => ['nullable', 'exists:customers,id'], // <--- Validación del cliente
         ]);
 
         User::create([
@@ -47,6 +52,7 @@ class UserController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
             'role' => $request->role,
+            'customer_id' => $request->customer_id, // <--- Guardamos la relación
             'is_active' => $request->has('is_active') ? true : false,
         ]);
 
@@ -63,7 +69,10 @@ class UserController extends Controller
             return redirect()->route('admin.users.index')->with('error', 'No tienes permisos para editar a un Administrador.');
         }
 
-        return view('admin.users.edit', compact('user'));
+        // Enviamos la lista de clientes para el select
+        $customers = Customer::orderBy('name')->get();
+
+        return view('admin.users.edit', compact('user', 'customers'));
     }
 
     /**
@@ -80,12 +89,14 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
             'role' => ['required', 'in:admin,supervisor,operator,client'],
+            'customer_id' => ['nullable', 'exists:customers,id'], // <--- Validación
         ]);
 
         // Actualizar datos básicos
         $user->name = $request->name;
         $user->email = $request->email;
         $user->role = $request->role;
+        $user->customer_id = $request->customer_id; // <--- Actualizamos la relación
         
         // Manejo de suspensión (Checkbox)
         // Si el usuario se está editando a sí mismo, impedimos que se desactive
