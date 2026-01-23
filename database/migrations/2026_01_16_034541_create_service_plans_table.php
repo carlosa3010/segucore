@@ -6,24 +6,20 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
-{
-    Schema::create('service_plans', function (Blueprint $table) {
-        $table->id();
-        $table->string('name'); // "Plan Residencial Básico"
-        $table->decimal('price', 10, 2); // 25.00
-        $table->string('currency')->default('USD');
-        $table->integer('billing_cycle_days')->default(30); // Cada cuánto se cobra
-        $table->timestamps();
-    });
-}
+    {
+        Schema::create('service_plans', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->text('description')->nullable();
+            $table->decimal('price', 10, 2);
+            $table->string('billing_cycle')->default('monthly'); // <--- ESTA FALTABA
+            $table->json('features')->nullable(); // Para guardar ["monitoreo", "app"]
+            $table->boolean('is_active')->default(true);
+            $table->timestamps();
+        });
+    }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('service_plans');
