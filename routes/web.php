@@ -185,27 +185,24 @@ Route::domain('admin.segusmart24.com')->group(function () {
 |==========================================================================
 | 3. SUBDOMINIO CLIENTE (cliente.segusmart24.com)
 |==========================================================================
-| Portal de Autogestión (Mapa con Modales)
 */
 Route::domain('cliente.segusmart24.com')->group(function () {
     
-    // Login para clientes (puedes apuntar al mismo auth o uno custom)
-    Route::middleware('guest')->get('login', function() {
-        return view('auth.login'); 
-    })->name('client.login');
-    
-    // Usamos el controlador de sesión estándar para procesar el login
-    Route::post('login', [App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'store']);
-    Route::post('logout', [App\Http\Controllers\Auth\AuthenticatedSessionController::class, 'destroy'])->name('client.logout');
+    // Rutas de Autenticación Cliente
+    Route::middleware('guest')->group(function () {
+        Route::get('login', [\App\Http\Controllers\Auth\ClientLoginController::class, 'create'])->name('client.login');
+        Route::post('login', [\App\Http\Controllers\Auth\ClientLoginController::class, 'store']);
+    });
+
+    // Logout
+    Route::post('logout', [\App\Http\Controllers\Auth\ClientLoginController::class, 'destroy'])->name('client.logout');
 
     Route::middleware(['auth'])->group(function () {
-        // MAPA PRINCIPAL DEL CLIENTE
+        // EL DASHBOARD (Mapa + Panel Lateral)
         Route::get('/', [ClientPortalController::class, 'index'])->name('client.dashboard');
         
-        // API Interna para el Mapa (JSON)
+        // APIs y Modales
         Route::get('/api/assets', [ClientPortalController::class, 'getAssets'])->name('client.api.assets');
-        
-        // Modales (Vistas parciales)
         Route::get('/modal/alarm/{id}', [ClientPortalController::class, 'modalAlarm'])->name('client.modal.alarm');
         Route::get('/modal/gps/{id}', [ClientPortalController::class, 'modalGps'])->name('client.modal.gps');
         Route::get('/modal/billing', [ClientPortalController::class, 'modalBilling'])->name('client.modal.billing');
