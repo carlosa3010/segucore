@@ -33,15 +33,12 @@ class ClientPortalController extends Controller
     {
         $user = \Illuminate\Support\Facades\Auth::user();
 
-        // 1. Verificar si el usuario tiene un cliente asignado
-        if (!$user->customer_id) {
-            return response()->json([
-                'assets' => [],
-                'message' => 'No tiene una cuenta de cliente vinculada.'
-            ]);
+        // Si el usuario no tiene cliente asignado, devolver vacío (evita error 500)
+        if (!$user || !$user->customer_id) {
+            return response()->json(['assets' => []]);
         }
 
-        // 2. Buscar Alarmas de ese cliente
+        // Buscar Alarmas
         $alarms = \App\Models\AlarmAccount::where('customer_id', $user->customer_id)
             ->where('is_active', true)
             ->get()
@@ -51,24 +48,25 @@ class ClientPortalController extends Controller
                     'id' => $alarm->id,
                     'lat' => $alarm->latitude,
                     'lng' => $alarm->longitude,
-                    'status' => $alarm->monitoring_status ?? 'unknown', // armed, disarmed
-                    'name' => $alarm->name ?? ('Cuenta: ' . $alarm->account_number),
-                    'address' => $alarm->installation_address
+                    'status' => $alarm->monitoring_status,
+                    'name' => $alarm->account_number . ' - ' . $alarm->branch_name,
                 ];
             });
 
-        // 3. Buscar GPS de ese cliente
+        // Buscar GPS
         $gps = \App\Models\GpsDevice::where('customer_id', $user->customer_id)
+            ->where('is_active', true)
             ->get()
             ->map(function($device) {
                 return [
                     'type' => 'gps',
                     'id' => $device->id,
-                    'lat' => $device->last_latitude ?? 0, 
-                    'lng' => $device->last_longitude ?? 0,
-                    'status' => $device->status ?? 'offline', // online, offline
-                    'name' => $device->name ?? ('Dispositivo: ' . $device->imei),
-                    'speed' => $device->speed ?? 0
+                    'lat' => $device->last_latitude, 
+                    'lng' => $device->last_longitude,
+                    'status' => $device->status,
+                    'name' => $device->name ?? $device->imei,
+                    'speed' => $device->speed,
+                    'driver' => $device->driver ? $device->driver->first_name : 'Sin conductor'
                 ];
             });
 
