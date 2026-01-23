@@ -11,11 +11,22 @@ class Customer extends Model
     use HasFactory;
 
     protected $fillable = [
-        'code', 'first_name', 'last_name', 'business_name', 'dni_cif',
-        'email', 'phone_1', 'phone_2', 'address', 'city', 'postal_code',
-        'country', 'notes', 'is_active', 'type'
+        'type',
+        'dni_cif',
+        'first_name',
+        'last_name',
+        'business_name',
+        'email',
+        'phone_1',
+        'phone_2',
+        'address',
+        'city',
+        'monitoring_password',
+        'notes',
+        'is_active'
     ];
 
+    // Accessor para obtener el nombre completo o razón social
     protected function name(): Attribute
     {
         return Attribute::make(
@@ -26,9 +37,10 @@ class Customer extends Model
     }
 
     // Relaciones
+    public function users() { return $this->hasMany(User::class); }
     public function accounts() { return $this->hasMany(AlarmAccount::class); }
     public function gpsDevices() { return $this->hasMany(GpsDevice::class); }
-    public function invoices() { return $this->hasMany(Invoice::class); }
-    public function users() { return $this->hasMany(User::class); }
+    public function drivers() { return $this->hasMany(Driver::class); }
     public function contacts() { return $this->hasMany(CustomerContact::class); }
+    public function invoices() { return $this->hasMany(Invoice::class); }
 }
