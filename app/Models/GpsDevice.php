@@ -13,7 +13,7 @@ class GpsDevice extends Model
     protected $fillable = [
         'imei',
         'customer_id',
-        'driver_id',       // <--- Campo FK
+        'driver_id',
         'name',
         'plate_number',
         'model',
@@ -35,15 +35,21 @@ class GpsDevice extends Model
         'last_longitude' => 'decimal:7',
     ];
 
-    // Relación con Cliente
+    // 1. Relación con Cliente (Dueño)
     public function customer()
     {
         return $this->belongsTo(Customer::class);
     }
 
-    // RELACIÓN FALTANTE (La causa del error)
+    // 2. Relación con Conductor (Asignado)
     public function driver()
     {
         return $this->belongsTo(Driver::class);
+    }
+
+    // 3. Relación con Geocercas (Esta era la que faltaba y daba el error)
+    public function geofences()
+    {
+        return $this->hasMany(Geofence::class);
     }
 }
