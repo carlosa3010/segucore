@@ -374,5 +374,27 @@ return new class extends Migration {
         Schema::dropIfExists('service_plans');
         Schema::dropIfExists('settings');
     }
-    
+    // 6. Alarmas (Cuentas)
+        if (!Schema::hasTable('alarm_accounts')) {
+            Schema::create('alarm_accounts', function (Blueprint $table) {
+                $table->id();
+                $table->string('account_number')->unique();
+                $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
+                $table->foreignId('service_plan_id')->nullable()->constrained('service_plans')->nullOnDelete();
+                
+                // --- AQUÍ ESTABA EL ERROR: FALTABA ESTA COLUMNA ---
+                $table->string('service_status')->default('active'); // active, suspended, cancelled
+                // --------------------------------------------------
+
+                $table->string('monitoring_status')->default('disarmed');
+                $table->string('branch_name')->nullable();
+                $table->text('installation_address')->nullable();
+                $table->decimal('latitude', 10, 7)->nullable();
+                $table->decimal('longitude', 10, 7)->nullable();
+                $table->string('device_model')->nullable();
+                $table->text('notes')->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->timestamps();
+            });
+        }
 };
