@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -15,9 +16,9 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',         // operator, supervisor, admin, client
+        'role',         // admin, client, operator
+        'customer_id',  // Relación con el cliente
         'is_active',
-        'customer_id',  // <--- VITAL para el panel cliente
     ];
 
     protected $hidden = [
