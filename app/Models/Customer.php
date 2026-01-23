@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Casts\Attribute; // Importante para Laravel 9/10/11
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Customer extends Model
 {
@@ -25,38 +25,38 @@ class Customer extends Model
         'country',
         'notes',
         'is_active',
-        'type' // 'person' o 'company'
+        'type'
     ];
 
     /**
-     * ACCESSOR: Nombre Virtual
-     * Permite usar $customer->name en cualquier vista
+     * Accessor para obtener el nombre automáticamente (Razón Social o Nombre + Apellido)
+     * Uso: $customer->name
      */
     protected function name(): Attribute
     {
         return Attribute::make(
-            get: function ($value, $attributes) {
-                // Si tiene Razón Social (Empresa), mostrar eso.
-                if (!empty($attributes['business_name'])) {
-                    return $attributes['business_name'];
-                }
-                
-                // Si no, mostrar Nombre + Apellido
-                return trim(($attributes['first_name'] ?? '') . ' ' . ($attributes['last_name'] ?? ''));
-            }
+            get: fn ($value, $attributes) => !empty($attributes['business_name']) 
+                ? $attributes['business_name'] 
+                : trim(($attributes['first_name'] ?? '') . ' ' . ($attributes['last_name'] ?? ''))
         );
     }
 
-    // --- Relaciones ---
-
-    public function contacts()
-    {
-        return $this->hasMany(CustomerContact::class);
-    }
+    // --- RELACIONES OBLIGATORIAS ---
 
     public function accounts()
     {
         return $this->hasMany(AlarmAccount::class);
+    }
+
+    public function gpsDevices()
+    {
+        return $this->hasMany(GpsDevice::class);
+    }
+
+    // ESTA ES LA QUE FALTABA Y CAUSABA EL ERROR
+    public function invoices()
+    {
+        return $this->hasMany(Invoice::class);
     }
     
     public function users()
@@ -64,8 +64,8 @@ class Customer extends Model
         return $this->hasMany(User::class);
     }
     
-    public function gpsDevices()
+    public function contacts()
     {
-        return $this->hasMany(GpsDevice::class);
+        return $this->hasMany(CustomerContact::class);
     }
 }
