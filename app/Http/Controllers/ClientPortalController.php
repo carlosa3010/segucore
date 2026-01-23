@@ -31,18 +31,19 @@ class ClientPortalController extends Controller
      */
     public function getAssets()
     {
-        $user = Auth::user();
+        $user = \Illuminate\Support\Facades\Auth::user();
 
-        // 1. Si no tiene cliente asignado, devolver vacío
+        // 1. Verificar si el usuario tiene un cliente asignado
         if (!$user->customer_id) {
-            return response()->json(['assets' => []]);
+            return response()->json([
+                'assets' => [],
+                'message' => 'No tiene una cuenta de cliente vinculada.'
+            ]);
         }
 
-        $customerId = $user->customer_id;
-
-        // 2. Buscar Alarmas del Cliente
-        $alarms = AlarmAccount::where('customer_id', $customerId)
-            ->where('is_active', true) // Solo activas
+        // 2. Buscar Alarmas de ese cliente
+        $alarms = \App\Models\AlarmAccount::where('customer_id', $user->customer_id)
+            ->where('is_active', true)
             ->get()
             ->map(function($alarm) {
                 return [
@@ -50,23 +51,23 @@ class ClientPortalController extends Controller
                     'id' => $alarm->id,
                     'lat' => $alarm->latitude,
                     'lng' => $alarm->longitude,
-                    'status' => $alarm->monitoring_status, // 'armed', 'disarmed', etc
+                    'status' => $alarm->monitoring_status ?? 'unknown', // armed, disarmed
                     'name' => $alarm->name ?? ('Cuenta: ' . $alarm->account_number),
                     'address' => $alarm->installation_address
                 ];
             });
 
-        // 3. Buscar GPS del Cliente
-        $gps = GpsDevice::where('customer_id', $customerId)
-            ->get() // Traer todos los del cliente
+        // 3. Buscar GPS de ese cliente
+        $gps = \App\Models\GpsDevice::where('customer_id', $user->customer_id)
+            ->get()
             ->map(function($device) {
                 return [
                     'type' => 'gps',
                     'id' => $device->id,
-                    'lat' => $device->last_latitude ?? 0,
+                    'lat' => $device->last_latitude ?? 0, 
                     'lng' => $device->last_longitude ?? 0,
-                    'status' => $device->status ?? 'offline',
-                    'name' => $device->name ?? ('GPS: ' . $device->imei),
+                    'status' => $device->status ?? 'offline', // online, offline
+                    'name' => $device->name ?? ('Dispositivo: ' . $device->imei),
                     'speed' => $device->speed ?? 0
                 ];
             });
