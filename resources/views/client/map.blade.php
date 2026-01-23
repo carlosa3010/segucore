@@ -116,8 +116,9 @@
                 // Ajustar mapa para ver todos los puntos
                 if (data.assets.length > 0) {
                     var group = new L.featureGroup(Object.values(markers));
-            map.fitBounds(group.getBounds().pad(0.1));
-        });
+                    map.fitBounds(group.getBounds().pad(0.1));
+                }
+            });
 
         function renderAsset(asset, container) {
             // Icono según estado
