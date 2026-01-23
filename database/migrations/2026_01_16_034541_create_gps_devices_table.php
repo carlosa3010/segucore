@@ -14,19 +14,21 @@ return new class extends Migration
             $table->foreignId('customer_id')->nullable()->constrained('customers')->onDelete('cascade');
             
             // Datos del dispositivo
-            $table->string('name')->nullable();
-            $table->string('model')->nullable(); // <--- ESTA FALTABA
+            $table->string('name')->nullable(); // Nombre descriptivo
+            $table->string('plate_number')->nullable(); // <--- AGREGADO
+            $table->string('model')->nullable();
             $table->string('sim_card_number')->nullable();
             
+            // Configuración
+            $table->integer('speed_limit')->default(80); // <--- AGREGADO
+            $table->json('settings')->nullable();
+            
             // Estado y Posición
-            $table->string('status')->default('offline')->comment('online, offline, unknown');
+            $table->string('status')->default('offline');
             $table->decimal('last_latitude', 10, 7)->nullable();
             $table->decimal('last_longitude', 10, 7)->nullable();
             $table->decimal('speed', 8, 2)->default(0);
             $table->decimal('battery_level', 5, 2)->nullable();
-            
-            // Configuraciones (JSON)
-            $table->json('settings')->nullable(); // Para configuraciones extra
             
             $table->boolean('is_active')->default(true);
             $table->timestamps();
