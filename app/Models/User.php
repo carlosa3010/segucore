@@ -49,4 +49,10 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+    // Relación: Un usuario puede pertenecer a un cliente
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
 }
