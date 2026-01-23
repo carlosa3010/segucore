@@ -6,32 +6,33 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-    // migration
-public function up(): void
-{
-    Schema::create('geofences', function (Blueprint $table) {
-        $table->id();
-        $table->string('name');
-        $table->text('description')->nullable();
-        $table->longText('area'); // WKT format: POLYGON((lat lng, lat lng...))
-        $table->integer('traccar_geofence_id')->nullable(); // ID remoto
-        $table->timestamps();
-    });
-    
-    // Tabla pivote para asignar geocerca a dispositivo
-    Schema::create('geofence_gps_device', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('geofence_id')->constrained()->onDelete('cascade');
-        $table->foreignId('gps_device_id')->constrained()->onDelete('cascade');
-    });
-}
+    public function up(): void
+    {
+        Schema::create('geofences', function (Blueprint $table) {
+            $table->id();
+            
+            // Relaciones
+            $table->foreignId('customer_id')->constrained('customers')->onDelete('cascade');
+            $table->foreignId('gps_device_id')->nullable()->constrained('gps_devices')->onDelete('cascade');
+            
+            // Datos Geocerca
+            $table->string('name');
+            $table->text('description')->nullable();
+            $table->string('type')->default('circle'); // circle, polygon, polyline
+            
+            // Coordenadas (Guardamos el área en JSON para flexibilidad)
+            // Ej: {"lat": 10.1, "lng": -69.2, "radius": 500}
+            $table->json('coordinates'); 
+            
+            // Reglas
+            $table->boolean('alert_on_enter')->default(true);
+            $table->boolean('alert_on_exit')->default(true);
+            $table->boolean('is_active')->default(true);
+            
+            $table->timestamps();
+        });
+    }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('geofences');
