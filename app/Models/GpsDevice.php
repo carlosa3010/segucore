@@ -14,8 +14,10 @@ class GpsDevice extends Model
         'imei',
         'customer_id',
         'name',
-        'model',            // <--- Importante
-        'sim_card_number',  // <--- Importante
+        'plate_number',    // <--- Nuevo
+        'model',
+        'sim_card_number',
+        'speed_limit',     // <--- Nuevo
         'status',
         'last_latitude',
         'last_longitude',
