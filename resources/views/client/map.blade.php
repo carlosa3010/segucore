@@ -87,15 +87,15 @@
         fetch('{{ route("client.api.assets") }}')
             .then(res => res.json())
             .then(data => {
-            const listContainer = document.getElementById('assets-list');
-            listContainer.innerHTML = ''; 
+                const listContainer = document.getElementById('assets-list');
+                listContainer.innerHTML = ''; 
 
-            if(data.assets.length === 0) {
-                listContainer.innerHTML = '<div class="p-4 text-center text-gray-400">No hay activos asignados a su cuenta.</div>';
-                // Centrar en Venezuela por defecto
-                map.setView([10.4806, -66.9036], 6);
-                return;
-            }
+                if(data.assets.length === 0) {
+                    listContainer.innerHTML = '<div class="p-4 text-center text-gray-400 bg-gray-800 rounded">No se encontraron servicios activos para su cuenta.</div>';
+                    // Centrar mapa por defecto si no hay datos
+                    map.setView([10.4806, -66.9036], 6); 
+                    return;
+                }
 
                 // Separar por tipo para el sidebar
                 const alarms = data.assets.filter(a => a.type === 'alarm');
