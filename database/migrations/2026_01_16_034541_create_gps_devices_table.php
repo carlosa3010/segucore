@@ -10,20 +10,25 @@ return new class extends Migration
     {
         Schema::create('gps_devices', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('customer_id')->constrained()->onDelete('cascade');
+            $table->string('imei')->unique();
+            $table->foreignId('customer_id')->nullable()->constrained('customers')->onDelete('cascade');
             
-            $table->string('name'); // Nombre/Alias (Ej: Camión Ford)
-            $table->string('imei')->unique(); // <--- AHORA SE LLAMA IMEI
+            // Datos del dispositivo
+            $table->string('name')->nullable();
+            $table->string('model')->nullable(); // <--- ESTA FALTABA
+            $table->string('sim_card_number')->nullable();
             
-            $table->string('phone_number')->nullable();
-            $table->string('sim_card_id')->nullable();
-            $table->string('device_model');
-            $table->string('plate_number')->nullable();
-            $table->enum('vehicle_type', ['car', 'truck', 'motorcycle', 'person'])->default('car');
-            $table->string('driver_name')->nullable();
-            $table->date('installation_date')->nullable();
-            $table->enum('subscription_status', ['active', 'suspended'])->default('active');
+            // Estado y Posición
+            $table->string('status')->default('offline')->comment('online, offline, unknown');
+            $table->decimal('last_latitude', 10, 7)->nullable();
+            $table->decimal('last_longitude', 10, 7)->nullable();
+            $table->decimal('speed', 8, 2)->default(0);
+            $table->decimal('battery_level', 5, 2)->nullable();
             
+            // Configuraciones (JSON)
+            $table->json('settings')->nullable(); // Para configuraciones extra
+            
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
             $table->softDeletes();
         });
