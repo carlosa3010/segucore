@@ -2,50 +2,38 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class GpsDevice extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'customer_id',
-        'driver_id', // <--- IMPORTANTE: Agregado para poder guardar el conductor seleccionado
-        'name',
         'imei',
-        'phone_number',
-        'sim_card_id',
-        'device_model',
-        'plate_number',
-        'vehicle_type',
-        'driver_name', // (Legacy) Mantenemos por si acaso, pero usaremos driver_id
-        'installation_date',
-        'subscription_status',
-        'speed_limit',
-        'odometer',
+        'customer_id',
+        'name',
+        'model',            // <--- Importante
+        'sim_card_number',  // <--- Importante
+        'status',
+        'last_latitude',
+        'last_longitude',
+        'speed',
+        'battery_level',
+        'settings',
+        'is_active'
+    ];
+
+    protected $casts = [
+        'settings' => 'array',
+        'is_active' => 'boolean',
+        'last_latitude' => 'decimal:7',
+        'last_longitude' => 'decimal:7',
     ];
 
     public function customer()
     {
         return $this->belongsTo(Customer::class);
-    }
-
-    public function driver()
-    {
-        return $this->belongsTo(Driver::class);
-    }
-
-    // Relación con Geocercas (Muchos a Muchos) - NUEVO
-    public function geofences()
-    {
-        return $this->belongsToMany(Geofence::class, 'geofence_gps_device');
-    }
-
-    // Relación con Traccar
-    public function traccarData()
-    {
-        // Enlace: 'imei' local <---> 'uniqueid' remoto
-        return $this->setConnection('traccar')->hasOne(TraccarDevice::class, 'uniqueid', 'imei');
     }
 }
