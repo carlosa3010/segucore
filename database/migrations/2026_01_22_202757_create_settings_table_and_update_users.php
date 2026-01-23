@@ -8,43 +8,59 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 1. Tabla de Ajustes Generales (Key-Value para Empresa y APIs)
-        Schema::create('settings', function (Blueprint $table) {
-            $table->id();
-            $table->string('key')->unique(); // Ej: 'company_name', 'google_maps_key'
-            $table->text('value')->nullable();
-            $table->string('group')->default('general'); // 'general', 'api', 'mail'
-            $table->timestamps();
-        });
+        // 1. Tabla de Ajustes Generales (Verificar existencia)
+        if (!Schema::hasTable('settings')) {
+            Schema::create('settings', function (Blueprint $table) {
+                $table->id();
+                $table->string('key')->unique(); // Ej: 'company_name', 'google_maps_key'
+                $table->text('value')->nullable();
+                $table->string('group')->default('general'); // 'general', 'api', 'mail'
+                $table->timestamps();
+            });
+        }
 
-        // 2. Actualizar Tabla Users (Roles)
+        // 2. Actualizar Tabla Users (Verificar columnas)
         Schema::table('users', function (Blueprint $table) {
-            // admin, supervisor, operator, client
-            $table->string('role')->default('operator')->after('email'); 
-            $table->boolean('is_active')->default(true)->after('role');
+            if (!Schema::hasColumn('users', 'role')) {
+                $table->string('role')->default('operator')->after('email'); 
+            }
+            if (!Schema::hasColumn('users', 'is_active')) {
+                $table->boolean('is_active')->default(true)->after('password'); // Ajustado after
+            }
         });
 
-        // 3. Actualizar Códigos SIA (Lógica avanzada)
+        // 3. Actualizar Códigos SIA (Verificar columnas)
         Schema::table('sia_codes', function (Blueprint $table) {
-            $table->text('procedure_instructions')->nullable(); // Qué hacer cuando llega este código
-            
-            // Para control de horarios (Aperturas/Cierres)
-            $table->boolean('requires_schedule_check')->default(false); 
-            $table->integer('schedule_grace_minutes')->default(30); // Tolerancia +/- minutos
-            
-            // Si llega fuera de horario o no llega:
-            $table->enum('schedule_violation_action', ['none', 'warning', 'critical_alert'])->default('none');
+            if (!Schema::hasColumn('sia_codes', 'procedure_instructions')) {
+                $table->text('procedure_instructions')->nullable(); 
+            }
+            if (!Schema::hasColumn('sia_codes', 'requires_schedule_check')) {
+                $table->boolean('requires_schedule_check')->default(false); 
+            }
+            if (!Schema::hasColumn('sia_codes', 'schedule_grace_minutes')) {
+                $table->integer('schedule_grace_minutes')->default(30); 
+            }
+            if (!Schema::hasColumn('sia_codes', 'schedule_violation_action')) {
+                $table->enum('schedule_violation_action', ['none', 'warning', 'critical_alert'])->default('none');
+            }
         });
     }
 
     public function down(): void
     {
+        // Revertir cambios de forma segura
         Schema::dropIfExists('settings');
+
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['role', 'is_active']);
+            if (Schema::hasColumn('users', 'role')) $table->dropColumn('role');
+            if (Schema::hasColumn('users', 'is_active')) $table->dropColumn('is_active');
         });
+
         Schema::table('sia_codes', function (Blueprint $table) {
-            $table->dropColumn(['procedure_instructions', 'requires_schedule_check', 'schedule_grace_minutes', 'schedule_violation_action']);
+            $columns = ['procedure_instructions', 'requires_schedule_check', 'schedule_grace_minutes', 'schedule_violation_action'];
+            foreach ($columns as $col) {
+                if (Schema::hasColumn('sia_codes', $col)) $table->dropColumn($col);
+            }
         });
     }
 };
