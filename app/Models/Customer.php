@@ -12,7 +12,7 @@ class Customer extends Model
 
     protected $fillable = [
         'type',
-        'dni_cif',
+        'national_id',       // CORREGIDO: Antes era dni_cif
         'first_name',
         'last_name',
         'business_name',
@@ -20,9 +20,12 @@ class Customer extends Model
         'phone_1',
         'phone_2',
         'address',
+        'address_billing',   // AGREGADO: Requerido por el controlador
         'city',
         'monitoring_password',
+        'duress_password',   // AGREGADO: Requerido por el controlador
         'notes',
+        'status',            // AGREGADO: Requerido por las vistas
         'is_active'
     ];
 
