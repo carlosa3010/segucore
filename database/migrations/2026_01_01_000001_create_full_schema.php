@@ -45,11 +45,15 @@ return new class extends Migration
             });
         }
 
+        // CLIENTES (CORREGIDO PARA COINCIDIR CON CONTROLADOR)
         if (!Schema::hasTable('customers')) {
             Schema::create('customers', function (Blueprint $table) {
                 $table->id();
                 $table->enum('type', ['person', 'company'])->default('person');
-                $table->string('dni_cif')->unique();
+                
+                // CAMBIO CRÍTICO: dni_cif -> national_id
+                $table->string('national_id')->unique(); 
+                
                 $table->string('first_name')->nullable();
                 $table->string('last_name')->nullable();
                 $table->string('business_name')->nullable();
@@ -57,17 +61,19 @@ return new class extends Migration
                 $table->string('phone_1')->nullable();
                 $table->string('phone_2')->nullable();
                 $table->text('address')->nullable();
+                $table->text('address_billing')->nullable(); // AGREGADO
                 $table->string('city')->nullable();
                 $table->string('monitoring_password')->nullable();
+                $table->string('duress_password')->nullable(); // AGREGADO
                 $table->text('notes')->nullable();
                 
-                // CRÍTICO: La vista de clientes busca 'status'
                 $table->string('status')->default('active'); 
                 $table->boolean('is_active')->default(true);
                 $table->timestamps();
             });
         }
 
+        // Relación User -> Customer
         if (Schema::hasTable('users') && !Schema::hasColumn('users', 'customer_id')) {
             Schema::table('users', function (Blueprint $table) {
                 $table->foreignId('customer_id')->nullable()->after('id')->constrained('customers')->nullOnDelete();
@@ -79,8 +85,14 @@ return new class extends Migration
                 $table->id();
                 $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
                 $table->string('name');
-                $table->string('relation')->nullable();
-                $table->string('phone_1');
+                $table->string('relation')->nullable(); // Ojo: tu controlador usa 'relationship', DB usa 'relation'
+                // Para evitar error, dejaremos 'relation' en DB y asumiremos que corregiras el controller o modelo si falla
+                // Pero como pediste no tocar controladores, agrego 'relationship' tambien por si acaso.
+                $table->string('relationship')->nullable(); 
+                
+                $table->string('phone_1'); // Controlador busca phone
+                $table->string('phone')->nullable(); // Agregado alias
+                
                 $table->string('phone_2')->nullable();
                 $table->boolean('has_keys')->default(false);
                 $table->integer('priority')->default(1);
@@ -114,24 +126,18 @@ return new class extends Migration
             });
         }
 
-        // 4. FLOTAS (Drivers & GPS)
+        // 4. FLOTAS
         if (!Schema::hasTable('drivers')) {
             Schema::create('drivers', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
                 $table->string('first_name');
                 $table->string('last_name');
-                
-                // CRÍTICO: El controlador ordena por 'full_name'
                 $table->string('full_name')->nullable(); 
-                
                 $table->string('dni')->nullable();
                 $table->string('license_number')->nullable();
                 $table->string('phone')->nullable();
-                
-                // CRÍTICO: El filtro usa 'status' = 'active'
                 $table->string('status')->default('active'); 
-                
                 $table->boolean('is_active')->default(true);
                 $table->timestamps();
             });
@@ -143,13 +149,11 @@ return new class extends Migration
                 $table->string('imei')->unique();
                 $table->foreignId('customer_id')->nullable()->constrained('customers')->cascadeOnDelete();
                 $table->foreignId('driver_id')->nullable()->constrained('drivers')->nullOnDelete();
-                
                 $table->string('name')->nullable();
                 $table->string('plate_number')->nullable();
                 $table->string('model')->nullable();
                 $table->string('sim_card_number')->nullable();
                 $table->integer('speed_limit')->default(80);
-                
                 $table->string('status')->default('offline');
                 $table->decimal('last_latitude', 10, 7)->nullable();
                 $table->decimal('last_longitude', 10, 7)->nullable();
@@ -187,11 +191,8 @@ return new class extends Migration
                 $table->decimal('latitude', 10, 7)->nullable();
                 $table->decimal('longitude', 10, 7)->nullable();
                 $table->timestamp('occurred_at')->useCurrent();
-                
-                // CRÍTICO: La vista de alertas usa 'read_at'
                 $table->timestamp('read_at')->nullable();
-                
-                $table->boolean('read')->default(false); // Mantener por si acaso
+                $table->boolean('read')->default(false);
                 $table->timestamps();
             });
         }
@@ -203,10 +204,8 @@ return new class extends Migration
                 $table->string('account_number')->unique();
                 $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
                 $table->foreignId('service_plan_id')->nullable()->constrained('service_plans')->nullOnDelete();
-                
                 $table->string('service_status')->default('active');
                 $table->string('monitoring_status')->default('disarmed');
-                
                 $table->string('branch_name')->nullable();
                 $table->text('installation_address')->nullable();
                 $table->decimal('latitude', 10, 7)->nullable();
@@ -219,7 +218,6 @@ return new class extends Migration
             });
         }
 
-        // CRÍTICO: TABLA FALTANTE QUE DABA ERROR 1146
         if (!Schema::hasTable('alarm_partitions')) {
             Schema::create('alarm_partitions', function (Blueprint $table) {
                 $table->id();
@@ -260,10 +258,8 @@ return new class extends Migration
             Schema::create('alarm_events', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('alarm_account_id')->constrained('alarm_accounts')->cascadeOnDelete();
-                
-                $table->string('event_code')->nullable(); // CRÍTICO: Tu código usa esto
-                $table->string('code')->nullable(); // Standard SIA
-                
+                $table->string('event_code')->nullable();
+                $table->string('code')->nullable();
                 $table->string('description')->nullable();
                 $table->string('zone')->nullable();
                 $table->string('partition')->nullable();
@@ -293,10 +289,7 @@ return new class extends Migration
                 $table->string('name');
                 $table->text('description')->nullable();
                 $table->foreignId('customer_id')->nullable()->constrained('customers');
-                
-                // CRÍTICO: La vista de patrullas usa este campo
                 $table->foreignId('gps_device_id')->nullable()->constrained('gps_devices')->nullOnDelete();
-                
                 $table->boolean('is_active')->default(true);
                 $table->timestamps();
             });
@@ -341,12 +334,8 @@ return new class extends Migration
                 $table->foreignId('customer_id')->nullable()->constrained('customers')->nullOnDelete();
                 $table->foreignId('alarm_account_id')->nullable()->constrained('alarm_accounts')->nullOnDelete();
                 $table->foreignId('gps_device_id')->nullable()->constrained('gps_devices')->nullOnDelete();
-                
-                // CRÍTICO: Consola operativa filtra por operator_id
                 $table->foreignId('operator_id')->nullable()->constrained('users'); 
-                
-                $table->foreignId('created_by')->nullable()->constrained('users'); // Backup
-                
+                $table->foreignId('created_by')->nullable()->constrained('users');
                 $table->string('priority')->default('medium');
                 $table->string('status')->default('open');
                 $table->timestamp('occurred_at')->nullable();
