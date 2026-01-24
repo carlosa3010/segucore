@@ -10,28 +10,24 @@ use Illuminate\Support\Facades\Log;
 
 class AlarmProcessor
 {
-    /**
-     * Procesa la trama SIA/CID recibida
-     */
-    public function process($accountNumber, $eventCode, $zoneOrUser, $rawData, $remoteIp = null)
+    public function process($accountNumber, $eventCode, $zoneOrUser, $rawData, $remoteIp)
     {
-        Log::info("SIA: Recibido $eventCode de cuenta $accountNumber");
+        Log::info("SIA: Procesando cuenta: $accountNumber | Evento: $eventCode");
 
-        // 1. BUSCAR LA CUENTA (Paso crítico: Convertir String a ID)
+        // 1. Buscar el ID real de la cuenta
         $account = AlarmAccount::where('account_number', $accountNumber)->first();
 
-        // Si la cuenta no existe, es imposible asociar el evento en una DB relacional
         if (!$account) {
-            Log::warning("SIA: Cuenta desconocida $accountNumber. Evento descartado.");
+            Log::warning("SIA: Cuenta $accountNumber no encontrada. Evento descartado.");
             return null;
         }
 
-        // 2. ENRIQUECER DATOS (Códigos SIA y Zonas)
-        $siaInfo = SiaCode::where('code', $eventCode)->first();
-        $description = $siaInfo ? $siaInfo->description : 'Evento desconocido';
-        $priority = $siaInfo ? $siaInfo->priority : 3;
+        // 2. Buscar descripción del código SIA
+        $siaConfig = SiaCode::where('code', $eventCode)->first();
+        $description = $siaConfig ? $siaConfig->description : 'Evento Desconocido';
+        $priority = $siaConfig ? $siaConfig->priority : 3;
 
-        // Buscar nombre de zona si aplica
+        // 3. Buscar nombre de zona (Opcional)
         $zoneName = '';
         if ($zoneOrUser) {
             $zone = AlarmZone::where('alarm_account_id', $account->id)
@@ -40,31 +36,27 @@ class AlarmProcessor
             if ($zone) $zoneName = " - " . $zone->name;
         }
 
-        // 3. ACTUALIZAR ESTADO DE LA CUENTA (Heartbeat)
-        $account->update([
-            'updated_at' => now(), // Marca de "última señal"
-            'service_status' => 'active' // Reactivar si estaba suspendida
-        ]);
+        // 4. Actualizar "última señal" de la cuenta
+        $account->update(['updated_at' => now(), 'service_status' => 'active']);
 
-        // 4. GUARDAR EL EVENTO (Corrección de columna)
+        // 5. GUARDAR EL EVENTO (Usando el ID correcto)
         try {
             $event = AlarmEvent::create([
-                'alarm_account_id' => $account->id, // <--- USAR ID, NO STRING
+                'alarm_account_id' => $account->id, // <--- ESTO ES LO IMPORTANTE
                 'event_code'       => $eventCode,
-                'code'             => $eventCode,   // Compatibilidad
+                'code'             => $eventCode,
                 'description'      => $description . $zoneName,
                 'zone'             => $zoneOrUser,
-                'partition'        => '01',         // Valor default
+                'partition'        => '01',
                 'raw_data'         => $rawData,
                 'received_at'      => now(),
-                'processed'        => ($priority <= 1) // Auto-procesar señales de rutina
+                'processed'        => ($priority <= 1)
             ]);
 
-            Log::info("SIA: Evento guardado con éxito. ID: " . $event->id);
             return $event;
 
         } catch (\Exception $e) {
-            Log::error("SIA Error al guardar en DB: " . $e->getMessage());
+            Log::error("SIA Error DB: " . $e->getMessage());
             return null;
         }
     }
