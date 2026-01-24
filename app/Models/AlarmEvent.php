@@ -10,9 +10,9 @@ class AlarmEvent extends Model
     use HasFactory;
 
     protected $fillable = [
-        'alarm_account_id', // CRÍTICO: Usamos el ID, no el número de cuenta
-        'event_code',       // CRÍTICO: Coincide con tu base de datos
-        'code',             // Campo adicional estándar
+        'alarm_account_id', // <--- ESTE ES EL CAMPO CORRECTO
+        'event_code',
+        'code',
         'description',
         'zone',
         'partition',
@@ -26,15 +26,9 @@ class AlarmEvent extends Model
         'processed' => 'boolean',
     ];
 
-    // Relación con la cuenta
+    // Relación correcta para los Reportes
     public function account()
     {
         return $this->belongsTo(AlarmAccount::class, 'alarm_account_id');
-    }
-
-    // Relación con el código SIA
-    public function siaCode()
-    {
-        return $this->belongsTo(SiaCode::class, 'event_code', 'code');
     }
 }
