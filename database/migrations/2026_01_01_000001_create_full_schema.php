@@ -10,10 +10,7 @@ return new class extends Migration
     {
         Schema::disableForeignKeyConstraints();
 
-        // --------------------------------------------------------------------
-        // 1. SISTEMA BASE
-        // --------------------------------------------------------------------
-
+        // 1. CONFIGURACIÓN Y USUARIOS
         if (!Schema::hasTable('settings')) {
             Schema::create('settings', function (Blueprint $table) {
                 $table->id();
@@ -34,10 +31,7 @@ return new class extends Migration
             });
         }
 
-        // --------------------------------------------------------------------
         // 2. MÓDULO COMERCIAL
-        // --------------------------------------------------------------------
-
         if (!Schema::hasTable('service_plans')) {
             Schema::create('service_plans', function (Blueprint $table) {
                 $table->id();
@@ -66,13 +60,14 @@ return new class extends Migration
                 $table->string('city')->nullable();
                 $table->string('monitoring_password')->nullable();
                 $table->text('notes')->nullable();
+                
+                // CRÍTICO: La vista de clientes busca 'status'
+                $table->string('status')->default('active'); 
                 $table->boolean('is_active')->default(true);
-                $table->string('status')->default('active'); // Agregado por compatibilidad
                 $table->timestamps();
             });
         }
 
-        // Vincular usuarios a clientes
         if (Schema::hasTable('users') && !Schema::hasColumn('users', 'customer_id')) {
             Schema::table('users', function (Blueprint $table) {
                 $table->foreignId('customer_id')->nullable()->after('id')->constrained('customers')->nullOnDelete();
@@ -93,23 +88,50 @@ return new class extends Migration
             });
         }
 
-        // --------------------------------------------------------------------
-        // 3. FLOTAS (Drivers & GPS) - CORREGIDO
-        // --------------------------------------------------------------------
+        // 3. FACTURACIÓN
+        if (!Schema::hasTable('invoices')) {
+            Schema::create('invoices', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
+                $table->string('invoice_number')->unique();
+                $table->date('issue_date');
+                $table->date('due_date');
+                $table->decimal('total', 10, 2);
+                $table->string('status')->default('unpaid');
+                $table->timestamps();
+            });
+        }
 
+        if (!Schema::hasTable('payments')) {
+            Schema::create('payments', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('invoice_id')->constrained('invoices')->cascadeOnDelete();
+                $table->decimal('amount', 10, 2);
+                $table->date('payment_date');
+                $table->string('method')->nullable();
+                $table->string('reference')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        // 4. FLOTAS (Drivers & GPS)
         if (!Schema::hasTable('drivers')) {
             Schema::create('drivers', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
                 $table->string('first_name');
                 $table->string('last_name');
-                // CORRECCIÓN: Agregado full_name para el order by
+                
+                // CRÍTICO: El controlador ordena por 'full_name'
                 $table->string('full_name')->nullable(); 
+                
                 $table->string('dni')->nullable();
                 $table->string('license_number')->nullable();
                 $table->string('phone')->nullable();
-                // CORRECCIÓN: Agregado status 'active' para el where clause
+                
+                // CRÍTICO: El filtro usa 'status' = 'active'
                 $table->string('status')->default('active'); 
+                
                 $table->boolean('is_active')->default(true);
                 $table->timestamps();
             });
@@ -166,17 +188,15 @@ return new class extends Migration
                 $table->decimal('longitude', 10, 7)->nullable();
                 $table->timestamp('occurred_at')->useCurrent();
                 
-                // CORRECCIÓN: read_at en lugar de read (boolean)
-                $table->timestamp('read_at')->nullable(); 
+                // CRÍTICO: La vista de alertas usa 'read_at'
+                $table->timestamp('read_at')->nullable();
                 
+                $table->boolean('read')->default(false); // Mantener por si acaso
                 $table->timestamps();
             });
         }
 
-        // --------------------------------------------------------------------
-        // 4. ALARMAS - CORREGIDO
-        // --------------------------------------------------------------------
-
+        // 5. ALARMAS
         if (!Schema::hasTable('alarm_accounts')) {
             Schema::create('alarm_accounts', function (Blueprint $table) {
                 $table->id();
@@ -199,14 +219,14 @@ return new class extends Migration
             });
         }
 
-        // CORRECCIÓN: Tabla Alarm Partitions (FALTABA)
+        // CRÍTICO: TABLA FALTANTE QUE DABA ERROR 1146
         if (!Schema::hasTable('alarm_partitions')) {
             Schema::create('alarm_partitions', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('alarm_account_id')->constrained('alarm_accounts')->cascadeOnDelete();
                 $table->integer('partition_number');
                 $table->string('name')->nullable();
-                $table->string('status')->default('disarmed'); // armed, disarmed
+                $table->string('status')->default('disarmed');
                 $table->timestamps();
             });
         }
@@ -240,8 +260,10 @@ return new class extends Migration
             Schema::create('alarm_events', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('alarm_account_id')->constrained('alarm_accounts')->cascadeOnDelete();
-                $table->string('event_code')->nullable(); // Para compatibilidad
+                
+                $table->string('event_code')->nullable(); // CRÍTICO: Tu código usa esto
                 $table->string('code')->nullable(); // Standard SIA
+                
                 $table->string('description')->nullable();
                 $table->string('zone')->nullable();
                 $table->string('partition')->nullable();
@@ -252,10 +274,7 @@ return new class extends Migration
             });
         }
 
-        // --------------------------------------------------------------------
-        // 5. SEGURIDAD FÍSICA - CORREGIDO
-        // --------------------------------------------------------------------
-
+        // 6. SEGURIDAD FÍSICA
         if (!Schema::hasTable('guards')) {
             Schema::create('guards', function (Blueprint $table) {
                 $table->id();
@@ -275,7 +294,7 @@ return new class extends Migration
                 $table->text('description')->nullable();
                 $table->foreignId('customer_id')->nullable()->constrained('customers');
                 
-                // CORRECCIÓN: Agregado gps_device_id
+                // CRÍTICO: La vista de patrullas usa este campo
                 $table->foreignId('gps_device_id')->nullable()->constrained('gps_devices')->nullOnDelete();
                 
                 $table->boolean('is_active')->default(true);
@@ -296,35 +315,7 @@ return new class extends Migration
             });
         }
 
-        // --------------------------------------------------------------------
-        // 6. INCIDENTES Y FACTURACIÓN - CORREGIDO
-        // --------------------------------------------------------------------
-
-        if (!Schema::hasTable('invoices')) {
-            Schema::create('invoices', function (Blueprint $table) {
-                $table->id();
-                $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
-                $table->string('invoice_number')->unique();
-                $table->date('issue_date');
-                $table->date('due_date');
-                $table->decimal('total', 10, 2);
-                $table->string('status')->default('unpaid');
-                $table->timestamps();
-            });
-        }
-
-        if (!Schema::hasTable('payments')) {
-            Schema::create('payments', function (Blueprint $table) {
-                $table->id();
-                $table->foreignId('invoice_id')->constrained('invoices')->cascadeOnDelete();
-                $table->decimal('amount', 10, 2);
-                $table->date('payment_date');
-                $table->string('method')->nullable();
-                $table->string('reference')->nullable();
-                $table->timestamps();
-            });
-        }
-
+        // 7. INCIDENTES
         if (!Schema::hasTable('incident_resolutions')) {
             Schema::create('incident_resolutions', function (Blueprint $table) {
                 $table->id();
@@ -351,8 +342,10 @@ return new class extends Migration
                 $table->foreignId('alarm_account_id')->nullable()->constrained('alarm_accounts')->nullOnDelete();
                 $table->foreignId('gps_device_id')->nullable()->constrained('gps_devices')->nullOnDelete();
                 
-                // CORRECCIÓN: Renombrado created_by a operator_id
+                // CRÍTICO: Consola operativa filtra por operator_id
                 $table->foreignId('operator_id')->nullable()->constrained('users'); 
+                
+                $table->foreignId('created_by')->nullable()->constrained('users'); // Backup
                 
                 $table->string('priority')->default('medium');
                 $table->string('status')->default('open');
@@ -383,8 +376,6 @@ return new class extends Migration
         Schema::dropIfExists('incidents');
         Schema::dropIfExists('incident_hold_reasons');
         Schema::dropIfExists('incident_resolutions');
-        Schema::dropIfExists('payments');
-        Schema::dropIfExists('invoices');
         Schema::dropIfExists('patrol_rounds');
         Schema::dropIfExists('patrols');
         Schema::dropIfExists('guards');
@@ -397,9 +388,11 @@ return new class extends Migration
         Schema::dropIfExists('geofences');
         Schema::dropIfExists('gps_devices');
         Schema::dropIfExists('drivers');
+        Schema::dropIfExists('payments');
+        Schema::dropIfExists('invoices');
         Schema::dropIfExists('customer_contacts');
-        Schema::dropIfExists('customers');
         Schema::dropIfExists('service_plans');
+        Schema::dropIfExists('customers');
         Schema::dropIfExists('settings');
         Schema::enableForeignKeyConstraints();
     }
