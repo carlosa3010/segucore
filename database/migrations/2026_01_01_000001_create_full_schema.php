@@ -28,7 +28,6 @@ return new class extends Migration
                 if (!Schema::hasColumn('users', 'is_active')) {
                     $table->boolean('is_active')->default(true);
                 }
-                // customer_id se agrega al final
             });
         }
 
@@ -237,7 +236,7 @@ return new class extends Migration
                 $table->id();
                 $table->foreignId('alarm_account_id')->constrained('alarm_accounts')->cascadeOnDelete();
                 
-                // TU CÓDIGO USA 'event_code', NO 'code'
+                // AQUÍ LA CORRECCIÓN: Usamos event_code en lugar de code
                 $table->string('event_code')->nullable(); 
                 
                 $table->string('description')->nullable();
