@@ -10,12 +10,12 @@ class AlarmEvent extends Model
     use HasFactory;
 
     protected $fillable = [
-        'account_number',
-        'event_code',
-        'event_type',
+        'alarm_account_id', // <--- CORREGIDO: Antes decía 'account_number'
+        'event_code',       // Este debe coincidir con la migración
+        'event_type',       // Asegúrate que tu migración tenga este campo o quítalo
         'zone',
         'partition',
-        'ip_address',
+        'ip_address',       // Asegúrate que tu migración tenga este campo (o raw_data lo cubra)
         'raw_data',
         'received_at',
         'processed',
@@ -30,32 +30,24 @@ class AlarmEvent extends Model
 
     /**
      * Relación: Un evento pertenece a una Cuenta de Alarma.
+     * CORREGIDO: Usamos la relación estándar de Laravel (busca alarm_account_id automáticamente)
      */
     public function account()
     {
-        return $this->belongsTo(AlarmAccount::class, 'account_number', 'account_number');
+        return $this->belongsTo(AlarmAccount::class);
     }
 
-    /**
-     * Relación: Un evento corresponde a una definición de código SIA.
-     */
     public function siaCode()
     {
+        // Asegúrate que en la DB sea 'event_code'
         return $this->belongsTo(SiaCode::class, 'event_code', 'code');
     }
 
-    /**
-     * Relación: Un evento puede haber generado UN Incidente de atención.
-     * ESTA ES LA RELACIÓN QUE FALTABA
-     */
     public function incident()
     {
         return $this->hasOne(Incident::class);
     }
 
-    /**
-     * Helper opcional para descripción
-     */
     public function getSiaCodeDescriptionAttribute()
     {
         return $this->siaCode ? $this->siaCode->description : 'Evento Desconocido';
