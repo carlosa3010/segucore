@@ -45,15 +45,11 @@ return new class extends Migration
             });
         }
 
-        // CLIENTES (CORREGIDO PARA COINCIDIR CON CONTROLADOR)
         if (!Schema::hasTable('customers')) {
             Schema::create('customers', function (Blueprint $table) {
                 $table->id();
                 $table->enum('type', ['person', 'company'])->default('person');
-                
-                // CAMBIO CRÍTICO: dni_cif -> national_id
-                $table->string('national_id')->unique(); 
-                
+                $table->string('national_id')->unique(); // dni_cif renombrado
                 $table->string('first_name')->nullable();
                 $table->string('last_name')->nullable();
                 $table->string('business_name')->nullable();
@@ -61,19 +57,17 @@ return new class extends Migration
                 $table->string('phone_1')->nullable();
                 $table->string('phone_2')->nullable();
                 $table->text('address')->nullable();
-                $table->text('address_billing')->nullable(); // AGREGADO
+                $table->text('address_billing')->nullable();
                 $table->string('city')->nullable();
                 $table->string('monitoring_password')->nullable();
-                $table->string('duress_password')->nullable(); // AGREGADO
+                $table->string('duress_password')->nullable();
                 $table->text('notes')->nullable();
-                
                 $table->string('status')->default('active'); 
                 $table->boolean('is_active')->default(true);
                 $table->timestamps();
             });
         }
 
-        // Relación User -> Customer
         if (Schema::hasTable('users') && !Schema::hasColumn('users', 'customer_id')) {
             Schema::table('users', function (Blueprint $table) {
                 $table->foreignId('customer_id')->nullable()->after('id')->constrained('customers')->nullOnDelete();
@@ -85,14 +79,10 @@ return new class extends Migration
                 $table->id();
                 $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
                 $table->string('name');
-                $table->string('relation')->nullable(); // Ojo: tu controlador usa 'relationship', DB usa 'relation'
-                // Para evitar error, dejaremos 'relation' en DB y asumiremos que corregiras el controller o modelo si falla
-                // Pero como pediste no tocar controladores, agrego 'relationship' tambien por si acaso.
-                $table->string('relationship')->nullable(); 
-                
-                $table->string('phone_1'); // Controlador busca phone
-                $table->string('phone')->nullable(); // Agregado alias
-                
+                $table->string('relation')->nullable(); 
+                $table->string('relationship')->nullable(); // Alias para compatibilidad
+                $table->string('phone_1');
+                $table->string('phone')->nullable(); // Alias
                 $table->string('phone_2')->nullable();
                 $table->boolean('has_keys')->default(false);
                 $table->integer('priority')->default(1);
@@ -334,6 +324,10 @@ return new class extends Migration
                 $table->foreignId('customer_id')->nullable()->constrained('customers')->nullOnDelete();
                 $table->foreignId('alarm_account_id')->nullable()->constrained('alarm_accounts')->nullOnDelete();
                 $table->foreignId('gps_device_id')->nullable()->constrained('gps_devices')->nullOnDelete();
+                
+                // CORRECCIÓN CRÍTICA: Se agrega la columna alarm_event_id
+                $table->foreignId('alarm_event_id')->nullable()->constrained('alarm_events')->nullOnDelete();
+                
                 $table->foreignId('operator_id')->nullable()->constrained('users'); 
                 $table->foreignId('created_by')->nullable()->constrained('users');
                 $table->string('priority')->default('medium');
