@@ -6,81 +6,65 @@ use App\Models\AlarmEvent;
 use App\Models\AlarmAccount;
 use App\Models\SiaCode;
 use App\Models\AlarmZone;
-use App\Models\PanelUser;
 use Illuminate\Support\Facades\Log;
 
 class AlarmProcessor
 {
-    public function process($accountNumber, $eventCode, $zoneOrUser, $rawData, $remoteIp)
+    /**
+     * Procesa la trama SIA/CID recibida
+     */
+    public function process($accountNumber, $eventCode, $zoneOrUser, $rawData, $remoteIp = null)
     {
-        // 1. Buscar la Cuenta
+        Log::info("SIA: Recibido $eventCode de cuenta $accountNumber");
+
+        // 1. BUSCAR LA CUENTA (Paso crítico: Convertir String a ID)
         $account = AlarmAccount::where('account_number', $accountNumber)->first();
-        
-        // SI NO EXISTE LA CUENTA, NO PODEMOS GUARDAR EL EVENTO (Por restricción de llave foránea)
+
+        // Si la cuenta no existe, es imposible asociar el evento en una DB relacional
         if (!$account) {
-            Log::warning("SIA: Intento de señal de cuenta desconocida: $accountNumber desde $remoteIp");
-            return null; // O podrías crear una lógica para eventos huérfanos
+            Log::warning("SIA: Cuenta desconocida $accountNumber. Evento descartado.");
+            return null;
         }
 
-        // 2. Buscar Configuración SIA
-        $siaConfig = SiaCode::where('code', $eventCode)->first();
-        $priority = $siaConfig ? $siaConfig->priority : 2; 
-        
-        // En tu tabla SiaCode no vi la columna 'category', así que usamos defaults o lo agregas
-        // Asumo 'category' basándome en prioridad para este ejemplo
-        $category = 'alarm'; 
-        if ($priority == 1) $category = 'status';
-        if ($priority == 5) $category = 'panic';
+        // 2. ENRIQUECER DATOS (Códigos SIA y Zonas)
+        $siaInfo = SiaCode::where('code', $eventCode)->first();
+        $description = $siaInfo ? $siaInfo->description : 'Evento desconocido';
+        $priority = $siaInfo ? $siaInfo->priority : 3;
 
-        $isAutoProcess = ($priority <= 1); 
-
-        // 3. ACTUALIZACIÓN DE ESTADO
-        $updateData = ['last_signal_at' => now()]; // Asegúrate que tu migración tenga esta columna en alarm_accounts
-
-        if ($eventCode === 'RP' || $eventCode === 'TX') {
-            $updateData['service_status'] = 'active'; 
-            $isAutoProcess = true;
-        }
-        if ($eventCode === 'OP') {
-            $account->monitoring_status = 'disarmed'; // Actualizamos estado monitor
-        }
-        if ($eventCode === 'CL') {
-            $account->monitoring_status = 'armed';
-        }
-        
-        $account->save(); // Guardar cambios en la cuenta
-
-        // 4. Enriquecer Información
-        $descriptionSuffix = "";
-        
-        // Lógica de Zonas (Simplificada para que no falle si no hay datos)
-        if ($category == 'alarm' || $category == 'fire') {
+        // Buscar nombre de zona si aplica
+        $zoneName = '';
+        if ($zoneOrUser) {
             $zone = AlarmZone::where('alarm_account_id', $account->id)
                              ->where('zone_number', $zoneOrUser)
                              ->first();
-            if ($zone) {
-                $descriptionSuffix = " - Zona: " . $zone->name;
-            }
+            if ($zone) $zoneName = " - " . $zone->name;
         }
 
-        // 5. GUARDAR EL EVENTO (CORREGIDO)
+        // 3. ACTUALIZAR ESTADO DE LA CUENTA (Heartbeat)
+        $account->update([
+            'updated_at' => now(), // Marca de "última señal"
+            'service_status' => 'active' // Reactivar si estaba suspendida
+        ]);
+
+        // 4. GUARDAR EL EVENTO (Corrección de columna)
         try {
             $event = AlarmEvent::create([
-                'alarm_account_id' => $account->id, // <--- AQUÍ ESTABA EL ERROR (Usar ID, no string)
-                'event_code'     => $eventCode,
-                // 'event_type'     => $category, // Comenta esto si no tienes la columna en DB
-                'zone'           => $zoneOrUser,
-                // 'ip_address'     => $remoteIp, // Comenta esto si no tienes la columna en DB
-                'raw_data'       => $rawData . $descriptionSuffix,
-                'received_at'    => now(),
-                'processed'      => $isAutoProcess,
-                // 'processed_at'   => $isAutoProcess ? now() : null, // Comenta si da error
+                'alarm_account_id' => $account->id, // <--- USAR ID, NO STRING
+                'event_code'       => $eventCode,
+                'code'             => $eventCode,   // Compatibilidad
+                'description'      => $description . $zoneName,
+                'zone'             => $zoneOrUser,
+                'partition'        => '01',         // Valor default
+                'raw_data'         => $rawData,
+                'received_at'      => now(),
+                'processed'        => ($priority <= 1) // Auto-procesar señales de rutina
             ]);
 
+            Log::info("SIA: Evento guardado con éxito. ID: " . $event->id);
             return $event;
 
         } catch (\Exception $e) {
-            Log::error("Error guardando evento: " . $e->getMessage());
+            Log::error("SIA Error al guardar en DB: " . $e->getMessage());
             return null;
         }
     }
