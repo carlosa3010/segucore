@@ -157,4 +157,26 @@ class TraccarApiService
         $response = $this->client()->delete("{$this->baseUrl}/geofences/{$traccarId}");
         return $response->successful();
     }
+
+    /**
+     * 5. PERMISOS (Vincular Geocerca a Dispositivo en Traccar)
+     */
+    public function linkGeofenceToDevice($traccarDeviceId, $traccarGeofenceId)
+    {
+        // Traccar usa un endpoint de permisos
+        $response = $this->client()->post("{$this->baseUrl}/permissions", [
+            'deviceId' => $traccarDeviceId,
+            'geofenceId' => $traccarGeofenceId
+        ]);
+        return $response->successful();
+    }
+
+    public function unlinkGeofenceFromDevice($traccarDeviceId, $traccarGeofenceId)
+    {
+        $response = $this->client()->delete("{$this->baseUrl}/permissions", [
+            'deviceId' => $traccarDeviceId,
+            'geofenceId' => $traccarGeofenceId
+        ]);
+        return $response->successful();
+    }
 }
