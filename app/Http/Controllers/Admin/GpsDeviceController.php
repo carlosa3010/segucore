@@ -6,13 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Models\GpsDevice;
 use App\Models\Customer;
 use App\Models\Driver;
-use App\Models\Geofence; // <--- Importante: Importar modelo Geofence
+use App\Models\Geofence;
 use App\Models\TraccarDevice;
 use App\Models\TraccarPosition;
 use App\Services\TraccarApiService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Log;
 
 class GpsDeviceController extends Controller
 {
@@ -28,14 +29,15 @@ class GpsDeviceController extends Controller
      */
     public function index(Request $request)
     {
-        // Cargamos también la relación 'driver'
         $query = GpsDevice::with(['customer', 'driver']);
 
         if ($request->has('search')) {
             $s = $request->search;
-            $query->where('name', 'LIKE', "%$s%")
+            $query->where(function($q) use ($s) {
+                $q->where('name', 'LIKE', "%$s%")
                   ->orWhere('imei', 'LIKE', "%$s%")
                   ->orWhere('plate_number', 'LIKE', "%$s%");
+            });
         }
 
         $devices = $query->orderBy('created_at', 'desc')->paginate(20);
@@ -56,10 +58,8 @@ class GpsDeviceController extends Controller
     public function create()
     {
         $customers = Customer::where('is_active', true)->orderBy('first_name')->get();
-        
-        // Cargar listas para los select
         $drivers = Driver::where('status', 'active')->orderBy('full_name')->get();
-        $geofences = Geofence::orderBy('name')->get(); // <--- Cargar geocercas
+        $geofences = Geofence::orderBy('name')->get(); 
         
         return view('admin.gps.devices.create', compact('customers', 'drivers', 'geofences'));
     }
@@ -74,41 +74,57 @@ class GpsDeviceController extends Controller
             'driver_id'   => 'nullable|exists:drivers,id',
             'name' => 'required|string|max:100',
             'imei' => [
-                'required',
-                'string',
+                'required', 'string',
                 Rule::unique('gps_devices', 'imei')->whereNull('deleted_at')
             ],
             'device_model' => 'required|string',
             'phone_number' => 'nullable|string',
             'plate_number' => 'nullable|string',
             'vehicle_type' => 'required',
-            'geofences'    => 'nullable|array', // <--- Validar array de geocercas
+            'geofences'    => 'nullable|array',
             'geofences.*'  => 'exists:geofences,id'
         ]);
 
-        // Crear en SeguCore
+        // 1. Crear localmente
         $device = GpsDevice::create($validated + ['subscription_status' => 'active']);
 
-        // Asignar Geocercas (Tabla Pivote)
+        // 2. Asignar Geocercas (Pivote local)
         if ($request->has('geofences')) {
             $device->geofences()->sync($request->geofences);
         }
 
-        // Sincronizar con API Traccar
+        // 3. Sincronizar con Traccar API
         try {
-            $this->traccarApi->syncDevice(
+            // Crear/Actualizar dispositivo en Traccar y obtener su respuesta (que incluye el ID)
+            $traccarResponse = $this->traccarApi->syncDevice(
                 $device->name,
                 $device->imei,
                 $device->phone_number,
                 $device->device_model
             );
+
+            // Si hay geocercas y tenemos respuesta exitosa de Traccar
+            if ($request->has('geofences') && isset($traccarResponse['id'])) {
+                $traccarDeviceId = $traccarResponse['id'];
+                
+                // Buscar las geocercas seleccionadas para obtener sus traccar_ids
+                $selectedGeofences = Geofence::whereIn('id', $request->geofences)
+                    ->whereNotNull('traccar_id')
+                    ->get();
+
+                foreach ($selectedGeofences as $geo) {
+                    $this->traccarApi->linkGeofenceToDevice($traccarDeviceId, $geo->traccar_id);
+                }
+            }
+
         } catch (\Exception $e) {
+            Log::error("Error sync Traccar en store: " . $e->getMessage());
             return redirect()->route('admin.gps.devices.index')
-                ->with('warning', 'Dispositivo creado localmente, pero falló la conexión con Traccar API.');
+                ->with('warning', 'Dispositivo guardado, pero hubo un error de conexión con el servidor GPS.');
         }
 
         return redirect()->route('admin.gps.devices.index')
-            ->with('success', 'Dispositivo GPS registrado y asignado correctamente.');
+            ->with('success', 'Dispositivo GPS registrado y configurado correctamente.');
     }
 
     /**
@@ -116,10 +132,8 @@ class GpsDeviceController extends Controller
      */
     public function show($id)
     {
-        // Cargar geocercas para mostrarlas en el detalle si se desea
         $device = GpsDevice::with(['customer', 'driver', 'geofences'])->findOrFail($id);
         
-        // Datos en vivo + Posición (lat/lon/velocidad)
         $liveData = null;
         try {
             $liveData = TraccarDevice::where('uniqueid', $device->imei)
@@ -135,7 +149,7 @@ class GpsDeviceController extends Controller
      */
     public function edit($id)
     {
-        $device = GpsDevice::with('geofences')->findOrFail($id); // Cargar geocercas asignadas
+        $device = GpsDevice::with('geofences')->findOrFail($id);
         
         $customers = Customer::where('is_active', true)->orderBy('first_name')->get();
         $drivers = Driver::where('status', 'active')->orderBy('full_name')->get();
@@ -160,26 +174,50 @@ class GpsDeviceController extends Controller
             'subscription_status' => 'required|in:active,suspended',
             'speed_limit' => 'nullable|integer|min:0',
             'odometer' => 'nullable|numeric|min:0',
-            'geofences' => 'nullable|array', // <--- Validar array
+            'geofences' => 'nullable|array',
             'geofences.*' => 'exists:geofences,id'
         ]);
 
         $device->update($validated);
 
-        // Sincronizar Geocercas (Tabla Pivote)
-        // El método sync() elimina las que no estén en el array y agrega las nuevas
-        $device->geofences()->sync($request->input('geofences', []));
+        // 1. Sincronizar tabla pivote local y capturar cambios (attached/detached)
+        $syncResult = $device->geofences()->sync($request->input('geofences', []));
 
+        // 2. Sincronizar con Traccar
         try {
-            $this->traccarApi->syncDevice(
+            $traccarResponse = $this->traccarApi->syncDevice(
                 $device->name,
                 $device->imei,
                 $device->phone_number,
                 $device->device_model
             );
-        } catch (\Exception $e) { }
 
-        return back()->with('success', 'Datos del dispositivo actualizados.');
+            if (isset($traccarResponse['id'])) {
+                $traccarDeviceId = $traccarResponse['id'];
+
+                // A. Vincular Nuevas (Attached)
+                if (!empty($syncResult['attached'])) {
+                    $newGeofences = Geofence::whereIn('id', $syncResult['attached'])->whereNotNull('traccar_id')->get();
+                    foreach ($newGeofences as $geo) {
+                        $this->traccarApi->linkGeofenceToDevice($traccarDeviceId, $geo->traccar_id);
+                    }
+                }
+
+                // B. Desvincular Removidas (Detached)
+                if (!empty($syncResult['detached'])) {
+                    $removedGeofences = Geofence::whereIn('id', $syncResult['detached'])->whereNotNull('traccar_id')->get();
+                    foreach ($removedGeofences as $geo) {
+                        $this->traccarApi->unlinkGeofenceFromDevice($traccarDeviceId, $geo->traccar_id);
+                    }
+                }
+            }
+
+        } catch (\Exception $e) {
+            Log::error("Error sync Traccar en update: " . $e->getMessage());
+            // No retornamos error para no interrumpir la experiencia de usuario, pero queda en log.
+        }
+
+        return back()->with('success', 'Datos del dispositivo actualizados y sincronizados.');
     }
 
     /**
@@ -189,16 +227,19 @@ class GpsDeviceController extends Controller
     {
         $device = GpsDevice::findOrFail($id);
         
-        $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
-        if ($traccarDevice) {
-            try {
+        // Intentar borrar de Traccar primero
+        try {
+            $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
+            if ($traccarDevice) {
                 $this->traccarApi->deleteDevice($traccarDevice->id);
-            } catch (\Exception $e) { }
+            }
+        } catch (\Exception $e) { 
+            Log::warning("No se pudo eliminar dispositivo de Traccar: " . $e->getMessage());
         }
 
         $device->delete();
 
-        return redirect()->route('admin.gps.devices.index')->with('success', 'Dispositivo eliminado.');
+        return redirect()->route('admin.gps.devices.index')->with('success', 'Dispositivo eliminado correctamente.');
     }
     
     /**
@@ -207,13 +248,15 @@ class GpsDeviceController extends Controller
     public function sendCommand(Request $request, $id)
     {
         $device = GpsDevice::findOrFail($id);
-        $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->firstOrFail();
-        
-        $type = $request->input('type');
-        
-        $success = $this->traccarApi->sendCommand($traccarDevice->id, $type);
-        
-        return response()->json(['success' => $success]);
+        try {
+            $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->firstOrFail();
+            $type = $request->input('type');
+            
+            $success = $this->traccarApi->sendCommand($traccarDevice->id, $type);
+            return response()->json(['success' => $success]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => $e->getMessage()], 500);
+        }
     }
 
     /**
@@ -258,38 +301,42 @@ class GpsDeviceController extends Controller
     {
         $device = GpsDevice::findOrFail($id);
         
-        // ZONA HORARIA DE TU PAÍS (Ajusta si es necesario)
+        // ZONA HORARIA VENEZUELA
         $tz = 'America/Caracas'; 
 
         // 1. Procesar fechas: Convertir Entrada (Local) -> Query (UTC)
-        if ($request->filled('from') && $request->filled('to')) {
-            $from = \Carbon\Carbon::parse($request->input('from'), $tz)->setTimezone('UTC');
-            $to = \Carbon\Carbon::parse($request->input('to'), $tz)->setTimezone('UTC');
-        } else {
-            $from = now()->subHours(12)->setTimezone('UTC');
-            $to = now()->setTimezone('UTC');
+        try {
+            if ($request->filled('from') && $request->filled('to')) {
+                $from = \Carbon\Carbon::parse($request->input('from'), $tz)->setTimezone('UTC');
+                $to = \Carbon\Carbon::parse($request->input('to'), $tz)->setTimezone('UTC');
+            } else {
+                $from = now()->subHours(12)->setTimezone('UTC');
+                $to = now()->setTimezone('UTC');
+            }
+
+            $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
+            if (!$traccarDevice) return response()->json([]);
+
+            // 2. Consulta a BD (Usando tiempos UTC)
+            $positions = TraccarPosition::where('deviceid', $traccarDevice->id)
+                ->whereBetween('fixtime', [$from, $to])
+                ->orderBy('fixtime', 'asc') 
+                ->get()
+                ->map(function ($p) use ($tz) {
+                    return [
+                        'lat' => $p->latitude,
+                        'lng' => $p->longitude,
+                        'speed' => round($p->speed * 1.852), 
+                        // 3. Salida: Convertir DB (UTC) -> Visualización (Local)
+                        'time' => \Carbon\Carbon::parse($p->fixtime)->setTimezone($tz)->format('d/m H:i'),
+                        'course' => $p->course
+                    ];
+                });
+
+            return response()->json($positions);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
         }
-
-        $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
-        if (!$traccarDevice) return response()->json([]);
-
-        // 2. Consulta a BD (Usando tiempos UTC)
-        $positions = TraccarPosition::where('deviceid', $traccarDevice->id)
-            ->whereBetween('fixtime', [$from, $to])
-            ->orderBy('fixtime', 'asc') 
-            ->get()
-            ->map(function ($p) use ($tz) {
-                return [
-                    'lat' => $p->latitude,
-                    'lng' => $p->longitude,
-                    'speed' => round($p->speed * 1.852), 
-                    // 3. Salida: Convertir DB (UTC) -> Visualización (Local)
-                    'time' => \Carbon\Carbon::parse($p->fixtime)->setTimezone($tz)->format('d/m H:i'),
-                    'course' => $p->course
-                ];
-            });
-
-        return response()->json($positions);
     }
 
     /**
@@ -298,8 +345,6 @@ class GpsDeviceController extends Controller
     public function exportHistoryPdf(Request $request, $id)
     {
         $device = GpsDevice::with('customer', 'driver')->findOrFail($id);
-        
-        // Zona horaria para procesar los inputs correctamente
         $tz = 'America/Caracas';
 
         if ($request->filled('from') && $request->filled('to')) {
@@ -324,7 +369,6 @@ class GpsDeviceController extends Controller
                 ->get();
         }
 
-        // Generar PDF
         $pdf = Pdf::loadView('admin.gps.devices.pdf_history', compact('device', 'positions', 'from', 'to'));
         
         return $pdf->download("Historial_{$device->name}_{$from->format('Ymd')}.pdf");
