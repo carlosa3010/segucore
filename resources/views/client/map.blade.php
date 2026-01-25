@@ -32,7 +32,7 @@
 
         <div class="p-4 border-b border-gray-800">
             <div class="relative">
-                <input type="text" id="searchInput" placeholder="Buscar activo..." class="w-full bg-gray-900 border border-gray-700 text-sm rounded px-3 py-2 pl-9 text-gray-200 focus:outline-none focus:border-gray-500 transition">
+                <input type="text" id="searchInput" placeholder="Buscar por Placa, IMEI o Nombre..." class="w-full bg-gray-900 border border-gray-700 text-sm rounded px-3 py-2 pl-9 text-gray-200 focus:outline-none focus:border-gray-500 transition">
                 <i class="fas fa-search absolute left-3 top-2.5 text-gray-500"></i>
             </div>
         </div>
@@ -82,11 +82,9 @@
         <div id="map"></div>
         
         <div id="map-controls" class="hidden absolute top-4 right-4 z-[400] flex flex-col gap-2 items-end">
-            
             <a id="btn-pdf-map" href="#" target="_blank" class="bg-red-600 text-white font-bold px-4 py-2 rounded shadow-lg hover:bg-red-500 text-xs flex items-center gap-2 transition transform hover:scale-105">
                 <i class="fas fa-file-pdf text-base"></i> DESCARGAR REPORTE
             </a>
-
             <button onclick="clearHistory()" class="bg-white text-black font-bold px-4 py-2 rounded shadow-lg hover:bg-gray-200 text-xs flex items-center gap-2 transition">
                 <i class="fas fa-times text-red-500"></i> LIMPIAR RUTA
             </button>
@@ -118,9 +116,115 @@
 
         let markers = {}; 
         let historyLayer = L.layerGroup().addTo(map); 
+        
+        // VARIABLE GLOBAL PARA ALMACENAR ACTIVOS Y FILTRAR LOCALMENTE
+        let allAssets = [];
 
-        // --- FUNCIONES GLOBALES ---
+        // --- BÚSQUEDA / FILTRO EN TIEMPO REAL ---
+        document.getElementById('searchInput').addEventListener('input', function() {
+            filterAssets();
+        });
 
+        function filterAssets() {
+            const term = document.getElementById('searchInput').value.toLowerCase().trim();
+            
+            if (!term) {
+                renderList(allAssets);
+                // Opcional: Si quieres que el mapa también se filtre, usa renderMap(allAssets) aquí.
+                // Por ahora mantenemos todos los marcadores en mapa, y filtramos la lista.
+                return;
+            }
+
+            const filtered = allAssets.filter(asset => {
+                const name = (asset.name || '').toLowerCase();
+                const plate = (asset.plate || '').toLowerCase(); // Datos nuevos
+                const imei = (asset.imei || '').toLowerCase();   // Datos nuevos
+                
+                return name.includes(term) || plate.includes(term) || imei.includes(term);
+            });
+
+            renderList(filtered);
+            // Si quieres filtrar también los íconos del mapa, descomenta:
+            // renderMap(filtered, true); 
+        }
+
+        // --- CARGA DE ACTIVOS ---
+        function loadAssets() {
+            fetch('{{ route("client.api.assets") }}')
+                .then(r => r.json())
+                .then(d => {
+                    allAssets = d.assets; // Guardamos en global
+                    
+                    // Si hay una búsqueda activa, filtramos sobre los nuevos datos recibidos
+                    const term = document.getElementById('searchInput').value;
+                    if(term) {
+                        filterAssets();
+                    } else {
+                        renderList(allAssets);
+                    }
+                    
+                    // El mapa siempre muestra todo (o ajusta según prefieras)
+                    renderMap(allAssets); 
+                });
+        }
+
+        function renderList(assets) {
+            const c = document.getElementById('assets-list'); 
+            c.innerHTML = '';
+            
+            if(assets.length === 0) {
+                c.innerHTML = '<div class="text-center mt-5 text-gray-500 text-xs">No se encontraron activos.</div>';
+                return;
+            }
+
+            assets.forEach(a => {
+                let color = (a.status === 'online' || a.status === 'armed') ? 'text-green-500' : 'text-gray-500';
+                if(a.status === 'alarm') color = 'text-red-500 animate-pulse';
+                
+                // Info extra para mostrar en lista si se desea (Placa)
+                let subInfo = a.type === 'gps' && a.plate ? `<span class="bg-gray-800 text-gray-400 px-1 rounded ml-2 text-[9px] border border-gray-700">${a.plate}</span>` : '';
+
+                const div = document.createElement('div');
+                div.className = "bg-gray-900 p-3 rounded border border-gray-800 hover:border-gray-600 cursor-pointer transition flex justify-between group";
+                div.innerHTML = `
+                    <div class="flex gap-3">
+                        <div class="${color}"><i class="fas ${a.type==='alarm'?'fa-shield-alt':'fa-car'}"></i></div>
+                        <div>
+                            <h4 class="text-sm font-bold text-gray-300 group-hover:text-white flex items-center">${a.name} ${subInfo}</h4>
+                            <p class="text-[10px] text-gray-500">${a.last_update}</p>
+                        </div>
+                    </div>`;
+                div.onclick = () => { if(a.lat) map.flyTo([a.lat, a.lng], 16); };
+                c.appendChild(div);
+            });
+        }
+
+        function renderMap(assets, clearMissing = false) {
+            // Si quisieras limpiar marcadores que ya no están en 'assets' (útil para filtro de mapa)
+            if(clearMissing) {
+                // Lógica para remover markers no presentes... (simplificado para este ejemplo)
+            }
+
+            assets.forEach(a => {
+                if(!a.lat) return;
+                let key = `${a.type}_${a.id}`;
+                
+                let html = a.type === 'alarm' 
+                    ? `<div style="font-size:30px; color:${a.status==='armed'?'#10B981':'#6B7280'}"><i class="fas fa-shield-alt"></i></div>`
+                    : `<div style="font-size:24px; color:${a.speed>0?'#3B82F6':'#9CA3AF'}; transform:rotate(${a.course}deg)"><i class="fas fa-location-arrow"></i></div>`;
+                
+                let icon = L.divIcon({ className: 'bg-transparent', html: html, iconSize: [30,30], iconAnchor: [15,15] });
+
+                if(markers[key]) markers[key].setLatLng([a.lat, a.lng]).setIcon(icon);
+                else {
+                    let m = L.marker([a.lat, a.lng], {icon: icon}).addTo(map);
+                    m.on('click', () => openModal(a.type, a.id));
+                    markers[key] = m;
+                }
+            });
+        }
+
+        // --- FUNCIONES GLOBALES (Historial, Comandos, etc. se mantienen igual) ---
         window.sendCommand = function(deviceId, type) {
             if(!confirm('¿ATENCIÓN: Está seguro de enviar este comando?')) return;
             const feedback = document.getElementById('command-feedback');
@@ -152,7 +256,6 @@
                     else {
                         closeModal();
                         drawHistoryAdvanced(data.positions);
-                        // ACTIVAR BOTÓN PDF EN EL MAPA
                         updatePdfButton(deviceId, start, end);
                     }
                 })
@@ -163,6 +266,7 @@
         function updatePdfButton(deviceId, start, end) {
             const btn = document.getElementById('btn-pdf-map');
             btn.href = `/api/history/${deviceId}/pdf?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+            document.getElementById('map-controls').classList.remove('hidden');
         }
 
         function drawHistoryAdvanced(positions) {
@@ -183,11 +287,9 @@
                 if (p1.speed === 0) L.circleMarker([p1.latitude, p1.longitude], { radius: 2, color: '#000' }).addTo(historyLayer);
             }
 
-            // Marcadores Inicio/Fin
             L.marker([positions[0].latitude, positions[0].longitude], { icon: createIcon('green', 'play') }).addTo(historyLayer);
             L.marker([positions[positions.length-1].latitude, positions[positions.length-1].longitude], { icon: createIcon('red', 'flag-checkered') }).addTo(historyLayer);
 
-            document.getElementById('map-controls').classList.remove('hidden');
             document.getElementById('history-legend').classList.remove('hidden');
         }
 
@@ -203,46 +305,6 @@
             document.getElementById('map-controls').classList.add('hidden');
             document.getElementById('history-legend').classList.add('hidden');
         };
-
-        // --- CARGA DE ACTIVOS ---
-        function loadAssets() {
-            fetch('{{ route("client.api.assets") }}').then(r => r.json()).then(d => {
-                renderList(d.assets); renderMap(d.assets);
-            });
-        }
-
-        function renderList(assets) {
-            const c = document.getElementById('assets-list'); c.innerHTML = '';
-            assets.forEach(a => {
-                let color = (a.status === 'online' || a.status === 'armed') ? 'text-green-500' : 'text-gray-500';
-                if(a.status === 'alarm') color = 'text-red-500 animate-pulse';
-                const div = document.createElement('div');
-                div.className = "bg-gray-900 p-3 rounded border border-gray-800 hover:border-gray-600 cursor-pointer transition flex justify-between group";
-                div.innerHTML = `<div class="flex gap-3"><div class="${color}"><i class="fas ${a.type==='alarm'?'fa-shield-alt':'fa-car'}"></i></div><div><h4 class="text-sm font-bold text-gray-300 group-hover:text-white">${a.name}</h4><p class="text-[10px] text-gray-500">${a.last_update}</p></div></div>`;
-                div.onclick = () => { if(a.lat) map.flyTo([a.lat, a.lng], 16); };
-                c.appendChild(div);
-            });
-        }
-
-        function renderMap(assets) {
-            assets.forEach(a => {
-                if(!a.lat) return;
-                let key = `${a.type}_${a.id}`;
-                // Iconos simples para evitar problemas de render
-                let html = a.type === 'alarm' 
-                    ? `<div style="font-size:30px; color:${a.status==='armed'?'#10B981':'#6B7280'}"><i class="fas fa-shield-alt"></i></div>`
-                    : `<div style="font-size:24px; color:${a.speed>0?'#3B82F6':'#9CA3AF'}; transform:rotate(${a.course}deg)"><i class="fas fa-location-arrow"></i></div>`;
-                
-                let icon = L.divIcon({ className: 'bg-transparent', html: html, iconSize: [30,30], iconAnchor: [15,15] });
-
-                if(markers[key]) markers[key].setLatLng([a.lat, a.lng]).setIcon(icon);
-                else {
-                    let m = L.marker([a.lat, a.lng], {icon: icon}).addTo(map);
-                    m.on('click', () => openModal(a.type, a.id));
-                    markers[key] = m;
-                }
-            });
-        }
 
         // --- MODALES ---
         function openModal(type, id) {
@@ -264,7 +326,6 @@
             setTimeout(() => overlay.classList.add('hidden'), 200);
         };
 
-        // Alertas
         function toggleAlerts() { document.getElementById('alerts-panel').classList.toggle('translate-x-full'); }
         function loadAlerts() {
             fetch('{{ route("client.api.alerts") }}').then(r=>r.json()).then(d=>{
