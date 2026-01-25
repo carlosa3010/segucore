@@ -74,4 +74,14 @@ class InvoiceController extends Controller
         return redirect()->route('admin.customers.show', $request->customer_id)
             ->with('success', 'Factura generada exitosamente.');
     }
+// Método para descargar el PDF
+public function download(Invoice $invoice)
+{
+    $invoice->load('customer');
+    // Usando la librería dompdf (debes tenerla instalada: composer require barryvdh/laravel-dompdf)
+    $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.invoices.pdf', compact('invoice'));
+    
+    return $pdf->download('Factura-' . $invoice->invoice_number . '.pdf');
 }
+
+    }
