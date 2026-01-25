@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class GpsDeviceController extends Controller
@@ -42,9 +43,15 @@ class GpsDeviceController extends Controller
 
         $imeis = $devices->pluck('imei')->toArray();
         $traccarData = [];
+        
         try {
-            $traccarData = TraccarDevice::whereIn('uniqueid', $imeis)->get()->keyBy('uniqueid');
-        } catch (\Exception $e) { }
+            $traccarData = TraccarDevice::whereIn('uniqueid', $imeis)
+                ->get(['id', 'uniqueid', 'lastupdate', 'positionid', 'status'])
+                ->keyBy('uniqueid');
+        } catch (\Exception $e) { 
+        } finally {
+            DB::disconnect('traccar');
+        }
 
         return view('admin.gps.devices.index', compact('devices', 'traccarData'));
     }
@@ -222,21 +229,29 @@ class GpsDeviceController extends Controller
     public function getRoute($id)
     {
         $device = GpsDevice::findOrFail($id);
-        $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
-        if (!$traccarDevice) return response()->json([]);
+        $positions = collect();
 
-        $positions = TraccarPosition::where('deviceid', $traccarDevice->id)
-            ->orderBy('fixtime', 'desc')
-            ->take(50)
-            ->get()
-            ->map(function ($pos) {
-                return [
-                    'lat' => $pos->latitude,
-                    'lng' => $pos->longitude,
-                    'time' => Carbon::parse($pos->fixtime)->format('H:i:s'),
-                    'speed' => round($pos->speed * 1.852, 1)
-                ];
-            });
+        try {
+            $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
+            if ($traccarDevice) {
+                $positions = TraccarPosition::where('deviceid', $traccarDevice->id)
+                    ->orderBy('fixtime', 'desc')
+                    ->take(50)
+                    ->get()
+                    ->map(function ($pos) {
+                        return [
+                            'lat' => $pos->latitude,
+                            'lng' => $pos->longitude,
+                            'time' => Carbon::parse($pos->fixtime)->format('H:i:s'),
+                            'speed' => round($pos->speed * 1.852, 1)
+                        ];
+                    });
+            }
+        } catch (\Exception $e) {
+            return response()->json([]);
+        } finally {
+            DB::disconnect('traccar');
+        }
 
         return response()->json($positions->values());
     }
@@ -249,8 +264,13 @@ class GpsDeviceController extends Controller
 
     public function getHistoryData(Request $request, $id)
     {
+        // Aumentamos memoria y tiempo para consultas grandes (ej. 1 mes)
+        ini_set('memory_limit', '512M');
+        set_time_limit(120);
+
         $device = GpsDevice::findOrFail($id);
         $tz = 'America/Caracas'; 
+        $data = [];
 
         try {
             if ($request->filled('from') && $request->filled('to')) {
@@ -262,13 +282,16 @@ class GpsDeviceController extends Controller
             }
 
             $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
-            if (!$traccarDevice) return response()->json([]);
+            
+            if ($traccarDevice) {
+                // SIN LIMIT: Traemos todo el rango solicitado
+                // Select optimizado: NO traemos 'attributes' para el mapa (ahorra mucha memoria)
+                $positions = TraccarPosition::where('deviceid', $traccarDevice->id)
+                    ->whereBetween('fixtime', [$from, $to])
+                    ->orderBy('fixtime', 'asc') 
+                    ->get(['latitude', 'longitude', 'speed', 'fixtime', 'course']);
 
-            $positions = TraccarPosition::where('deviceid', $traccarDevice->id)
-                ->whereBetween('fixtime', [$from, $to])
-                ->orderBy('fixtime', 'asc') 
-                ->get()
-                ->map(function ($p) use ($tz) {
+                $data = $positions->map(function ($p) use ($tz) {
                     return [
                         'lat' => $p->latitude,
                         'lng' => $p->longitude,
@@ -277,21 +300,26 @@ class GpsDeviceController extends Controller
                         'course' => $p->course
                     ];
                 });
-
-            return response()->json($positions);
+            }
         } catch (\Exception $e) {
-            return response()->json(['error' => $e->getMessage()], 500);
+            return response()->json([]); 
+        } finally {
+            DB::disconnect('traccar');
         }
+
+        return response()->json($data);
     }
 
-    // --- GENERACIÓN DE REPORTES PDF ---
     public function exportHistoryPdf(Request $request, $id)
     {
+        // Aumentamos drásticamente los recursos para generar PDFs grandes
+        ini_set('memory_limit', '1024M'); // 1GB de RAM para procesar PDFs grandes
+        set_time_limit(600); // 10 minutos
+        
         $device = GpsDevice::with('customer', 'driver')->findOrFail($id);
         $tz = 'America/Caracas';
         $type = $request->input('report_type', 'detailed'); 
 
-        // 1. Parseo de Fechas (Igual que ClientPortal)
         if ($request->filled('from') && $request->filled('to')) {
             $from = Carbon::parse($request->input('from'), $tz);
             $to = Carbon::parse($request->input('to'), $tz);
@@ -300,32 +328,38 @@ class GpsDeviceController extends Controller
             $to = now($tz);
         }
 
-        $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
         $positions = collect([]);
 
-        if ($traccarDevice) {
-            // 2. Consulta EXACTA al ClientPortal
-            // IMPORTANTE: Incluimos 'id' para asegurar que el casting de 'attributes' funcione correctamente en Eloquent
-            $positions = TraccarPosition::where('deviceid', $traccarDevice->id)
-                ->whereBetween('fixtime', [
-                    $from->copy()->setTimezone('UTC'), 
-                    $to->copy()->setTimezone('UTC')
-                ])
-                ->orderBy('fixtime', 'asc')
-                ->get(['id', 'fixtime', 'speed', 'attributes', 'latitude', 'longitude']);
+        try {
+            $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
+
+            if ($traccarDevice) {
+                // SIN LIMIT: Traemos todo el historial
+                // Necesitamos 'attributes' para calcular Ignición
+                $positions = TraccarPosition::where('deviceid', $traccarDevice->id)
+                    ->whereBetween('fixtime', [
+                        $from->copy()->setTimezone('UTC'), 
+                        $to->copy()->setTimezone('UTC')
+                    ])
+                    ->orderBy('fixtime', 'asc')
+                    ->get(['id', 'fixtime', 'speed', 'attributes', 'latitude', 'longitude']);
+            }
+        } catch (\Exception $e) {
+            return back()->with('error', 'Error conectando a la base de datos de historial.');
+        } finally {
+            // Liberar conexión DB antes de procesar el PDF pesado
+            DB::disconnect('traccar');
         }
 
         if ($positions->isEmpty()) {
             return back()->with('warning', 'No hay datos en este período.');
         }
 
-        // --- REPORTE DETALLADO ---
         if ($type === 'detailed') {
             $pdf = Pdf::loadView('admin.gps.devices.pdf_history', compact('device', 'positions', 'from', 'to'));
             return $pdf->download("Historial_Detallado_{$device->name}.pdf");
         }
 
-        // --- REPORTE RESUMIDO (ESTADÍSTICAS) ---
         if ($type === 'summary') {
             $stats = $this->calculateStats($positions);
             
@@ -350,25 +384,19 @@ class GpsDeviceController extends Controller
         foreach ($positions as $pos) {
             $speedKm = $pos->speed * 1.852;
             
-            // Decodificación defensiva de atributos
-            // Si el modelo casteó a array, $pos->attributes es array.
-            // Si no, es string. 'attributes' puede venir null de DB.
             $rawAttrs = $pos->attributes;
             if (is_string($rawAttrs)) {
                 $attrs = json_decode($rawAttrs, true);
             } else {
                 $attrs = $rawAttrs;
             }
-            $attrs = $attrs ?? []; // Asegurar que sea array
+            $attrs = $attrs ?? []; 
 
-            // Lógica idéntica al cliente: usa ignición del punto actual
             $ignition = $attrs['ignition'] ?? false;
             
             if ($lastPos) {
-                // Cálculo de tiempo
                 $timeDiff = Carbon::parse($pos->fixtime)->diffInSeconds(Carbon::parse($lastPos->fixtime));
                 
-                // Filtro anti-saltos largos (> 1 hora)
                 if ($timeDiff < 3600) {
                     $dist = isset($attrs['distance']) ? $attrs['distance'] : $this->calculateDistance($lastPos->latitude, $lastPos->longitude, $pos->latitude, $pos->longitude);
                     $stats['distance_km'] += ($dist / 1000);
@@ -408,7 +436,7 @@ class GpsDeviceController extends Controller
         $dist = acos($dist);
         $dist = rad2deg($dist);
         $miles = $dist * 60 * 1.1515;
-        return ($miles * 1.609344) * 1000; // Metros
+        return ($miles * 1.609344) * 1000;
     }
 
     private function secondsToTime($seconds) {
