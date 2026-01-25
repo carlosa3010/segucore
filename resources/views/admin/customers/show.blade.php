@@ -181,57 +181,6 @@
                 </div>
             </div>
 
-            <div class="bg-[#1e293b] rounded-lg border border-gray-700 overflow-hidden shadow-lg">
-                <div class="bg-gray-800/50 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
-                    <div>
-                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                            <span class="text-red-400">🚑</span> Contactos de Emergencia
-                        </h3>
-                        <p class="text-xs text-gray-400">Lista de llamadas en prioridad</p>
-                    </div>
-                    <button type="button" class="text-xs bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded font-bold transition">
-                        + Agregar
-                    </button>
-                </div>
-
-                <div class="p-0">
-                    @if($customer->contacts && $customer->contacts->count() > 0)
-                        <table class="w-full text-sm text-left text-gray-400">
-                            <thead class="text-xs text-gray-500 uppercase bg-gray-900/50">
-                                <tr>
-                                    <th class="px-6 py-3">Prioridad</th>
-                                    <th class="px-6 py-3">Nombre</th>
-                                    <th class="px-6 py-3">Teléfono</th>
-                                    <th class="px-6 py-3 text-right">Relación</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-700">
-                                @foreach($customer->contacts->sortBy('priority') as $contact)
-                                    <tr class="hover:bg-gray-800/50 transition">
-                                        <td class="px-6 py-4 text-center font-bold text-white bg-black/20 w-16">
-                                            {{ $contact->priority }}
-                                        </td>
-                                        <td class="px-6 py-4 font-medium text-white">
-                                            {{ $contact->name }}
-                                        </td>
-                                        <td class="px-6 py-4 font-mono text-gray-300">
-                                            {{ $contact->phone }}
-                                        </td>
-                                        <td class="px-6 py-4 text-right">
-                                            <span class="bg-gray-700 px-2 py-1 rounded text-xs">{{ $contact->relationship }}</span>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                    @else
-                        <div class="p-8 text-center text-gray-500 border-2 border-dashed border-gray-800 m-4 rounded">
-                            No hay contactos de emergencia registrados.
-                        </div>
-                    @endif
-                </div>
-            </div>
-
         </div>
 
         <div class="space-y-6">
