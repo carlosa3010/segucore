@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>SeguCore Cliente</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,32 +15,24 @@
     <style>
         body { font-family: 'Inter', sans-serif; background: #000; color: #e5e7eb; }
         #map { height: 100vh; width: 100%; z-index: 1; }
-        
-        /* Sidebar */
         .sidebar-container { display: flex; flex-direction: column; height: 100vh; background: #000; border-right: 1px solid #222; }
         .sidebar-content { flex: 1; overflow-y: auto; }
-        
-        /* Scrollbar Fina */
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-track { background: #000; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
-
-        /* Panel Alertas */
         #alerts-panel { box-shadow: -5px 0 20px rgba(0,0,0,0.9); border-left: 1px solid #222; }
     </style>
 </head>
 <body class="overflow-hidden flex bg-black">
 
     <div class="w-80 sidebar-container z-20 relative transition-transform duration-300" id="sidebar">
-        
         <div class="p-6 border-b border-gray-800 bg-black flex justify-center">
             <img src="{{ asset('images/logo-white.png') }}" alt="SeguCore" class="h-10 object-contain opacity-90">
         </div>
 
         <div class="p-4 border-b border-gray-800">
             <div class="relative">
-                <input type="text" id="searchInput" placeholder="Buscar activo..." 
-                       class="w-full bg-gray-900 border border-gray-700 text-sm rounded px-3 py-2 pl-9 text-gray-200 focus:outline-none focus:border-gray-500 transition">
+                <input type="text" id="searchInput" placeholder="Buscar activo..." class="w-full bg-gray-900 border border-gray-700 text-sm rounded px-3 py-2 pl-9 text-gray-200 focus:outline-none focus:border-gray-500 transition">
                 <i class="fas fa-search absolute left-3 top-2.5 text-gray-500"></i>
             </div>
         </div>
@@ -81,12 +75,14 @@
             <h3 class="font-bold text-sm text-gray-200 uppercase">Notificaciones</h3>
             <button onclick="toggleAlerts()" class="text-gray-500 hover:text-white"><i class="fas fa-times text-lg"></i></button>
         </div>
-        <div id="alerts-content" class="flex-1 overflow-y-auto p-4 space-y-3">
-            </div>
+        <div id="alerts-content" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
     </div>
 
     <div class="flex-1 relative bg-gray-900">
         <div id="map"></div>
+        <button id="close-history-btn" onclick="clearHistory()" class="hidden absolute top-4 right-4 z-[400] bg-white text-black font-bold px-4 py-2 rounded shadow-lg hover:bg-gray-200 text-xs">
+            <i class="fas fa-times mr-1"></i> CERRAR RUTA
+        </button>
     </div>
 
     <div id="modal-overlay" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center backdrop-blur-sm p-4">
@@ -99,16 +95,114 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
 
     <script>
-        // 1. Mapa en Modo Claro (Clean)
         const map = L.map('map', { zoomControl: false }).setView([10.4806, -66.9036], 6);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '', maxZoom: 19
-        }).addTo(map);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '', maxZoom: 19 }).addTo(map);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
         let markers = {}; 
+        let historyLayer = L.layerGroup().addTo(map); // Capa para el historial
 
-        // 2. Cargar Datos
+        // --- FUNCIONES GLOBALES (ACCESIBLES DESDE EL MODAL) ---
+
+        // 1. Enviar Comando (Corte/Restaurar)
+        window.sendCommand = function(deviceId, type) {
+            if(!confirm('¿ATENCIÓN: Está seguro de enviar este comando al vehículo?')) return;
+
+            const feedback = document.getElementById('command-feedback');
+            feedback.innerHTML = '<span class="text-blue-400 animate-pulse"><i class="fas fa-satellite-dish"></i> Enviando...</span>';
+
+            fetch(`/api/device/${deviceId}/command`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({ type: type })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    feedback.innerHTML = '<span class="text-green-500 font-bold"><i class="fas fa-check"></i> ' + data.message + '</span>';
+                } else {
+                    feedback.innerHTML = '<span class="text-red-500 font-bold"><i class="fas fa-times"></i> Error: ' + (data.message || 'Fallo') + '</span>';
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                feedback.innerHTML = '<span class="text-red-500"><i class="fas fa-exclamation-triangle"></i> Error de conexión.</span>';
+            });
+        };
+
+        // 2. Consultar Historial
+        window.fetchHistory = function(deviceId) {
+            const btn = document.getElementById('btn-history');
+            const start = document.getElementById('start_date').value;
+            const end = document.getElementById('end_date').value;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> BUSCANDO...';
+
+            fetch(`/api/history/${deviceId}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if(data.error) {
+                        alert(data.error);
+                    } else if(!data.positions || data.positions.length === 0) {
+                        alert("No se encontraron datos de recorrido en este rango.");
+                    } else {
+                        closeModal(); // Cerrar modal para ver el mapa
+                        drawHistory(data.positions);
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    alert("Error obteniendo el historial.");
+                })
+                .finally(() => {
+                    if(btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-search-location"></i> CONSULTAR RUTA';
+                    }
+                });
+        };
+
+        // 3. Dibujar Historial en Mapa
+        function drawHistory(positions) {
+            clearHistory(); // Limpiar anterior
+            
+            if(positions.length < 2) return;
+
+            // Crear array de coordenadas [lat, lng]
+            const latlngs = positions.map(p => [p.latitude, p.longitude]);
+
+            // Dibujar línea azul
+            const polyline = L.polyline(latlngs, {color: '#3B82F6', weight: 5, opacity: 0.8}).addTo(historyLayer);
+            
+            // Zoom a la ruta
+            map.fitBounds(polyline.getBounds(), {padding: [50, 50]});
+
+            // Marcador Inicio (Verde)
+            L.marker(latlngs[0], {
+                icon: L.divIcon({html: '<i class="fas fa-flag text-green-600 text-2xl shadow-white drop-shadow-md"></i>', className: 'bg-transparent'})
+            }).addTo(historyLayer).bindTooltip("Inicio: " + new Date(positions[0].device_time).toLocaleString());
+
+            // Marcador Fin (Rojo - Bandera a cuadros)
+            L.marker(latlngs[latlngs.length - 1], {
+                icon: L.divIcon({html: '<i class="fas fa-flag-checkered text-red-600 text-2xl shadow-white drop-shadow-md"></i>', className: 'bg-transparent'})
+            }).addTo(historyLayer).bindTooltip("Fin: " + new Date(positions[positions.length-1].device_time).toLocaleString());
+
+            // Mostrar botón cerrar
+            document.getElementById('close-history-btn').classList.remove('hidden');
+        }
+
+        window.clearHistory = function() {
+            historyLayer.clearLayers();
+            document.getElementById('close-history-btn').classList.add('hidden');
+            // Resetear zoom al general si se desea
+            // map.setView([10.4806, -66.9036], 6);
+        };
+
+        // --- LÓGICA CORE (Carga de activos) ---
         function loadAssets() {
             fetch('{{ route("client.api.assets") }}')
                 .then(r => r.json())
@@ -116,157 +210,94 @@
                     renderList(data.assets);
                     renderMap(data.assets);
                 })
-                .catch(e => console.error("Error assets:", e));
+                .catch(e => console.error(e));
         }
 
-        // 3. Render Lista Lateral (MENU IZQUIERDO)
         function renderList(assets) {
             const container = document.getElementById('assets-list');
             container.innerHTML = '';
-
             if(assets.length === 0) {
-                container.innerHTML = '<p class="text-center text-gray-600 text-xs mt-4">Sin activos.</p>';
-                return;
+                container.innerHTML = '<p class="text-center text-gray-600 text-xs mt-4">Sin activos.</p>'; return;
             }
-
             assets.forEach(asset => {
                 const el = document.createElement('div');
-                
-                // ICONO CORREGIDO PARA ALARMA
-                let iconClass = asset.type === 'alarm' ? 'fa-shield-alt' : 'fa-car'; 
-                let statusColor = (asset.status === 'online' || asset.status === 'armed') ? 'text-green-500' : 'text-gray-500';
-                if(asset.status === 'alarm') statusColor = 'text-red-500 animate-pulse';
+                let icon = asset.type === 'alarm' ? 'fa-shield-alt' : 'fa-car'; 
+                let color = (asset.status === 'online' || asset.status === 'armed') ? 'text-green-500' : 'text-gray-500';
+                if(asset.status === 'alarm') color = 'text-red-500 animate-pulse';
 
                 el.className = "bg-gray-900 p-3 rounded border border-gray-800 hover:border-gray-600 cursor-pointer transition flex items-center justify-between group hover:bg-gray-800";
-                
                 el.innerHTML = `
                     <div class="flex items-center gap-3 overflow-hidden">
-                        <div class="${statusColor} w-8 text-center text-lg"><i class="fas ${iconClass}"></i></div>
+                        <div class="${color} w-8 text-center text-lg"><i class="fas ${icon}"></i></div>
                         <div class="min-w-0">
                             <h4 class="text-sm font-bold text-gray-300 group-hover:text-white truncate">${asset.name}</h4>
-                            <p class="text-[10px] text-gray-500 truncate capitalize">
-                                ${asset.type === 'gps' ? (asset.speed + ' km/h') : (asset.status === 'armed' ? 'Armado' : 'Desarmado')}
-                            </p>
+                            <p class="text-[10px] text-gray-500 truncate capitalize">${asset.type === 'gps' ? (asset.speed + ' km/h') : asset.status}</p>
                         </div>
-                    </div>
-                `;
-                
-                el.onclick = () => {
-                    if(asset.lat && asset.lng) {
-                        map.flyTo([asset.lat, asset.lng], 16);
-                        // openModal(asset.type, asset.id); // Descomentar si quieres abrir modal al clickear en lista
-                    }
-                };
+                    </div>`;
+                el.onclick = () => { if(asset.lat) map.flyTo([asset.lat, asset.lng], 16); };
                 container.appendChild(el);
             });
         }
 
-        // 4. Render Mapa
         function renderMap(assets) {
             assets.forEach(asset => {
-                if(!asset.lat || !asset.lng) return;
+                if(!asset.lat) return;
+                let key = `${asset.type}_${asset.id}`;
+                let html = asset.type === 'alarm' 
+                    ? `<div style="font-size:30px; color:${asset.status === 'armed'?'#10B981':'#6B7280'}; text-align:center; filter:drop-shadow(0 2px 2px rgba(0,0,0,0.5))"><i class="fas fa-shield-alt"></i></div>`
+                    : `<div style="font-size:26px; color:${asset.speed > 0?'#3B82F6':'#9CA3AF'}; transform:rotate(${asset.course}deg); text-align:center; filter:drop-shadow(0 2px 2px rgba(0,0,0,0.5))"><i class="fas fa-location-arrow"></i></div>`;
 
-                let uniqueKey = `${asset.type}_${asset.id}`;
-                let html = '';
+                let icon = L.divIcon({ className: 'bg-transparent', html: html, iconSize: [40,40], iconAnchor: [20,20] });
 
-                // ICONOS EN EL MAPA
-                if (asset.type === 'alarm') {
-                    let color = asset.status === 'armed' ? '#10B981' : (asset.status === 'alarm' ? '#EF4444' : '#6B7280'); 
-                    html = `<div style="font-size: 30px; color: ${color}; filter: drop-shadow(0 3px 2px rgba(0,0,0,0.4)); text-align: center;">
-                                <i class="fas fa-shield-alt"></i>
-                            </div>`;
-                } else {
-                    let color = asset.speed > 0 ? '#3B82F6' : '#9CA3AF';
-                    html = `<div style="font-size: 26px; color: ${color}; transform: rotate(${asset.course}deg); filter: drop-shadow(0 3px 2px rgba(0,0,0,0.4)); text-align: center;">
-                                <i class="fas fa-location-arrow"></i>
-                            </div>`;
-                }
-
-                let icon = L.divIcon({ className: 'bg-transparent', html: html, iconSize: [40, 40], iconAnchor: [20, 20] });
-
-                if (markers[uniqueKey]) {
-                    markers[uniqueKey].setLatLng([asset.lat, asset.lng]).setIcon(icon);
-                } else {
-                    let m = L.marker([asset.lat, asset.lng], { icon: icon }).addTo(map);
+                if(markers[key]) markers[key].setLatLng([asset.lat, asset.lng]).setIcon(icon);
+                else {
+                    let m = L.marker([asset.lat, asset.lng], {icon: icon}).addTo(map);
                     m.on('click', () => openModal(asset.type, asset.id));
-                    markers[uniqueKey] = m;
+                    markers[key] = m;
                 }
             });
         }
 
-        // 5. MODALES (CORREGIDO ERROR 404 y SUBVENTANA)
+        // --- GESTIÓN DE MODALES ---
         function openModal(type, id) {
             const overlay = document.getElementById('modal-overlay');
             const content = document.getElementById('modal-content');
-            
             overlay.classList.remove('hidden');
-            setTimeout(() => {
-                content.classList.remove('scale-95', 'opacity-0');
-                content.classList.add('scale-100', 'opacity-100');
-            }, 10);
-
+            setTimeout(() => { content.classList.remove('scale-95', 'opacity-0'); content.classList.add('scale-100', 'opacity-100'); }, 10);
+            
             content.innerHTML = '<div class="p-12 text-center"><i class="fas fa-circle-notch fa-spin text-3xl text-blue-500"></i></div>';
 
-            // CORRECCIÓN CLAVE: URL CORRECTA SIN "/portal"
             fetch(`/modal/${type}/${id}`)
-                .then(r => {
-                    if (!r.ok) throw new Error("Error HTTP " + r.status);
-                    return r.text();
-                })
+                .then(r => r.text())
                 .then(html => {
                     content.innerHTML = html;
                     if(document.querySelector('.datepicker')) {
                         flatpickr(".datepicker", { enableTime: true, dateFormat: "Y-m-d H:i", locale: "es", theme: "dark" });
                     }
-                })
-                .catch(err => {
-                    console.error(err);
-                    content.innerHTML = '<div class="p-6 text-center text-red-500">Error al cargar datos.<br><span class="text-xs text-gray-500">Verifica la conexión.</span></div>';
-                    setTimeout(closeModal, 2000);
                 });
         }
 
-        function closeModal() {
+        window.closeModal = function() {
             const overlay = document.getElementById('modal-overlay');
             const content = document.getElementById('modal-content');
-            content.classList.remove('scale-100', 'opacity-100');
-            content.classList.add('scale-95', 'opacity-0');
+            content.classList.remove('scale-100', 'opacity-100'); content.classList.add('scale-95', 'opacity-0');
             setTimeout(() => overlay.classList.add('hidden'), 200);
-        }
+        };
 
         // Alertas
-        function toggleAlerts() {
-            document.getElementById('alerts-panel').classList.toggle('translate-x-full');
-        }
+        function toggleAlerts() { document.getElementById('alerts-panel').classList.toggle('translate-x-full'); }
         function loadAlerts() {
-            fetch('{{ route("client.api.alerts") }}')
-                .then(r => r.json())
-                .then(data => {
-                    const list = document.getElementById('alerts-content');
-                    const badge = document.getElementById('alert-badge');
-                    list.innerHTML = '';
-                    if(data.length > 0) {
-                        badge.classList.remove('hidden');
-                        data.forEach(a => {
-                            list.innerHTML += `
-                                <div class="bg-gray-800 p-3 rounded border-l-2 border-red-500 text-sm">
-                                    <strong class="text-red-400">${a.device}</strong><br>
-                                    <span class="text-gray-300">${a.message}</span>
-                                    <div class="text-xs text-gray-600 text-right mt-1">${a.time}</div>
-                                </div>`;
-                        });
-                    } else {
-                        badge.classList.add('hidden');
-                        list.innerHTML = '<p class="text-center text-gray-600 text-xs mt-4">Sin novedades.</p>';
-                    }
-                });
+            fetch('{{ route("client.api.alerts") }}').then(r=>r.json()).then(d=>{
+                const c=document.getElementById('alerts-content'); c.innerHTML='';
+                if(d.length){ 
+                    document.getElementById('alert-badge').classList.remove('hidden');
+                    d.forEach(a=>c.innerHTML+=`<div class="bg-gray-800 p-3 rounded border-l-2 border-red-500 text-sm"><strong class="text-red-400">${a.device}</strong><br><span class="text-gray-300">${a.message}</span><div class="text-xs text-right text-gray-500">${a.time}</div></div>`);
+                }
+            });
         }
 
-        // Iniciar
-        setInterval(loadAssets, 10000);
-        loadAssets();
-        loadAlerts();
-        window.closeModal = closeModal; // Exponer globalmente
+        // Init
+        setInterval(loadAssets, 10000); loadAssets(); loadAlerts();
     </script>
 </body>
 </html>
