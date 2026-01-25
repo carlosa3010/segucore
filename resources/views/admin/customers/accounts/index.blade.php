@@ -64,11 +64,15 @@
                                 <a href="{{ route('admin.accounts.show', $acc->id) }}" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1.5 rounded text-xs transition border border-gray-600">
                                     Gestionar
                                 </a>
+
+                                <a href="{{ route('admin.accounts.edit', $acc->id) }}" class="text-blue-400 hover:text-blue-300 p-1" title="Editar Configuración">
+                                    ✏️
+                                </a>
                                 
                                 <form action="{{ route('admin.accounts.destroy', $acc->id) }}" method="POST" onsubmit="return confirm('¿Eliminar esta cuenta de alarma? Se borrará todo su historial y zonas.');">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="text-red-500 hover:text-red-300 p-1">
+                                    <button type="submit" class="text-red-500 hover:text-red-300 p-1" title="Eliminar">
                                         🗑️
                                     </button>
                                 </form>
