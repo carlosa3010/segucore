@@ -25,7 +25,8 @@ use App\Http\Controllers\Admin\PatrolController;
 use App\Http\Controllers\Admin\GuardController;
 use App\Http\Controllers\Admin\SecurityMapController;
 use App\Http\Controllers\Admin\GeneralSettingController;
-use App\Http\Controllers\Admin\InvoiceController; 
+use App\Http\Controllers\Admin\InvoiceController;
+use App\Http\Controllers\Admin\FinanceController;
 
 /*
 |==========================================================================
@@ -132,7 +133,8 @@ Route::domain('admin.segusmart24.com')->group(function () {
             Route::post('hold-reasons', [IncidentConfigController::class, 'storeHoldReason'])->name('hold-reasons.store');
             Route::delete('hold-reasons/{id}', [IncidentConfigController::class, 'destroyHoldReason'])->name('hold-reasons.destroy');
 
-            Route::resource('plans', ServicePlanController::class)->except(['create', 'edit', 'show']);
+            // Planes de Facturación
+            Route::resource('plans', ServicePlanController::class);
         });
 
         // 6. MÓDULO DE REPORTES
@@ -180,8 +182,17 @@ Route::domain('admin.segusmart24.com')->group(function () {
         Route::get('security-map', [SecurityMapController::class, 'index'])->name('security.map.index');
         Route::get('security-map/data', [SecurityMapController::class, 'positions'])->name('security.map.data');
 
-        // 12. FACTURACIÓN
-        Route::resource('invoices', InvoiceController::class);
+        // 12. FACTURACIÓN Y FINANZAS
+        // Facturación detallada
+        Route::get('invoices/create/{customer}', [InvoiceController::class, 'create'])->name('invoices.create');
+        Route::resource('invoices', InvoiceController::class)->except(['create']);
+
+        // Pagos y Tasas
+        Route::prefix('finance')->name('finance.')->group(function() {
+            Route::get('/', [FinanceController::class, 'index'])->name('index');
+            Route::post('/rate', [FinanceController::class, 'updateRate'])->name('rate.update');
+            Route::post('/payment', [FinanceController::class, 'storePayment'])->name('payment.store');
+        });
     });
 });
 
@@ -212,7 +223,7 @@ Route::domain('cliente.segusmart24.com')->group(function () {
         // Historial API
         Route::get('/api/history/{id}', [ClientPortalController::class, 'getHistory'])->name('client.api.history');
         
-        // NUEVA RUTA: DESCARGAR PDF HISTORIAL
+        // DESCARGAR PDF HISTORIAL
         Route::get('/api/history/{id}/pdf', [ClientPortalController::class, 'downloadReport'])->name('client.api.history.pdf');
 
         // COMANDOS REMOTOS
