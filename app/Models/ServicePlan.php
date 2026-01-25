@@ -11,10 +11,10 @@ class ServicePlan extends Model
 
     protected $fillable = [
         'name',
+        'price', // Precio Base del plan (ej. Mantenimiento mensual)
+        'billing_cycle',
+        'features', // Aquí guardaremos las tasas: { "gps_price": 5, "alarm_price": 20 }
         'description',
-        'price',
-        'billing_cycle', // <--- Asegúrate de que esté aquí
-        'features',
         'is_active',
     ];
 
@@ -24,8 +24,19 @@ class ServicePlan extends Model
         'price' => 'decimal:2',
     ];
 
-    public function accounts()
+    // Helpers para obtener las tasas fácilmente
+    public function getGpsPriceAttribute()
     {
-        return $this->hasMany(AlarmAccount::class);
+        return $this->features['gps_price'] ?? 0;
+    }
+
+    public function getAlarmPriceAttribute()
+    {
+        return $this->features['alarm_price'] ?? 0;
+    }
+
+    public function customers()
+    {
+        return $this->hasMany(Customer::class);
     }
 }
