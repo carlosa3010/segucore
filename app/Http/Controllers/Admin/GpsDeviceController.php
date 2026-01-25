@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class GpsDeviceController extends Controller
 {
@@ -67,14 +68,13 @@ class GpsDeviceController extends Controller
                 'required', 'string',
                 Rule::unique('gps_devices', 'imei')->whereNull('deleted_at')
             ],
-            'model' => 'required|string', // Antes device_model, corregido a model según migration
-            'sim_card_number' => 'nullable|string', // Antes phone_number, corregido según migration
+            'model' => 'required|string', 
+            'sim_card_number' => 'nullable|string',
             'plate_number' => 'nullable|string',
             'geofences'    => 'nullable|array',
             'geofences.*'  => 'exists:geofences,id'
         ]);
 
-        // CORRECCIÓN: Eliminado 'subscription_status' y mapping de campos correctos
         $device = GpsDevice::create([
             'customer_id' => $request->customer_id,
             'driver_id' => $request->driver_id,
@@ -83,7 +83,7 @@ class GpsDeviceController extends Controller
             'model' => $request->model,
             'sim_card_number' => $request->sim_card_number,
             'plate_number' => $request->plate_number,
-            'is_active' => true, // Usamos is_active en lugar de subscription_status
+            'is_active' => true, 
             'settings' => ['vehicle_type' => $request->input('vehicle_type', 'car')]
         ]);
 
@@ -151,7 +151,7 @@ class GpsDeviceController extends Controller
             'model' => 'required|string',
             'sim_card_number' => 'nullable|string',
             'plate_number' => 'nullable|string',
-            'is_active' => 'required|boolean', // Validamos boolean
+            'is_active' => 'required|boolean', 
             'speed_limit' => 'nullable|integer|min:0',
             'geofences' => 'nullable|array',
             'geofences.*' => 'exists:geofences,id'
@@ -234,7 +234,7 @@ class GpsDeviceController extends Controller
                 return [
                     'lat' => $pos->latitude,
                     'lng' => $pos->longitude,
-                    'time' => \Carbon\Carbon::parse($pos->fixtime)->format('H:i:s'),
+                    'time' => Carbon::parse($pos->fixtime)->format('H:i:s'),
                     'speed' => round($pos->speed * 1.852, 1)
                 ];
             });
@@ -255,8 +255,8 @@ class GpsDeviceController extends Controller
 
         try {
             if ($request->filled('from') && $request->filled('to')) {
-                $from = \Carbon\Carbon::parse($request->input('from'), $tz)->setTimezone('UTC');
-                $to = \Carbon\Carbon::parse($request->input('to'), $tz)->setTimezone('UTC');
+                $from = Carbon::parse($request->input('from'), $tz)->setTimezone('UTC');
+                $to = Carbon::parse($request->input('to'), $tz)->setTimezone('UTC');
             } else {
                 $from = now()->subHours(12)->setTimezone('UTC');
                 $to = now()->setTimezone('UTC');
@@ -274,7 +274,7 @@ class GpsDeviceController extends Controller
                         'lat' => $p->latitude,
                         'lng' => $p->longitude,
                         'speed' => round($p->speed * 1.852), 
-                        'time' => \Carbon\Carbon::parse($p->fixtime)->setTimezone($tz)->format('d/m H:i'),
+                        'time' => Carbon::parse($p->fixtime)->setTimezone($tz)->format('d/m/Y H:i:s'),
                         'course' => $p->course
                     ];
                 });
@@ -289,10 +289,11 @@ class GpsDeviceController extends Controller
     {
         $device = GpsDevice::with('customer', 'driver')->findOrFail($id);
         $tz = 'America/Caracas';
+        $type = $request->input('report_type', 'detailed'); // 'detailed' o 'summary'
 
         if ($request->filled('from') && $request->filled('to')) {
-            $from = \Carbon\Carbon::parse($request->input('from'), $tz);
-            $to = \Carbon\Carbon::parse($request->input('to'), $tz);
+            $from = Carbon::parse($request->input('from'), $tz);
+            $to = Carbon::parse($request->input('to'), $tz);
         } else {
             $from = now($tz)->subHours(12);
             $to = now($tz);
@@ -311,7 +312,93 @@ class GpsDeviceController extends Controller
                 ->get();
         }
 
-        $pdf = Pdf::loadView('admin.gps.devices.pdf_history', compact('device', 'positions', 'from', 'to'));
-        return $pdf->download("Historial_{$device->name}_{$from->format('Ymd')}.pdf");
+        if ($positions->isEmpty()) {
+            return back()->with('warning', 'No hay datos en este período.');
+        }
+
+        // SI ES REPORTE DETALLADO (LISTA)
+        if ($type === 'detailed') {
+            $pdf = Pdf::loadView('admin.gps.devices.pdf_history', compact('device', 'positions', 'from', 'to'));
+            return $pdf->download("Historial_Detallado_{$device->name}.pdf");
+        }
+
+        // SI ES REPORTE RESUMIDO (ESTADÍSTICAS)
+        if ($type === 'summary') {
+            $stats = $this->calculateStats($positions);
+            
+            $pdf = Pdf::loadView('admin.gps.devices.pdf_summary', [
+                'device' => $device,
+                'start' => $from,
+                'end' => $to,
+                'stats' => $stats
+            ]);
+            return $pdf->download("Reporte_Resumido_{$device->name}.pdf");
+        }
+    }
+
+    // --- FUNCIONES AUXILIARES PARA ESTADÍSTICAS ---
+
+    private function calculateStats($positions) {
+        $stats = [
+            'distance_km' => 0, 'move_time' => 0, 'stop_time' => 0, 'off_time' => 0,
+            'max_speed' => 0, 'avg_speed' => 0, 'trips' => 0
+        ];
+
+        $speedSum = 0; $speedCount = 0; $lastPos = null;
+
+        foreach ($positions as $pos) {
+            $speedKm = $pos->speed * 1.852;
+            $attrs = is_string($pos->attributes) ? json_decode($pos->attributes, true) : $pos->attributes;
+            $ignition = $attrs['ignition'] ?? false;
+            
+            if ($lastPos) {
+                $timeDiff = Carbon::parse($pos->fixtime)->diffInSeconds(Carbon::parse($lastPos->fixtime));
+                if ($timeDiff < 3600) { // Ignorar saltos mayores a 1 hora (pérdida de señal)
+                    // Intentar obtener distancia del atributo calculado por Traccar, si no, calcularla
+                    $dist = isset($attrs['distance']) ? $attrs['distance'] : $this->calculateDistance($lastPos->latitude, $lastPos->longitude, $pos->latitude, $pos->longitude);
+                    $stats['distance_km'] += ($dist / 1000);
+
+                    if ($ignition) {
+                        if ($speedKm > 2) $stats['move_time'] += $timeDiff;
+                        else $stats['stop_time'] += $timeDiff;
+                    } else {
+                        $stats['off_time'] += $timeDiff;
+                    }
+                }
+            }
+
+            if ($speedKm > $stats['max_speed']) $stats['max_speed'] = $speedKm;
+            if ($speedKm > 5) { $speedSum += $speedKm; $speedCount++; }
+            $lastPos = $pos;
+        }
+
+        $stats['avg_speed'] = $speedCount > 0 ? round($speedSum / $speedCount) : 0;
+        $stats['distance_km'] = round($stats['distance_km'], 2);
+        
+        return [
+            'move_str' => $this->secondsToTime($stats['move_time']),
+            'stop_str' => $this->secondsToTime($stats['stop_time']),
+            'off_str'  => $this->secondsToTime($stats['off_time']),
+            'total_engine_str' => $this->secondsToTime($stats['move_time'] + $stats['stop_time']),
+            'distance' => $stats['distance_km'],
+            'max_speed' => round($stats['max_speed']),
+            'avg_speed' => $stats['avg_speed']
+        ];
+    }
+
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2) {
+        if (($lat1 == $lat2) && ($lon1 == $lon2)) return 0;
+        $theta = $lon1 - $lon2;
+        $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) +  cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
+        $dist = acos($dist);
+        $dist = rad2deg($dist);
+        $miles = $dist * 60 * 1.1515;
+        return ($miles * 1.609344) * 1000; // Metros
+    }
+
+    private function secondsToTime($seconds) {
+        if ($seconds <= 0) return '0m';
+        $dt = Carbon::now()->diff(Carbon::now()->addSeconds($seconds));
+        return $dt->format('%dd %hh %im');
     }
 }
