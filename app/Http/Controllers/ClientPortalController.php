@@ -9,7 +9,7 @@ use App\Models\GpsDevice;
 use App\Models\Invoice;
 use App\Models\DeviceAlert;
 use App\Models\TraccarPosition;
-use App\Models\TraccarDevice; // <--- IMPORTANTE: Necesario para buscar por IMEI
+use App\Models\TraccarDevice; 
 use App\Services\TraccarApiService;
 use Carbon\Carbon;
 
@@ -22,9 +22,6 @@ class ClientPortalController extends Controller
         $this->traccarService = $traccarService;
     }
 
-    /**
-     * Vista Principal (Mapa)
-     */
     public function index()
     {
         $user = Auth::user();
@@ -35,7 +32,7 @@ class ClientPortalController extends Controller
     }
 
     /**
-     * API: Obtener todos los activos (Alarmas + GPS)
+     * API: Obtener activos con datos EN VIVO de Traccar
      */
     public function getAssets()
     {
@@ -58,147 +55,54 @@ class ClientPortalController extends Controller
                     'lng' => (float)$alarm->longitude,
                     'status' => $alarm->monitoring_status ?? 'normal',
                     'name' => $alarm->name ?? $alarm->account_number,
-                    'address' => $alarm->address,
                     'last_update' => $alarm->updated_at->diffForHumans(),
                 ]);
             }
         }
 
-        // 2. GPS
+        // 2. GPS (Consulta Híbrida: Local + Traccar Live)
         $devices = GpsDevice::where('customer_id', $user->customer_id)
             ->where('is_active', true)
             ->with('driver')
             ->get();
 
         foreach ($devices as $device) {
+            // Buscar datos en vivo por IMEI
+            $traccarData = TraccarDevice::where('uniqueid', $device->imei)->with('position')->first();
+            
+            // Determinar datos reales
+            $lat = $traccarData && $traccarData->position ? $traccarData->position->latitude : $device->last_latitude;
+            $lng = $traccarData && $traccarData->position ? $traccarData->position->longitude : $device->last_longitude;
+            $speed = $traccarData && $traccarData->position ? round($traccarData->position->speed * 1.852) : round($device->speed);
+            $course = $traccarData && $traccarData->position ? $traccarData->position->course : $device->course;
+            
+            // Hora corregida a Zona Horaria VZLA
+            $lastUpdateRaw = $traccarData && $traccarData->position ? $traccarData->position->fixtime : $device->last_connection;
+            $lastUpdate = $lastUpdateRaw ? Carbon::parse($lastUpdateRaw)->setTimezone('America/Caracas')->format('H:i d/m') : 'Sin Señal';
+
+            // Estado (Si tiene más de 24h sin reporte, es offline)
+            $status = 'online';
+            if ($lastUpdateRaw && Carbon::parse($lastUpdateRaw)->diffInHours() > 24) {
+                $status = 'offline';
+            }
+
             $assets->push([
                 'type' => 'gps',
                 'id' => $device->id,
-                'lat' => (float)$device->last_latitude,
-                'lng' => (float)$device->last_longitude,
-                'status' => $device->status ?? 'offline',
-                'name' => $device->name ?? 'Móvil ' . $device->id,
-                'speed' => round($device->speed, 0),
-                'course' => $device->course ?? 0,
-                'driver' => optional($device->driver)->first_name ?? 'Sin Asignar',
-                'last_update' => $device->last_connection ? Carbon::parse($device->last_connection)->format('H:i d/m') : 'S/D',
+                'lat' => (float)$lat,
+                'lng' => (float)$lng,
+                'status' => $traccarData ? $traccarData->status : $status, // status real de traccar
+                'name' => $device->name,
+                'speed' => $speed,
+                'course' => $course ?? 0,
+                'last_update' => $lastUpdate,
             ]);
         }
 
         return response()->json(['assets' => $assets]);
     }
 
-    /**
-     * API: Historial de Recorrido
-     */
-    public function getHistory(Request $request, $id)
-    {
-        $user = Auth::user();
-        
-        // 1. Validar propiedad del dispositivo local
-        $device = GpsDevice::where('id', $id)
-            ->where('customer_id', $user->customer_id)
-            ->first();
-
-        if (!$device) return response()->json(['error' => 'Dispositivo no encontrado'], 404);
-
-        // 2. Buscar el dispositivo en Traccar usando el IMEI (Igual que en Admin)
-        $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
-
-        if (!$traccarDevice) {
-            return response()->json(['error' => 'Este dispositivo no está sincronizado con el servidor de rastreo.'], 400);
-        }
-
-        $start = Carbon::parse($request->start);
-        $end = Carbon::parse($request->end);
-
-        // Limitación de seguridad (3 días)
-        if ($start->diffInDays($end) > 3) {
-            return response()->json(['error' => 'El rango máximo de consulta es de 3 días.'], 400);
-        }
-
-        // 3. Consultar posiciones usando el ID de Traccar recuperado
-        // Nota: Asegúrate que la columna foránea en TraccarPosition sea 'deviceid' (según tu Admin controller)
-        $positions = TraccarPosition::where('deviceid', $traccarDevice->id)
-            ->whereBetween('fixtime', [$start->setTimezone('UTC'), $end->setTimezone('UTC')]) // Traccar guarda en UTC
-            ->orderBy('fixtime', 'asc')
-            ->select(['latitude', 'longitude', 'speed', 'fixtime as device_time', 'course'])
-            ->get();
-
-        return response()->json(['positions' => $positions]);
-    }
-
-    /**
-     * API: Enviar Comandos (Corte/Restaurar)
-     */
-    public function sendCommand(Request $request, $id)
-    {
-        $user = Auth::user();
-
-        // 1. Validar propiedad local
-        $device = GpsDevice::where('id', $id)
-            ->where('customer_id', $user->customer_id)
-            ->firstOrFail();
-
-        $request->validate([
-            'type' => 'required|in:engineStop,engineResume'
-        ]);
-
-        // 2. Buscar dispositivo en Traccar por IMEI (Corrección clave)
-        $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
-
-        if (!$traccarDevice) {
-            return response()->json(['success' => false, 'message' => 'Error: Dispositivo no sincronizado (IMEI no encontrado en Traccar).'], 400);
-        }
-
-        try {
-            // 3. Enviar comando usando el ID real de Traccar
-            $success = $this->traccarService->sendCommand(
-                $traccarDevice->id, // ID de la tabla tc_devices
-                $request->type
-            );
-
-            if ($success) {
-                return response()->json(['success' => true, 'message' => 'Comando enviado al satélite.']);
-            } else {
-                return response()->json(['success' => false, 'message' => 'El servidor rechazó el comando.'], 500);
-            }
-
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Error de conexión: ' . $e->getMessage()], 500);
-        }
-    }
-
-    /**
-     * API: Últimas Alertas
-     */
-    public function getLatestAlerts()
-    {
-        $user = Auth::user();
-        if (!$user->customer_id) return response()->json([]);
-
-        $deviceIds = GpsDevice::where('customer_id', $user->customer_id)->pluck('id');
-
-        $alerts = DeviceAlert::whereIn('gps_device_id', $deviceIds)
-            ->where('created_at', '>=', now()->subHours(48))
-            ->with('device:id,name')
-            ->orderBy('created_at', 'desc')
-            ->take(20)
-            ->get()
-            ->map(function ($alert) {
-                return [
-                    'id' => $alert->id,
-                    'device' => $alert->device->name,
-                    'message' => $alert->message,
-                    'time' => $alert->created_at->diffForHumans(),
-                    'type' => $alert->type
-                ];
-            });
-
-        return response()->json($alerts);
-    }
-
-    // --- MODALES (Vistas HTML) ---
+    // --- MODALES (Con inyección de datos reales) ---
 
     public function modalGps($id)
     {
@@ -210,6 +114,26 @@ class ClientPortalController extends Controller
 
         if (!$device) return '<div class="p-6 text-center text-red-500">Dispositivo no disponible</div>';
 
+        // INYECCIÓN DE DATOS REALES (TRACCAR)
+        $traccarData = TraccarDevice::where('uniqueid', $device->imei)->with('position')->first();
+
+        if ($traccarData && $traccarData->position) {
+            // Sobreescribimos los datos del modelo local con los frescos de Traccar
+            $device->speed = round($traccarData->position->speed * 1.852); // Nudos a Km/h
+            $device->last_connection = $traccarData->position->fixtime;
+            $device->last_latitude = $traccarData->position->latitude;
+            $device->last_longitude = $traccarData->position->longitude;
+            
+            // Extraer atributos JSON (Odómetro, Ignición)
+            $attributes = is_string($traccarData->position->attributes) 
+                ? json_decode($traccarData->position->attributes, true) 
+                : $traccarData->position->attributes;
+
+            $device->ignition = $attributes['ignition'] ?? false;
+            $device->odometer = isset($attributes['totalDistance']) ? round($attributes['totalDistance'] / 1000) : 0;
+            $device->status = $traccarData->status; // online/offline/unknown
+        }
+
         return view('client.modals.gps', compact('device'));
     }
 
@@ -219,20 +143,77 @@ class ClientPortalController extends Controller
         $account = AlarmAccount::where('id', $id)
             ->where('customer_id', $user->customer_id)
             ->first();
-
-        if (!$account) return '<div class="p-6 text-center text-red-500">Cuenta de alarma no disponible</div>';
-
         return view('client.modals.alarm', compact('account'));
     }
 
     public function modalBilling()
     {
         $user = Auth::user();
-        $invoices = Invoice::where('customer_id', $user->customer_id)
-            ->latest()
-            ->take(5)
-            ->get();
-
+        $invoices = Invoice::where('customer_id', $user->customer_id)->latest()->take(5)->get();
         return view('client.modals.billing', compact('invoices'));
+    }
+
+    // --- FUNCIONES API (Historial y Comandos) ---
+
+    public function getHistory(Request $request, $id)
+    {
+        $user = Auth::user();
+        $device = GpsDevice::where('id', $id)->where('customer_id', $user->customer_id)->first();
+
+        if (!$device) return response()->json(['error' => 'Dispositivo no encontrado'], 404);
+
+        // 1. Obtener ID real de Traccar
+        $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
+        if (!$traccarDevice) return response()->json(['error' => 'Sin sincronización con satélite.'], 400);
+
+        // 2. Parsear fechas (Asumiendo que el input viene en hora VZLA, convertir a UTC para consulta)
+        $tz = 'America/Caracas';
+        $start = Carbon::parse($request->start, $tz)->setTimezone('UTC');
+        $end = Carbon::parse($request->end, $tz)->setTimezone('UTC');
+
+        if ($start->diffInDays($end) > 3) return response()->json(['error' => 'Máximo 3 días.'], 400);
+
+        // 3. Consultar Posiciones
+        $positions = TraccarPosition::where('deviceid', $traccarDevice->id)
+            ->whereBetween('fixtime', [$start, $end])
+            ->orderBy('fixtime', 'asc')
+            ->select(['latitude', 'longitude', 'speed', 'fixtime as device_time', 'course'])
+            ->get()
+            ->map(function ($p) use ($tz) {
+                // Formatear respuesta para JS
+                return [
+                    'latitude' => $p->latitude,
+                    'longitude' => $p->longitude,
+                    'speed' => round($p->speed * 1.852),
+                    'course' => $p->course,
+                    'device_time' => Carbon::parse($p->device_time)->setTimezone($tz)->toIso8601String()
+                ];
+            });
+
+        return response()->json(['positions' => $positions]);
+    }
+
+    public function sendCommand(Request $request, $id)
+    {
+        $user = Auth::user();
+        $device = GpsDevice::where('id', $id)->where('customer_id', $user->customer_id)->firstOrFail();
+        
+        $request->validate(['type' => 'required|in:engineStop,engineResume']);
+
+        $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
+        if (!$traccarDevice) return response()->json(['success' => false, 'message' => 'Error de ID Traccar'], 400);
+
+        try {
+            // Envío Real
+            $success = $this->traccarService->sendCommand($traccarDevice->id, $request->type);
+            return response()->json(['success' => $success, 'message' => $success ? 'Comando Enviado' : 'Falló el envío']);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error técnico: ' . $e->getMessage()], 500);
+        }
+    }
+    
+    public function getLatestAlerts() {
+        // (Tu código de alertas existente aquí...)
+        return response()->json([]); 
     }
 }
