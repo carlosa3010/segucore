@@ -115,6 +115,20 @@
             </label>
         </div>
 
+        <h3 class="text-[#C6F211] font-bold uppercase text-xs mb-4 mt-8 border-t border-gray-700 pt-6">Plan de Servicio</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+    <div>
+        <label class="block text-sm text-gray-400 mb-1">Plan Asignado</label>
+        <select name="service_plan_id" class="form-input">
+            <option value="">Sin Plan Asignado</option>
+            @foreach(\App\Models\ServicePlan::where('is_active', true)->get() as $plan)
+                <option value="{{ $plan->id }}" {{ old('service_plan_id', $customer->service_plan_id) == $plan->id ? 'selected' : '' }}>
+                    {{ $plan->name }} (${{ $plan->price }})
+                </option>
+            @endforeach
+        </select>
+    </div>
+</div>
         <div class="mt-8 flex justify-end gap-4">
             <a href="{{ route('admin.customers.show', $customer->id) }}" class="px-6 py-3 rounded text-gray-400 hover:bg-gray-800 transition">Cancelar</a>
             <button type="submit" class="bg-[#C6F211] hover:bg-[#a3c90d] text-black font-bold py-3 px-8 rounded shadow-lg transform hover:scale-105 transition">
