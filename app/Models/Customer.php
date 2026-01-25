@@ -46,4 +46,6 @@ class Customer extends Model
     public function drivers() { return $this->hasMany(Driver::class); }
     public function contacts() { return $this->hasMany(CustomerContact::class); }
     public function invoices() { return $this->hasMany(Invoice::class); }
-}
+
+
+  }
