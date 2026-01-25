@@ -109,7 +109,7 @@ class CustomerController extends Controller
         }
 
         $customer->update($request->validate($rules) + $request->only([
-            'email', 'phone_2', 'monitoring_password', 'duress_password', 'is_active', 'type'
+            'email', 'phone_2', 'monitoring_password', 'duress_password', 'is_active', 'type', 'service_plan_id'
         ]));
 
         return redirect()->route('admin.customers.show', $id)
