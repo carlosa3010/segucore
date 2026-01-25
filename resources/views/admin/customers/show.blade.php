@@ -49,19 +49,19 @@
             </div>
 
             <div class="flex gap-3">
-                <a href="{{ route('admin.customers.edit', $customer->id) }}" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition border border-gray-600 flex items-center gap-2">
-                    <span>✏️</span> Editar
+                <a href="{{ route('admin.customers.edit', $customer->id) }}" class="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition border border-gray-600 flex items-center gap-2 text-sm">
+                    <span>✏️</span> Editar Perfil
                 </a>
 
-                <form action="{{ route('admin.customers.toggle-status', $customer->id) }}" method="POST" onsubmit="return confirm('{{ $customer->is_active ? '¿SUSPENDER CLIENTE? Esto suspenderá también todas sus cuentas de alarma.' : '¿Reactivar Cliente?' }}');">
+                <form action="{{ route('admin.customers.toggle-status', $customer->id) }}" method="POST" onsubmit="return confirm('{{ $customer->is_active ? '¿SUSPENDER CLIENTE? Esto suspenderá también sus cuentas de alarma.' : '¿Reactivar Cliente?' }}');">
                     @csrf
                     @if($customer->is_active)
-                        <button type="submit" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded font-bold shadow-lg shadow-red-900/50 transition flex items-center gap-2">
-                            <span>🚫</span> SUSPENDER
+                        <button type="submit" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded font-bold shadow-lg shadow-red-900/50 transition flex items-center gap-2 text-sm uppercase">
+                            <span>🚫</span> Suspender
                         </button>
                     @else
-                        <button type="submit" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded font-bold shadow-lg shadow-green-900/50 transition flex items-center gap-2">
-                            <span>✅</span> REACTIVAR
+                        <button type="submit" class="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded font-bold shadow-lg shadow-green-900/50 transition flex items-center gap-2 text-sm uppercase">
+                            <span>✅</span> Reactivar
                         </button>
                     @endif
                 </form>
@@ -79,94 +79,76 @@
                         <h3 class="text-lg font-bold text-white flex items-center gap-2">
                             <span class="text-[#C6F211]">📟</span> Monitoreo de Alarmas
                         </h3>
-                        <p class="text-xs text-gray-400">Paneles vinculados para facturación</p>
                     </div>
                     <a href="{{ route('admin.accounts.create', ['customer_id' => $customer->id]) }}" class="text-xs bg-[#C6F211] hover:bg-[#a3c90d] text-black px-4 py-2 rounded font-bold transition">
                         + Nueva Cuenta
                     </a>
                 </div>
-
-                <div class="p-0">
+                <div class="p-0 overflow-x-auto">
                     @if($customer->accounts->count() > 0)
                         <table class="w-full text-sm text-left text-gray-400">
                             <thead class="text-xs text-gray-500 uppercase bg-gray-900/50">
                                 <tr>
-                                    <th class="px-6 py-3">Abonado (Serial)</th>
-                                    <th class="px-6 py-3">Ubicación / Etiqueta</th>
-                                    <th class="px-6 py-3">Estado</th>
-                                    <th class="px-6 py-3 text-right">Gestión</th>
+                                    <th class="px-6 py-3">Abonado</th>
+                                    <th class="px-6 py-3">Ubicación</th>
+                                    <th class="px-6 py-3 text-right">Estado</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-700">
                                 @foreach($customer->accounts as $acc)
-                                    <tr class="hover:bg-gray-800/50 transition">
-                                        <td class="px-6 py-4 font-mono font-bold text-white text-base">
-                                            {{ $acc->account_number }}
-                                        </td>
+                                    <tr class="hover:bg-gray-800/50 transition cursor-pointer" onclick="window.location='{{ route('admin.accounts.show', $acc->id) }}'">
+                                        <td class="px-6 py-4 font-mono font-bold text-white">{{ $acc->account_number }}</td>
                                         <td class="px-6 py-4">
-                                            <div class="text-white font-medium">{{ $acc->branch_name ?? 'Principal' }}</div>
-                                            <div class="text-xs truncate max-w-[200px]" title="{{ $acc->installation_address }}">{{ $acc->installation_address }}</div>
-                                        </td>
-                                        <td class="px-6 py-4">
-                                            @if($acc->service_status === 'active')
-                                                <span class="bg-green-900/30 text-green-400 text-xs px-2 py-1 rounded border border-green-900">ACTIVO</span>
-                                            @elseif($acc->service_status === 'suspended')
-                                                <span class="bg-red-900/30 text-red-400 text-xs px-2 py-1 rounded border border-red-900">SUSPENDIDO</span>
-                                            @else
-                                                <span class="bg-gray-700 text-gray-300 text-xs px-2 py-1 rounded">{{ $acc->service_status }}</span>
-                                            @endif
+                                            <div class="text-white">{{ $acc->branch_name ?? 'Principal' }}</div>
+                                            <div class="text-[10px] truncate max-w-[200px]">{{ $acc->installation_address }}</div>
                                         </td>
                                         <td class="px-6 py-4 text-right">
-                                            <a href="{{ route('admin.accounts.show', $acc->id) }}" class="text-blue-400 hover:text-white text-xs border border-blue-900 px-2 py-1 rounded inline-block">
-                                                Gestionar ⚙️
-                                            </a>
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold {{ $acc->service_status === 'active' ? 'bg-green-900/30 text-green-400 border border-green-800' : 'bg-red-900/30 text-red-400 border border-red-800' }}">
+                                                {{ strtoupper($acc->service_status) }}
+                                            </span>
                                         </td>
                                     </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     @else
-                        <div class="p-8 text-center text-gray-500 border-2 border-dashed border-gray-800 m-4 rounded">
-                            No hay cuentas de alarma facturables.
-                        </div>
+                        <div class="p-8 text-center text-gray-500 italic">No hay cuentas de alarma registradas.</div>
                     @endif
                 </div>
             </div>
 
             <div class="bg-[#1e293b] rounded-lg border border-gray-700 overflow-hidden shadow-lg">
                 <div class="bg-gray-800/50 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
-                    <div>
-                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                            <span class="text-yellow-400">🛰️</span> Rastreo GPS
-                        </h3>
-                        <p class="text-xs text-gray-400">Dispositivos y flotas</p>
-                    </div>
-                    <a href="{{ route('admin.gps.devices.create', ['customer_id' => $customer->id]) }}" class="text-xs bg-yellow-400 hover:bg-yellow-300 text-black px-4 py-2 rounded font-bold transition">
-                        + Vincular GPS
-                    </a>
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <span class="text-blue-400">🧾</span> Historial de Facturación
+                    </h3>
                 </div>
-                
                 <div class="p-0">
-                    @if($customer->gpsDevices && $customer->gpsDevices->count() > 0)
+                    @if($customer->invoices->count() > 0)
                         <table class="w-full text-sm text-left text-gray-400">
                             <thead class="text-xs text-gray-500 uppercase bg-gray-900/50">
                                 <tr>
-                                    <th class="px-6 py-3">Nombre / IMEI</th>
-                                    <th class="px-6 py-3">Modelo</th>
-                                    <th class="px-6 py-3 text-right">Acciones</th>
+                                    <th class="px-6 py-3">Número</th>
+                                    <th class="px-6 py-3">Fecha</th>
+                                    <th class="px-6 py-3 text-right">Total</th>
+                                    <th class="px-6 py-3 text-center">Estado</th>
+                                    <th class="px-6 py-3 text-right">PDF</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-gray-700">
-                                @foreach($customer->gpsDevices as $gps)
+                                @foreach($customer->invoices->sortByDesc('issue_date') as $invoice)
                                     <tr class="hover:bg-gray-800/50 transition">
-                                        <td class="px-6 py-4">
-                                            <div class="text-white font-bold">{{ $gps->name }}</div>
-                                            <div class="text-xs font-mono">{{ $gps->imei }}</div>
+                                        <td class="px-6 py-4 font-mono text-blue-400">{{ $invoice->invoice_number }}</td>
+                                        <td class="px-6 py-4 text-xs">{{ $invoice->issue_date->format('d/m/Y') }}</td>
+                                        <td class="px-6 py-4 text-right font-bold text-white">${{ number_format($invoice->total, 2) }}</td>
+                                        <td class="px-6 py-4 text-center">
+                                            <span class="text-[10px] px-2 py-0.5 rounded font-bold {{ $invoice->status == 'paid' ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300' }}">
+                                                {{ strtoupper($invoice->status) }}
+                                            </span>
                                         </td>
-                                        <td class="px-6 py-4">{{ $gps->device_model ?? 'Genérico' }}</td>
                                         <td class="px-6 py-4 text-right">
-                                             <a href="{{ route('admin.gps.devices.show', $gps->id) }}" class="text-blue-400 hover:text-white text-xs border border-blue-900 px-2 py-1 rounded inline-block">
-                                                Ver 🛰️
+                                            <a href="{{ route('admin.invoices.download', $invoice->id) }}" class="bg-gray-700 hover:bg-red-600 text-white p-1.5 rounded transition inline-block" title="Descargar PDF">
+                                                📄
                                             </a>
                                         </td>
                                     </tr>
@@ -174,73 +156,96 @@
                             </tbody>
                         </table>
                     @else
-                        <div class="p-8 text-center text-gray-500 border-2 border-dashed border-gray-800 m-4 rounded">
-                            Sin dispositivos GPS asignados.
-                        </div>
+                        <div class="p-8 text-center text-gray-500 italic">No se han generado facturas para este cliente.</div>
                     @endif
                 </div>
             </div>
-
         </div>
 
         <div class="space-y-6">
             
             <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-6 shadow-lg">
+                <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 border-b border-gray-700 pb-2">
+                    Plan de Servicio
+                </h3>
+                @if($customer->servicePlan)
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-xl font-bold text-[#C6F211]">{{ $customer->servicePlan->name }}</span>
+                        <span class="text-xs bg-blue-900/30 text-blue-400 px-2 py-1 rounded border border-blue-800">
+                            ${{ number_format($customer->servicePlan->price, 2) }} / mes
+                        </span>
+                    </div>
+                    <div class="space-y-2 text-xs text-gray-400 mb-6">
+                        <div class="flex justify-between">
+                            <span>Tasa GPS:</span>
+                            <span class="text-white font-mono">${{ number_format($customer->servicePlan->gps_price, 2) }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Tasa Alarma:</span>
+                            <span class="text-white font-mono">${{ number_format($customer->servicePlan->alarm_price, 2) }}</span>
+                        </div>
+                    </div>
+
+                    <a href="{{ route('admin.invoices.create', ['customer_id' => $customer->id]) }}" class="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded font-bold transition shadow-lg mb-2">
+                        Generar Factura Manual
+                    </a>
+                @else
+                    <div class="bg-red-900/20 border border-red-900/50 p-4 rounded text-center mb-4">
+                        <p class="text-red-300 text-xs mb-3">Este cliente no tiene un plan asignado. No se puede facturar.</p>
+                        <a href="{{ route('admin.customers.edit', $customer->id) }}" class="text-xs font-bold text-white underline">Asignar Plan Ahora</a>
+                    </div>
+                    <button class="w-full bg-gray-700 text-gray-500 py-2.5 rounded font-bold cursor-not-allowed" disabled>
+                        Generar Factura Manual
+                    </button>
+                @endif
+            </div>
+
+            <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-6 shadow-lg">
                 <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-700 pb-2">
-                    Resumen de Facturación
+                    Resumen de Activos
                 </h3>
                 
                 <div class="flex justify-between items-center mb-2">
                     <span class="text-gray-400 text-sm">Cuentas Alarma</span>
                     <span class="text-white font-mono font-bold">{{ $customer->accounts->count() }}</span>
                 </div>
-                <div class="flex justify-between items-center mb-4">
+                <div class="flex justify-between items-center mb-6">
                     <span class="text-gray-400 text-sm">Dispositivos GPS</span>
                     <span class="text-white font-mono font-bold">{{ $customer->gpsDevices->count() }}</span>
                 </div>
 
                 <div class="bg-black/30 rounded p-4 text-center border border-gray-700 mb-4">
-                    <p class="text-gray-500 text-xs mb-1 uppercase">Saldo Pendiente</p>
-                    <p class="text-4xl font-bold text-green-400 font-mono tracking-tight">$0.00</p>
+                    <p class="text-gray-500 text-[10px] mb-1 uppercase tracking-tighter">Deuda Total Acumulada</p>
+                    @php
+                        $unpaidBalance = $customer->invoices->where('status', 'unpaid')->sum('total');
+                    @endphp
+                    <p class="text-4xl font-bold {{ $unpaidBalance > 0 ? 'text-red-500' : 'text-green-400' }} font-mono tracking-tight">
+                        ${{ number_format($unpaidBalance, 2) }}
+                    </p>
                 </div>
 
-                <a href="{{ route('admin.invoices.create', ['customer_id' => $customer->id]) }}" class="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-bold transition shadow-lg mb-2">
-                    Generar Factura Manual
-                </a>
-                <a href="{{ route('admin.invoices.index', ['customer_id' => $customer->id]) }}" class="block w-full text-center bg-gray-800 hover:bg-gray-700 text-gray-300 py-2 rounded text-sm transition border border-gray-600">
-                    Ver Historial Pagos
+                <a href="{{ route('admin.finance.index', ['customer_id' => $customer->id]) }}" class="block w-full text-center bg-gray-800 hover:bg-gray-700 text-gray-300 py-2 rounded text-xs transition border border-gray-600">
+                    💳 Gestionar Pagos
                 </a>
             </div>
 
             <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-6 shadow-lg">
                 <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4 border-b border-gray-700 pb-2">
-                    Contacto Administrativo
+                    Administración
                 </h3>
-                
                 <div class="space-y-4">
                     <div>
-                        <label class="block text-[10px] text-gray-500 uppercase">Dirección Fiscal</label>
-                        <p class="text-sm text-white leading-snug">{{ $customer->address_billing }}</p>
+                        <label class="block text-[10px] text-gray-500 uppercase">Teléfono Principal</label>
+                        <p class="text-sm text-white font-mono">{{ $customer->phone_1 }}</p>
                     </div>
-                    
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-[10px] text-gray-500 uppercase">Teléfono 1</label>
-                            <p class="text-sm text-white font-mono">{{ $customer->phone_1 }}</p>
-                        </div>
-                        @if($customer->phone_2)
-                        <div>
-                            <label class="block text-[10px] text-gray-500 uppercase">Teléfono 2</label>
-                            <p class="text-sm text-white font-mono">{{ $customer->phone_2 }}</p>
-                        </div>
-                        @endif
+                    <div>
+                        <label class="block text-[10px] text-gray-500 uppercase">Ciudad</label>
+                        <p class="text-sm text-white">{{ $customer->city }}</p>
                     </div>
-
                     @if($customer->monitoring_password)
                     <div class="mt-4 p-3 bg-red-900/10 border border-red-900/30 rounded">
-                        <label class="block text-[10px] text-red-400 uppercase font-bold">Palabra Clave Maestra</label>
+                        <label class="block text-[10px] text-red-400 uppercase font-bold tracking-widest">Palabra Clave</label>
                         <p class="text-lg text-white font-mono tracking-widest">{{ $customer->monitoring_password }}</p>
-                        <p class="text-[10px] text-gray-500 mt-1">Usar solo si no hay clave específica en cuenta.</p>
                     </div>
                     @endif
                 </div>
