@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\AlarmAccount;
 use App\Models\GpsDevice;
 use App\Models\Invoice;
+use App\Models\DeviceAlert; // <--- Importante para las alertas
 
 class ClientPortalController extends Controller
 {
@@ -39,7 +40,7 @@ class ClientPortalController extends Controller
         }
 
         // Buscar Alarmas
-        $alarms = \App\Models\AlarmAccount::where('customer_id', $user->customer_id)
+        $alarms = AlarmAccount::where('customer_id', $user->customer_id)
             ->where('is_active', true)
             ->get()
             ->map(function($alarm) {
@@ -54,7 +55,7 @@ class ClientPortalController extends Controller
             });
 
         // Buscar GPS
-        $gps = \App\Models\GpsDevice::where('customer_id', $user->customer_id)
+        $gps = GpsDevice::where('customer_id', $user->customer_id)
             ->where('is_active', true)
             ->get()
             ->map(function($device) {
@@ -73,6 +74,36 @@ class ClientPortalController extends Controller
         return response()->json([
             'assets' => $alarms->merge($gps)
         ]);
+    }
+
+    /**
+     * API: Obtener últimas alertas (Para el panel de notificaciones)
+     * NUEVO MÉTODO
+     */
+    public function getLatestAlerts()
+    {
+        $user = Auth::user();
+        if (!$user->customer_id) return response()->json([]);
+
+        // Obtener IDs de mis dispositivos
+        $deviceIds = GpsDevice::where('customer_id', $user->customer_id)->pluck('id');
+
+        // Buscar alertas de las últimas 24 horas
+        $alerts = DeviceAlert::whereIn('gps_device_id', $deviceIds)
+            ->where('created_at', '>=', now()->subHours(24))
+            ->with('device:id,name')
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function($alert) {
+                return [
+                    'device' => $alert->device->name,
+                    'message' => $alert->message,
+                    'time' => $alert->created_at->format('d/m H:i'), // Formato corto
+                    'type' => $alert->type // 'overspeed', 'low_battery', etc.
+                ];
+            });
+
+        return response()->json($alerts);
     }
 
     // --- Modales ---
