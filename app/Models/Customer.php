@@ -26,7 +26,7 @@ class Customer extends Model
         'duress_password',   // AGREGADO: Requerido por el controlador
         'notes',
         'status',            // AGREGADO: Requerido por las vistas
-        'is_active'
+        'is_active',
         'service_plan_id',
     ];
 
