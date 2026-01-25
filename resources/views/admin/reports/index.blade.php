@@ -30,11 +30,11 @@
 
             <div>
                 <label class="block text-xs font-bold uppercase mb-1 text-slate-400">Desde</label>
-                <input type="date" name="date_from" value="{{ request('date_from', now()->subDays(7)->format('Y-m-d')) }}" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white">
+                <input type="date" name="date_from" value="{{ request('date_from', now()->setTimezone('America/Caracas')->subDays(7)->format('Y-m-d')) }}" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white">
             </div>
             <div>
                 <label class="block text-xs font-bold uppercase mb-1 text-slate-400">Hasta</label>
-                <input type="date" name="date_to" value="{{ request('date_to', now()->format('Y-m-d')) }}" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white">
+                <input type="date" name="date_to" value="{{ request('date_to', now()->setTimezone('America/Caracas')->format('Y-m-d')) }}" class="w-full bg-slate-900 border border-slate-600 rounded p-2 text-sm text-white">
             </div>
 
             <div>
@@ -81,7 +81,9 @@
             <tbody class="divide-y divide-slate-700">
                 @forelse($events as $event)
                     <tr class="hover:bg-slate-700/50">
-                        <td class="px-4 py-3 text-slate-300 font-mono text-xs">{{ $event->created_at->format('d/m H:i') }}</td>
+                        <td class="px-4 py-3 text-slate-300 font-mono text-xs">
+                            {{ $event->received_at_local ? $event->received_at_local->format('d/m H:i') : $event->created_at->setTimezone('America/Caracas')->format('d/m H:i') }}
+                        </td>
                         <td class="px-4 py-3">
                             <span class="font-bold text-white">{{ $event->account_number }}</span>
                             <span class="block text-xs text-slate-500">{{ $event->account->branch_name ?? '' }}</span>
