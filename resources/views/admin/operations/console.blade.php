@@ -51,7 +51,7 @@
                         </div>
                         
                         <div class="col-span-1 font-mono text-slate-300 text-xs">
-                            {{ $event->created_at->format('H:i:s') }}
+                            {{ $event->received_at_local ? $event->received_at_local->format('H:i:s') : '--:--' }}
                         </div>
                         
                         <div class="col-span-2 font-mono font-bold text-yellow-500">
@@ -97,7 +97,9 @@
                          onclick="window.location='{{ route('admin.operations.manage', $inc->id) }}'">
                         <div class="flex justify-between items-start mb-1">
                             <span class="font-bold text-white text-sm">{{ $inc->alarmEvent->account_number }}</span>
-                            <span class="text-[10px] text-slate-400">{{ $inc->started_at->format('H:i') }}</span>
+                            <span class="text-[10px] text-slate-400">
+                                {{ $inc->started_at_local ? $inc->started_at_local->format('H:i') : '--:--' }}
+                            </span>
                         </div>
                         <div class="text-xs text-slate-300 truncate mb-2">{{ $inc->alarmEvent->siaCode->description ?? 'Evento Manual' }}</div>
                         
@@ -164,7 +166,6 @@
         </div>
     </form>
 </dialog>
-
 
 <script>
     // Lógica de Refresco en Segundo Plano (AJAX)
