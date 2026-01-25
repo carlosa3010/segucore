@@ -25,7 +25,7 @@ use App\Http\Controllers\Admin\PatrolController;
 use App\Http\Controllers\Admin\GuardController;
 use App\Http\Controllers\Admin\SecurityMapController;
 use App\Http\Controllers\Admin\GeneralSettingController;
-use App\Http\Controllers\Admin\InvoiceController; // <--- AGREGADO: Para evitar error en vista clientes
+use App\Http\Controllers\Admin\InvoiceController; 
 
 /*
 |==========================================================================
@@ -70,7 +70,7 @@ Route::domain('admin.segusmart24.com')->group(function () {
         Route::resource('customers', CustomerController::class);
         Route::post('customers/{id}/toggle-status', [CustomerController::class, 'toggleStatus'])->name('customers.toggle-status');
         
-        // Contactos de Clientes (Rutas requeridas por la vista Show)
+        // Contactos de Clientes
         Route::post('customers/{id}/contacts', [CustomerController::class, 'storeContact'])->name('customers.contacts.store');
         Route::put('contacts/{id}', [CustomerController::class, 'updateContact'])->name('contacts.update');
         Route::delete('contacts/{id}', [CustomerController::class, 'destroyContact'])->name('contacts.destroy');
@@ -180,7 +180,7 @@ Route::domain('admin.segusmart24.com')->group(function () {
         Route::get('security-map', [SecurityMapController::class, 'index'])->name('security.map.index');
         Route::get('security-map/data', [SecurityMapController::class, 'positions'])->name('security.map.data');
 
-        // 12. FACTURACIÓN (AGREGADO PARA EVITAR FALLOS EN VISTA CLIENTE)
+        // 12. FACTURACIÓN
         Route::resource('invoices', InvoiceController::class);
     });
 });
@@ -207,6 +207,11 @@ Route::domain('cliente.segusmart24.com')->group(function () {
         
         // APIs y Modales
         Route::get('/api/assets', [ClientPortalController::class, 'getAssets'])->name('client.api.assets');
+        
+        // --- NUEVA RUTA DE ALERTAS ---
+        Route::get('/api/alerts', [ClientPortalController::class, 'getLatestAlerts'])->name('client.api.alerts');
+        // -----------------------------
+
         Route::get('/modal/alarm/{id}', [ClientPortalController::class, 'modalAlarm'])->name('client.modal.alarm');
         Route::get('/modal/gps/{id}', [ClientPortalController::class, 'modalGps'])->name('client.modal.gps');
         Route::get('/modal/billing', [ClientPortalController::class, 'modalBilling'])->name('client.modal.billing');
