@@ -133,6 +133,7 @@
             `;
         }
 
+        // CORRECCIÓN AQUÍ: Se eliminó "/admin" de los hrefs
         return `
             <div class="text-sm min-w-[180px]">
                 <strong class="block text-slate-900 text-base font-bold">${v.name}</strong>
@@ -148,11 +149,11 @@
                 ${specificInfo}
                 
                 <div class="grid grid-cols-2 gap-2 mt-3">
-                    <a href="/admin/gps/devices/${v.id}/history" target="_blank" 
+                    <a href="/gps/devices/${v.id}/history" target="_blank" 
                        class="text-center bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 py-1.5 rounded text-[10px] font-bold transition">
                         📜 RUTA
                     </a>
-                    <a href="/admin/gps/devices/${v.id}" target="_blank" 
+                    <a href="/gps/devices/${v.id}" target="_blank" 
                        class="text-center bg-slate-700 hover:bg-slate-600 text-white py-1.5 rounded text-[10px] font-bold transition">
                         🗺️ DETALLES
                     </a>
