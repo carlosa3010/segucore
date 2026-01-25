@@ -38,4 +38,9 @@ class AlarmEvent extends Model
         // Relaciona el campo 'event_code' de esta tabla con 'code' de la tabla sia_codes
         return $this->belongsTo(SiaCode::class, 'event_code', 'code');
     }
+
+    public function incident()
+    {
+        return $this->hasOne(Incident::class, 'alarm_event_id');
+    }
 }
