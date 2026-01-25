@@ -17,13 +17,13 @@ class CheckGpsAlerts extends Command
 
     public function handle()
     {
-        // CORRECCIÓN: Usamos 'is_active' porque 'subscription_status' no existe en la BD
+        // 1. Obtener dispositivos activos (usando is_active que sí existe)
         $devices = GpsDevice::where('is_active', true)->get();
 
         $count = 0;
 
         foreach ($devices as $dev) {
-            // 1. Obtener datos en vivo de Traccar
+            // Obtener datos en vivo de Traccar
             $traccarDev = TraccarDevice::where('uniqueid', $dev->imei)->with('position')->first();
             
             if (!$traccarDev || !$traccarDev->position) continue;
@@ -31,17 +31,22 @@ class CheckGpsAlerts extends Command
             $pos = $traccarDev->position;
             $speedKmh = round($pos->speed * 1.852); // Nudos a Km/h
             
-            $attributes = json_decode($pos->attributes, true) ?? [];
+            // --- CORRECCIÓN DEL ERROR JSON ---
+            // Si ya es array (por el Model Cast), úsalo. Si es string, decodifícalo.
+            $attributes = is_array($pos->attributes) 
+                ? $pos->attributes 
+                : (json_decode($pos->attributes, true) ?? []);
+            
             $batteryLevel = $attributes['batteryLevel'] ?? $attributes['battery'] ?? null;
             $ignition = $attributes['ignition'] ?? false;
 
-            // 2. SINCRONIZACIÓN
+            // 2. SINCRONIZACIÓN LOCAL
             $dev->update([
                 'last_latitude'  => $pos->latitude,
                 'last_longitude' => $pos->longitude,
                 'speed'          => $speedKmh,
                 'battery_level'  => $batteryLevel,
-                'status'         => ($speedKmh > 2 && $ignition) ? 'online' : 'stopped', // Esto actualiza el estado operativo
+                'status'         => ($speedKmh > 2 && $ignition) ? 'online' : 'stopped',
                 'updated_at'     => now() 
             ]);
 
@@ -71,6 +76,7 @@ class CheckGpsAlerts extends Command
 
     private function triggerAlert($device, $type, $message, $data)
     {
+        // Evitar spam: 15 minutos de "silencio" entre alertas iguales
         $exists = DeviceAlert::where('gps_device_id', $device->id)
             ->where('type', $type)
             ->where('created_at', '>=', Carbon::now()->subMinutes(15))
