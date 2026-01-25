@@ -208,12 +208,17 @@ Route::domain('cliente.segusmart24.com')->group(function () {
         // APIs
         Route::get('/api/assets', [ClientPortalController::class, 'getAssets'])->name('client.api.assets');
         Route::get('/api/alerts', [ClientPortalController::class, 'getLatestAlerts'])->name('client.api.alerts');
+        
+        // Historial API
         Route::get('/api/history/{id}', [ClientPortalController::class, 'getHistory'])->name('client.api.history');
+        
+        // NUEVA RUTA: DESCARGAR PDF HISTORIAL
+        Route::get('/api/history/{id}/pdf', [ClientPortalController::class, 'downloadReport'])->name('client.api.history.pdf');
 
-        // COMANDOS REMOTOS (Nueva Ruta)
+        // COMANDOS REMOTOS
         Route::post('/api/device/{id}/command', [ClientPortalController::class, 'sendCommand'])->name('client.device.command');
 
-        // Modales (IMPORTANTE: Sin prefijo /portal para coincidir con JS)
+        // Modales
         Route::get('/modal/alarm/{id}', [ClientPortalController::class, 'modalAlarm'])->name('client.modal.alarm');
         Route::get('/modal/gps/{id}', [ClientPortalController::class, 'modalGps'])->name('client.modal.gps');
         Route::get('/modal/billing', [ClientPortalController::class, 'modalBilling'])->name('client.modal.billing');
