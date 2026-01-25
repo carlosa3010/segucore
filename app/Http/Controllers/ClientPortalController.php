@@ -8,37 +8,26 @@ use App\Models\AlarmAccount;
 use App\Models\GpsDevice;
 use App\Models\Invoice;
 use App\Models\DeviceAlert;
-use App\Models\TraccarPosition; // Asegúrate de importar esto para el historial
+use App\Models\TraccarPosition;
 use Carbon\Carbon;
 
 class ClientPortalController extends Controller
 {
-    /**
-     * Vista principal: El Mapa
-     */
     public function index()
     {
         $user = Auth::user();
-
         if (!$user->customer_id) {
-            return view('client.map', ['user' => $user, 'error' => 'No tienes una cuenta de cliente asociada.']);
+            return view('client.map', ['user' => $user, 'error' => 'Sin cuenta asociada.']);
         }
-
         return view('client.map', ['user' => $user]);
     }
 
-    /**
-     * API: Obtener activos (Optimizado para polling)
-     */
     public function getAssets()
     {
         $user = Auth::user();
+        if (!$user || !$user->customer_id) return response()->json(['assets' => []]);
 
-        if (!$user || !$user->customer_id) {
-            return response()->json(['assets' => []]);
-        }
-
-        // Alarmas
+        // ALARMAS
         $alarms = AlarmAccount::where('customer_id', $user->customer_id)
             ->where('is_active', true)
             ->get()
@@ -46,15 +35,15 @@ class ClientPortalController extends Controller
                 return [
                     'type' => 'alarm',
                     'id' => $alarm->id,
-                    'lat' => $alarm->latitude,
-                    'lng' => $alarm->longitude,
-                    'status' => $alarm->monitoring_status,
-                    'name' => $alarm->account_number . ' - ' . $alarm->branch_name,
+                    'lat' => (float) $alarm->latitude, // Casting importante para JS
+                    'lng' => (float) $alarm->longitude,
+                    'status' => $alarm->monitoring_status ?? 'unknown',
+                    'name' => $alarm->account_number . ' - ' . ($alarm->branch_name ?? 'Principal'),
                     'last_update' => $alarm->updated_at->diffForHumans(),
                 ];
             });
 
-        // GPS (Incluyendo dirección y velocidad)
+        // GPS
         $gps = GpsDevice::where('customer_id', $user->customer_id)
             ->where('is_active', true)
             ->get()
@@ -62,53 +51,44 @@ class ClientPortalController extends Controller
                 return [
                     'type' => 'gps',
                     'id' => $device->id,
-                    'lat' => $device->last_latitude, 
-                    'lng' => $device->last_longitude,
-                    'status' => $device->status, // online, offline
-                    'name' => $device->name ?? $device->imei,
-                    'speed' => round($device->speed, 1),
-                    'course' => $device->course ?? 0, // Dirección para rotar icono
-                    'ignition' => $device->ignition, // Si tienes este dato
-                    'driver' => $device->driver ? $device->driver->first_name . ' ' . $device->driver->last_name : 'Sin Asignar',
+                    'lat' => (float) $device->last_latitude,
+                    'lng' => (float) $device->last_longitude,
+                    'status' => $device->status,
+                    'name' => $device->name ?? 'Dispositivo GPS',
+                    'speed' => round($device->speed, 0),
+                    'course' => $device->course ?? 0,
                     'plate' => $device->plate_number ?? '---',
-                    'last_update' => Carbon::parse($device->last_connection)->format('H:i:s d/m')
+                    'driver' => optional($device->driver)->first_name ?? 'Sin Conductor', // Evita error si es null
+                    'last_update' => Carbon::parse($device->last_connection)->format('H:i d/m')
                 ];
             });
 
-        return response()->json([
-            'assets' => $alarms->merge($gps)
-        ]);
+        return response()->json(['assets' => $alarms->merge($gps)]);
     }
 
-    /**
-     * API: Historial de Recorrido para el Cliente
-     */
     public function getHistory(Request $request, $id)
     {
         $user = Auth::user();
+        // Validación estricta
+        $device = GpsDevice::where('id', $id)->where('customer_id', $user->customer_id)->first();
         
-        // Validación de seguridad
-        $device = GpsDevice::where('id', $id)->where('customer_id', $user->customer_id)->firstOrFail();
+        if(!$device) return response()->json(['error' => 'Dispositivo no encontrado'], 404);
 
         $start = Carbon::parse($request->start);
         $end = Carbon::parse($request->end);
 
-        // Límite de 3 días para evitar sobrecarga en cliente
-        if($start->diffInDays($end) > 3) {
-            return response()->json(['error' => 'El rango máximo es de 3 días'], 400);
-        }
+        if($start->diffInDays($end) > 3) return response()->json(['error' => 'Máximo 3 días de consulta'], 400);
 
-        $positions = TraccarPosition::where('device_id', $device->traccar_device_id) // Asumiendo relación con traccar
-            ->whereBetween('device_time', [$start, $end])
-            ->orderBy('device_time', 'asc')
-            ->get(['latitude', 'longitude', 'speed', 'device_time', 'address']);
+        // Simulando datos si no hay conexión a Traccar real aun, para que pruebes la UI
+        // En producción usa tu modelo TraccarPosition real
+        $positions = TraccarPosition::where('device_id', $device->traccar_device_id)
+             ->whereBetween('device_time', [$start, $end])
+             ->orderBy('device_time', 'asc')
+             ->get(['latitude', 'longitude', 'speed', 'device_time']);
 
         return response()->json(['positions' => $positions]);
     }
 
-    /**
-     * API: Alertas recientes
-     */
     public function getLatestAlerts()
     {
         $user = Auth::user();
@@ -120,6 +100,7 @@ class ClientPortalController extends Controller
             ->where('created_at', '>=', now()->subHours(48))
             ->with('device:id,name')
             ->orderBy('created_at', 'desc')
+            ->take(20)
             ->get()
             ->map(function($alert) {
                 return [
@@ -134,16 +115,12 @@ class ClientPortalController extends Controller
         return response()->json($alerts);
     }
 
-    // --- Modales ---
+    // --- Modales Simplificados ---
 
     public function modalGps($id)
     {
         $user = Auth::user();
-        $device = GpsDevice::where('id', $id)
-            ->where('customer_id', $user->customer_id)
-            ->with(['driver', 'servicePlan']) // Cargar relaciones
-            ->firstOrFail();
-
+        $device = GpsDevice::with('driver')->where('id', $id)->where('customer_id', $user->customer_id)->firstOrFail();
         return view('client.modals.gps', compact('device'));
     }
 
