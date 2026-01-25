@@ -160,7 +160,7 @@ return new class extends Migration
             Schema::create('geofences', function (Blueprint $table) {
                 $table->id();
                 $table->foreignId('customer_id')->constrained('customers')->cascadeOnDelete();
-                $table->foreignId('gps_device_id')->nullable()->constrained('gps_devices')->cascadeOnDelete();
+                //$table->foreignId('gps_device_id')->nullable()->constrained('gps_devices')->cascadeOnDelete();
                 $table->string('name');
                 $table->text('description')->nullable();
                 $table->string('type')->default('circle');
