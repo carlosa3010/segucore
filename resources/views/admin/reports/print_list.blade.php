@@ -43,7 +43,7 @@
     <div class="header">
         <div class="logo">SEGUSMART 24 C.A.</div>
         <div>Reporte Detallado de Eventos de Alarma</div>
-        <div class="meta">Generado el: {{ now()->format('d/m/Y H:i') }} | Usuario: {{ auth()->user()->name }}</div>
+        <div class="meta">Generado el: {{ now()->setTimezone('America/Caracas')->format('d/m/Y H:i') }} | Usuario: {{ auth()->user()->name }}</div>
     </div>
 
     <div class="filter-info">
@@ -67,7 +67,7 @@
         <tbody>
             @forelse($events as $e)
             <tr>
-                <td>{{ $e->created_at->format('d/m/Y H:i:s') }}</td>
+                <td>{{ $e->created_at->setTimezone('America/Caracas')->format('d/m/Y H:i:s') }}</td>
                 <td>
                     <strong>{{ $e->account_number }}</strong><br>
                     {{ Str::limit($e->account->branch_name ?? '', 15) }}
