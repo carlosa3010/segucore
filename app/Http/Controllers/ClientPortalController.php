@@ -9,20 +9,22 @@ use App\Models\GpsDevice;
 use App\Models\Invoice;
 use App\Models\DeviceAlert;
 use App\Models\TraccarPosition;
-use App\Services\TraccarApiService; // Importamos el servicio real
+use App\Models\TraccarDevice; // <--- IMPORTANTE: Necesario para buscar por IMEI
+use App\Services\TraccarApiService;
 use Carbon\Carbon;
 
 class ClientPortalController extends Controller
 {
     protected $traccarService;
 
-    // Inyectamos el servicio en el constructor si lo prefieres, 
-    // o lo instanciamos directamente en el método.
     public function __construct(TraccarApiService $traccarService)
     {
         $this->traccarService = $traccarService;
     }
 
+    /**
+     * Vista Principal (Mapa)
+     */
     public function index()
     {
         $user = Auth::user();
@@ -32,6 +34,9 @@ class ClientPortalController extends Controller
         return view('client.map', ['user' => $user]);
     }
 
+    /**
+     * API: Obtener todos los activos (Alarmas + GPS)
+     */
     public function getAssets()
     {
         $user = Auth::user();
@@ -83,38 +88,90 @@ class ClientPortalController extends Controller
         return response()->json(['assets' => $assets]);
     }
 
+    /**
+     * API: Historial de Recorrido
+     */
     public function getHistory(Request $request, $id)
     {
         $user = Auth::user();
         
+        // 1. Validar propiedad del dispositivo local
         $device = GpsDevice::where('id', $id)
             ->where('customer_id', $user->customer_id)
             ->first();
 
         if (!$device) return response()->json(['error' => 'Dispositivo no encontrado'], 404);
 
-        // Validación: El dispositivo debe estar vinculado a Traccar para tener historial
-        if (!$device->traccar_device_id) {
+        // 2. Buscar el dispositivo en Traccar usando el IMEI (Igual que en Admin)
+        $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
+
+        if (!$traccarDevice) {
             return response()->json(['error' => 'Este dispositivo no está sincronizado con el servidor de rastreo.'], 400);
         }
 
         $start = Carbon::parse($request->start);
         $end = Carbon::parse($request->end);
 
+        // Limitación de seguridad (3 días)
         if ($start->diffInDays($end) > 3) {
             return response()->json(['error' => 'El rango máximo de consulta es de 3 días.'], 400);
         }
 
-        // Consulta optimizada seleccionando solo columnas necesarias
-        $positions = TraccarPosition::where('device_id', $device->traccar_device_id)
-            ->whereBetween('device_time', [$start, $end])
-            ->orderBy('device_time', 'asc')
-            ->select(['latitude', 'longitude', 'speed', 'device_time', 'course'])
-            ->get(); //
+        // 3. Consultar posiciones usando el ID de Traccar recuperado
+        // Nota: Asegúrate que la columna foránea en TraccarPosition sea 'deviceid' (según tu Admin controller)
+        $positions = TraccarPosition::where('deviceid', $traccarDevice->id)
+            ->whereBetween('fixtime', [$start->setTimezone('UTC'), $end->setTimezone('UTC')]) // Traccar guarda en UTC
+            ->orderBy('fixtime', 'asc')
+            ->select(['latitude', 'longitude', 'speed', 'fixtime as device_time', 'course'])
+            ->get();
 
         return response()->json(['positions' => $positions]);
     }
 
+    /**
+     * API: Enviar Comandos (Corte/Restaurar)
+     */
+    public function sendCommand(Request $request, $id)
+    {
+        $user = Auth::user();
+
+        // 1. Validar propiedad local
+        $device = GpsDevice::where('id', $id)
+            ->where('customer_id', $user->customer_id)
+            ->firstOrFail();
+
+        $request->validate([
+            'type' => 'required|in:engineStop,engineResume'
+        ]);
+
+        // 2. Buscar dispositivo en Traccar por IMEI (Corrección clave)
+        $traccarDevice = TraccarDevice::where('uniqueid', $device->imei)->first();
+
+        if (!$traccarDevice) {
+            return response()->json(['success' => false, 'message' => 'Error: Dispositivo no sincronizado (IMEI no encontrado en Traccar).'], 400);
+        }
+
+        try {
+            // 3. Enviar comando usando el ID real de Traccar
+            $success = $this->traccarService->sendCommand(
+                $traccarDevice->id, // ID de la tabla tc_devices
+                $request->type
+            );
+
+            if ($success) {
+                return response()->json(['success' => true, 'message' => 'Comando enviado al satélite.']);
+            } else {
+                return response()->json(['success' => false, 'message' => 'El servidor rechazó el comando.'], 500);
+            }
+
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Error de conexión: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * API: Últimas Alertas
+     */
     public function getLatestAlerts()
     {
         $user = Auth::user();
@@ -141,44 +198,7 @@ class ClientPortalController extends Controller
         return response()->json($alerts);
     }
 
-    /**
-     * ENVÍO DE COMANDOS REAL (CONECTADO)
-     */
-    public function sendCommand(Request $request, $id)
-    {
-        $user = Auth::user();
-
-        $device = GpsDevice::where('id', $id)
-            ->where('customer_id', $user->customer_id)
-            ->firstOrFail();
-
-        $request->validate([
-            'type' => 'required|in:engineStop,engineResume'
-        ]);
-
-        if (!$device->traccar_device_id) {
-            return response()->json(['success' => false, 'message' => 'Dispositivo no vinculado a Traccar.'], 400);
-        }
-
-        try {
-            // Usamos el servicio inyectado para enviar el comando real a la API
-            $success = $this->traccarService->sendCommand(
-                $device->traccar_device_id, 
-                $request->type
-            ); //
-
-            if ($success) {
-                return response()->json(['success' => true, 'message' => 'Comando enviado al satélite.']);
-            } else {
-                return response()->json(['success' => false, 'message' => 'El servidor rechazó el comando.'], 500);
-            }
-
-        } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Error de conexión: ' . $e->getMessage()], 500);
-        }
-    }
-
-    // --- Modales ---
+    // --- MODALES (Vistas HTML) ---
 
     public function modalGps($id)
     {
