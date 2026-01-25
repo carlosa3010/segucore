@@ -340,44 +340,80 @@ class GpsDeviceController extends Controller
 
     private function calculateStats($positions) {
         $stats = [
-            'distance_km' => 0, 'move_time' => 0, 'stop_time' => 0, 'off_time' => 0,
-            'max_speed' => 0, 'avg_speed' => 0, 'trips' => 0
+            'distance_km' => 0, 
+            'move_time' => 0, 
+            'stop_time' => 0, // Ralentí (Encendido sin movimiento)
+            'off_time' => 0,  // Apagado
+            'max_speed' => 0, 
+            'avg_speed' => 0, 
+            'trips' => 0
         ];
 
-        $speedSum = 0; $speedCount = 0; $lastPos = null;
+        $speedSum = 0; $speedCount = 0; 
+        $lastPos = null;
 
         foreach ($positions as $pos) {
-            $speedKm = $pos->speed * 1.852;
+            // Datos del punto ACTUAL (Solo para Max Speed y Distancia Acumulada)
+            $speedKm = $pos->speed * 1.852; // Nudos a Km/h
             $attrs = is_string($pos->attributes) ? json_decode($pos->attributes, true) : $pos->attributes;
-            $ignition = $attrs['ignition'] ?? false;
             
+            // Estadísticas puntuales
+            if ($speedKm > $stats['max_speed']) $stats['max_speed'] = $speedKm;
+            if ($speedKm > 5) { $speedSum += $speedKm; $speedCount++; }
+
+            // CÁLCULO DE TIEMPOS (Intervalos)
             if ($lastPos) {
-                $timeDiff = Carbon::parse($pos->fixtime)->diffInSeconds(Carbon::parse($lastPos->fixtime));
-                if ($timeDiff < 3600) { // Ignorar saltos mayores a 1 hora (pérdida de señal)
-                    // Intentar obtener distancia del atributo calculado por Traccar, si no, calcularla
+                // Tiempo transcurrido desde el punto anterior hasta el actual
+                $timeDiff = \Carbon\Carbon::parse($pos->fixtime)->diffInSeconds(\Carbon\Carbon::parse($lastPos->fixtime));
+
+                // Ignorar saltos absurdamente grandes (ej: > 24 horas) si deseas, 
+                // pero para reportes diarios es mejor procesarlos.
+                if ($timeDiff < 86400) { 
+                    
+                    // 1. CALCULAR DISTANCIA (Entre anterior y actual)
+                    // Usamos 'distance' del atributo si existe (más preciso), si no, cálculo geodésico
                     $dist = isset($attrs['distance']) ? $attrs['distance'] : $this->calculateDistance($lastPos->latitude, $lastPos->longitude, $pos->latitude, $pos->longitude);
                     $stats['distance_km'] += ($dist / 1000);
 
-                    if ($ignition) {
-                        if ($speedKm > 2) $stats['move_time'] += $timeDiff;
-                        else $stats['stop_time'] += $timeDiff;
+                    // 2. CLASIFICAR EL TIEMPO (Basado en el estado del punto ANTERIOR)
+                    // El intervalo pertenece al estado en el que quedó el vehículo al inicio del intervalo ($lastPos)
+                    
+                    $lastSpeed = $lastPos->speed * 1.852;
+                    $lastAttrs = is_string($lastPos->attributes) ? json_decode($lastPos->attributes, true) : $lastPos->attributes;
+                    
+                    // Lógica de Ignición Robusta:
+                    // Si trae 'ignition' explícito, úsalo. Si no, deduce: Velocidad > 5km/h = Encendido.
+                    $isIgnitionOn = isset($lastAttrs['ignition']) 
+                        ? $lastAttrs['ignition'] 
+                        : ($lastSpeed > 5); 
+
+                    if ($isIgnitionOn) {
+                        if ($lastSpeed > 2) {
+                            // Estaba encendido y moviéndose
+                            $stats['move_time'] += $timeDiff;
+                        } else {
+                            // Estaba encendido pero quieto (Ralentí/Tráfico/Semáforo)
+                            $stats['stop_time'] += $timeDiff;
+                        }
                     } else {
+                        // Estaba apagado (Parking)
                         $stats['off_time'] += $timeDiff;
                     }
                 }
             }
 
-            if ($speedKm > $stats['max_speed']) $stats['max_speed'] = $speedKm;
-            if ($speedKm > 5) { $speedSum += $speedKm; $speedCount++; }
+            // Actualizamos el último punto para la siguiente iteración
             $lastPos = $pos;
         }
 
+        // Promedio
         $stats['avg_speed'] = $speedCount > 0 ? round($speedSum / $speedCount) : 0;
         $stats['distance_km'] = round($stats['distance_km'], 2);
         
+        // Formateo para la vista
         return [
             'move_str' => $this->secondsToTime($stats['move_time']),
-            'stop_str' => $this->secondsToTime($stats['stop_time']),
+            'stop_str' => $this->secondsToTime($stats['stop_time']), // Ralentí
             'off_str'  => $this->secondsToTime($stats['off_time']),
             'total_engine_str' => $this->secondsToTime($stats['move_time'] + $stats['stop_time']),
             'distance' => $stats['distance_km'],
