@@ -139,20 +139,20 @@
             </div>
 
             <div class="mt-6">
-                <h3 class="px-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-800 pb-1 mb-2">Administración</h3>
-                
-                <a href="{{ route('admin.config.plans.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white {{ request()->routeIs('admin.config.plans.*') ? 'active' : '' }}">
-                    <span class="mr-3">💰</span> Planes de Facturación
-                </a>
-                
-                <a href="#" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-400 hover:bg-gray-800 hover:text-white">
-                    <span class="mr-3">🧾</span> Facturación
-                </a>
+    <h3 class="px-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-800 pb-1 mb-2">Administración</h3>
+    
+    <a href="{{ route('admin.config.plans.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white {{ request()->routeIs('admin.config.plans.*') ? 'active' : '' }}">
+        <span class="mr-3">💰</span> Planes de Facturación
+    </a>
+    
+    <a href="{{ route('admin.invoices.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white {{ request()->routeIs('admin.invoices.*') ? 'active' : '' }}">
+        <span class="mr-3">🧾</span> Facturación
+    </a>
 
-                <a href="#" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-400 hover:bg-gray-800 hover:text-white">
-                    <span class="mr-3">💳</span> Pagos y Tasas
-                </a>
-            </div>
+    <a href="{{ route('admin.finance.index') }}" class="nav-link group flex items-center px-4 py-2 text-sm font-medium rounded-md text-gray-300 hover:bg-gray-800 hover:text-white {{ request()->routeIs('admin.finance.*') ? 'active' : '' }}">
+        <span class="mr-3">💳</span> Pagos y Tasas
+    </a>
+</div>
 
             <div class="mt-6 mb-10">
                 <h3 class="px-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest border-b border-gray-800 pb-1 mb-2">Configuración</h3>
