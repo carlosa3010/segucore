@@ -181,12 +181,6 @@
         </div>
     @endif
 </div>
-                    @else
-                        <div class="p-8 text-center text-gray-500 border-2 border-dashed border-gray-800 m-4 rounded">
-                            Sin dispositivos GPS asignados.
-                        </div>
-                    @endif
-                </div>
             </div>
 
         </div>
