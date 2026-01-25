@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\MonitoringController;
 use App\Http\Controllers\PublicReportController;
-use App\Http\Controllers\ClientPortalController; // <--- NUEVO CONTROLADOR CLIENTE
+use App\Http\Controllers\ClientPortalController;
 
 // Controladores del Panel Admin
 use App\Http\Controllers\Admin\DashboardController;
@@ -25,6 +25,7 @@ use App\Http\Controllers\Admin\PatrolController;
 use App\Http\Controllers\Admin\GuardController;
 use App\Http\Controllers\Admin\SecurityMapController;
 use App\Http\Controllers\Admin\GeneralSettingController;
+use App\Http\Controllers\Admin\InvoiceController; // <--- AGREGADO: Para evitar error en vista clientes
 
 /*
 |==========================================================================
@@ -47,7 +48,7 @@ Route::domain('segusmart24.com')->group(function () {
 |==========================================================================
 | 2. SUBDOMINIO ADMIN (admin.segusmart24.com)
 |==========================================================================
-| Panel de Gestión completo (Lo que ya tenías, ahora encapsulado)
+| Panel de Gestión completo
 */
 Route::domain('admin.segusmart24.com')->group(function () {
 
@@ -69,7 +70,7 @@ Route::domain('admin.segusmart24.com')->group(function () {
         Route::resource('customers', CustomerController::class);
         Route::post('customers/{id}/toggle-status', [CustomerController::class, 'toggleStatus'])->name('customers.toggle-status');
         
-        // Contactos de Clientes
+        // Contactos de Clientes (Rutas requeridas por la vista Show)
         Route::post('customers/{id}/contacts', [CustomerController::class, 'storeContact'])->name('customers.contacts.store');
         Route::put('contacts/{id}', [CustomerController::class, 'updateContact'])->name('contacts.update');
         Route::delete('contacts/{id}', [CustomerController::class, 'destroyContact'])->name('contacts.destroy');
@@ -171,13 +172,16 @@ Route::domain('admin.segusmart24.com')->group(function () {
         // 10. ALERTAS
         Route::get('alerts', [DeviceAlertController::class, 'index'])->name('alerts.index');
 
-        // 11. SEGURIDAD FÍSICA (PATRULLAS, GUARDIAS Y MAPA TÁCTICO)
+        // 11. SEGURIDAD FÍSICA
         Route::resource('patrols', PatrolController::class);
         Route::resource('guards', GuardController::class);
         
-        // Mapa Táctico Operativo (Unifica GPS + Guardias App)
+        // Mapa Táctico Operativo
         Route::get('security-map', [SecurityMapController::class, 'index'])->name('security.map.index');
         Route::get('security-map/data', [SecurityMapController::class, 'positions'])->name('security.map.data');
+
+        // 12. FACTURACIÓN (AGREGADO PARA EVITAR FALLOS EN VISTA CLIENTE)
+        Route::resource('invoices', InvoiceController::class);
     });
 });
 
@@ -211,22 +215,18 @@ Route::domain('cliente.segusmart24.com')->group(function () {
 
 /*
 |==========================================================================
-| 4. VIDEO WALL - MAPA TÁCTICO (map.segusmart24.com)
+| 4. VIDEO WALL - MAPA TÁCTICO
 |==========================================================================
-| Acceso Protegido por Token (?key=...)
 */
 Route::domain('map.segusmart24.com')->middleware('video.wall')->group(function () {
     Route::get('/', [MonitoringController::class, 'map'])->name('monitor.map');
-    
-    // API para actualización en tiempo real del mapa de video wall
     Route::get('/api/live-events', [MonitoringController::class, 'getLiveEvents'])->name('api.live-events');
 });
 
 /*
 |==========================================================================
-| 5. VIDEO WALL - DASHBOARD GRID (panel.segusmart24.com)
+| 5. VIDEO WALL - DASHBOARD GRID
 |==========================================================================
-| Acceso Protegido por Token (?key=...)
 */
 Route::domain('panel.segusmart24.com')->middleware('video.wall')->group(function () {
     Route::get('/', [MonitoringController::class, 'index'])->name('monitor.index');
