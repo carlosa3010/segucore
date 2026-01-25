@@ -3,43 +3,59 @@
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class GpsAlertNotification extends Notification
+class GpsAlertNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    protected $alertData;
+    protected $data;
 
-    public function __construct($alertData)
+    /**
+     * Create a new notification instance.
+     * $data = ['device' => 'Toyota', 'msg' => 'Exceso velocidad', 'type' => 'overspeed']
+     */
+    public function __construct($data)
     {
-        // $alertData espera: ['device' => 'Nombre', 'type' => 'overspeed', 'msg' => '...']
-        $this->alertData = $alertData;
+        $this->data = $data;
     }
 
+    /**
+     * Get the notification's delivery channels.
+     */
     public function via($notifiable)
     {
-        // Aquí activas 'mail', y a futuro 'whatsapp' (vía Twilio o similar)
+        // 'database' guarda la alerta en la tabla notifications (para mostrar la campanita en el panel)
+        // 'mail' envía el correo
         return ['mail', 'database']; 
     }
 
+    /**
+     * Get the mail representation of the notification.
+     */
     public function toMail($notifiable)
     {
         return (new MailMessage)
-                    ->subject('🚨 Alerta de GPS: ' . $this->alertData['device'])
-                    ->greeting('Hola ' . $notifiable->name)
-                    ->line($this->alertData['msg'])
-                    ->action('Ver en Mapa', url('/cliente'))
-                    ->line('Hora del evento: ' . now()->format('H:i:s'));
+                    ->subject('🚨 Alerta GPS: ' . ($this->data['device'] ?? 'Dispositivo'))
+                    ->greeting('Hola ' . $notifiable->first_name)
+                    ->line('Se ha detectado una alerta en su unidad:')
+                    ->line('**' . $this->data['msg'] . '**')
+                    ->action('Ver en Mapa en Tiempo Real', url('/cliente'))
+                    ->line('Gracias por confiar en Segusmart24.');
     }
 
+    /**
+     * Get the array representation of the notification.
+     */
     public function toArray($notifiable)
     {
         return [
-            'message' => $this->alertData['msg'],
-            'type' => $this->alertData['type'],
-            'device' => $this->alertData['device']
+            'device' => $this->data['device'],
+            'message' => $this->data['msg'],
+            'type' => $this->data['type'],
+            'time' => now()->toIso8601String()
         ];
     }
 }
