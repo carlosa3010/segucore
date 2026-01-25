@@ -148,39 +148,8 @@
                 
                 <div class="p-0">
                     @if($customer->gpsDevices && $customer->gpsDevices->count() > 0)
-                        <div class="p-0">
-    @if($customer->gpsDevices && $customer->gpsDevices->count() > 0)
-        <table class="w-full text-sm text-left text-gray-400">
-            <thead class="text-xs text-gray-500 uppercase bg-gray-900/50">
-                <tr>
-                    <th class="px-6 py-3">Nombre / IMEI</th>
-                    <th class="px-6 py-3">Modelo</th>
-                    <th class="px-6 py-3 text-right">Acciones</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-700">
-                @foreach($customer->gpsDevices as $gps)
-                    <tr class="hover:bg-gray-800/50 transition">
-                        <td class="px-6 py-4">
-                            <div class="text-white font-bold">{{ $gps->name }}</div>
-                            <div class="text-xs font-mono">{{ $gps->imei }}</div>
-                        </td>
-                        <td class="px-6 py-4">{{ $gps->device_model ?? 'Genérico' }}</td>
-                        <td class="px-6 py-4 text-right">
-                             <a href="{{ route('admin.gps.devices.show', $gps->id) }}" class="text-blue-400 hover:text-white text-xs border border-blue-900 px-2 py-1 rounded">
-                                Ver 🛰️
-                            </a>
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-        @else
-        <div class="p-8 text-center text-gray-500 border-2 border-dashed border-gray-800 m-4 rounded">
-            Sin dispositivos GPS asignados.
-        </div>
-    @endif
-</div>
+                        <div class="p-4">
+                            </div>
                     @else
                         <div class="p-8 text-center text-gray-500 border-2 border-dashed border-gray-800 m-4 rounded">
                             Sin dispositivos GPS asignados.
