@@ -105,6 +105,13 @@ class AccountController extends Controller
         return view('admin.customers.accounts.show', compact('account'));
     }
 
+    // MÉTODO AGREGADO: Formulario de edición
+    public function edit($id)
+    {
+        $account = AlarmAccount::with('customer')->findOrFail($id);
+        return view('admin.customers.accounts.edit', compact('account'));
+    }
+
     public function update(Request $request, $id)
     {
         $account = AlarmAccount::findOrFail($id);
@@ -115,11 +122,20 @@ class AccountController extends Controller
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
             'device_model' => 'nullable|string|max:100',
+            'service_status' => 'required|in:active,suspended,inactive' // Validación agregada para el estado
         ]);
 
         $account->update($validated);
 
-        return back()->with('success', 'Datos del panel actualizados.');
+        // Auditoría de cambio
+        $account->logs()->create([
+            'user_id' => auth()->id() ?? 1,
+            'type' => 'note',
+            'content' => 'SISTEMA: Se actualizaron los datos principales de la cuenta.'
+        ]);
+
+        return redirect()->route('admin.accounts.show', $id)
+            ->with('success', 'Datos del panel actualizados.');
     }
 
     public function destroy($id)
