@@ -40,6 +40,7 @@ class GpsDeviceController extends Controller
 
         $devices = $query->orderBy('created_at', 'desc')->paginate(20);
 
+        // Pre-carga datos básicos de Traccar para la tabla
         $imeis = $devices->pluck('imei')->toArray();
         $traccarData = [];
         try {
@@ -284,12 +285,14 @@ class GpsDeviceController extends Controller
         }
     }
 
+    // --- GENERACIÓN DE PDF ---
     public function exportHistoryPdf(Request $request, $id)
     {
         $device = GpsDevice::with('customer', 'driver')->findOrFail($id);
         $tz = 'America/Caracas';
         $type = $request->input('report_type', 'detailed'); 
 
+        // Manejo de fechas igual que ClientPortal
         if ($request->filled('from') && $request->filled('to')) {
             $from = Carbon::parse($request->input('from'), $tz);
             $to = Carbon::parse($request->input('to'), $tz);
@@ -302,13 +305,15 @@ class GpsDeviceController extends Controller
         $positions = collect([]);
 
         if ($traccarDevice) {
+            // CORRECCIÓN: Selección explícita de columnas para asegurar que 'attributes' se cargue correctamente
+            // y consistencia con ClientPortalController
             $positions = TraccarPosition::where('deviceid', $traccarDevice->id)
                 ->whereBetween('fixtime', [
                     $from->copy()->setTimezone('UTC'), 
                     $to->copy()->setTimezone('UTC')
                 ])
                 ->orderBy('fixtime', 'asc')
-                ->get();
+                ->get(['fixtime', 'speed', 'attributes', 'latitude', 'longitude']);
         }
 
         if ($positions->isEmpty()) {
@@ -321,7 +326,7 @@ class GpsDeviceController extends Controller
         }
 
         if ($type === 'summary') {
-            // Calculamos estadísticas exactamente igual que en ClientPortal
+            // Usamos la misma lógica exacta del Portal Cliente
             $stats = $this->calculateStats($positions);
             
             $pdf = Pdf::loadView('admin.gps.devices.pdf_summary', [
@@ -334,7 +339,7 @@ class GpsDeviceController extends Controller
         }
     }
 
-    // --- FUNCIONES AUXILIARES CORREGIDAS (Iguales a ClientPortal) ---
+    // --- FUNCIONES AUXILIARES (EXACTAMENTE IGUALES A CLIENTPORTAL) ---
 
     private function calculateStats($positions) {
         $stats = [
@@ -347,17 +352,17 @@ class GpsDeviceController extends Controller
         foreach ($positions as $pos) {
             $speedKm = $pos->speed * 1.852;
             
-            // Decodificamos atributos de forma segura
+            // Decodificación segura de atributos
             $attrs = is_string($pos->attributes) ? json_decode($pos->attributes, true) : $pos->attributes;
+            // Aseguramos que attrs sea array por si es null
+            $attrs = $attrs ?? [];
             
-            // CORRECCIÓN: Usamos el estado del punto ACTUAL ($pos) para determinar qué hacer con el tiempo transcurrido.
-            // Esto alinea la lógica con el panel del cliente.
+            // Lógica idéntica al cliente: usa ignición del punto actual
             $ignition = $attrs['ignition'] ?? false;
             
             if ($lastPos) {
                 $timeDiff = Carbon::parse($pos->fixtime)->diffInSeconds(Carbon::parse($lastPos->fixtime));
                 
-                // Solo sumamos tiempos si el salto es razonable (< 1 hora) para evitar distorsiones por pérdida de señal
                 if ($timeDiff < 3600) {
                     $dist = isset($attrs['distance']) ? $attrs['distance'] : $this->calculateDistance($lastPos->latitude, $lastPos->longitude, $pos->latitude, $pos->longitude);
                     $stats['distance_km'] += ($dist / 1000);
