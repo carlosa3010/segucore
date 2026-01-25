@@ -80,9 +80,32 @@
 
     <div class="flex-1 relative bg-gray-900">
         <div id="map"></div>
-        <button id="close-history-btn" onclick="clearHistory()" class="hidden absolute top-4 right-4 z-[400] bg-white text-black font-bold px-4 py-2 rounded shadow-lg hover:bg-gray-200 text-xs">
-            <i class="fas fa-times mr-1"></i> CERRAR RUTA
+        
+        <button id="close-history-btn" onclick="clearHistory()" class="hidden absolute top-4 right-4 z-[400] bg-white text-black font-bold px-4 py-2 rounded shadow-lg hover:bg-gray-200 text-xs flex items-center gap-2">
+            <i class="fas fa-times text-red-500"></i> LIMPIAR RUTA
         </button>
+
+        <div id="history-legend" class="hidden absolute bottom-8 right-4 z-[400] bg-gray-900/90 p-3 rounded-lg border border-gray-700 text-xs text-gray-300 shadow-2xl backdrop-blur w-40">
+            <h5 class="font-bold text-white mb-2 border-b border-gray-700 pb-1 text-center uppercase tracking-wider">Leyenda</h5>
+            <div class="space-y-1.5">
+                <div class="flex items-center gap-2">
+                    <span class="w-3 h-3 rounded-full bg-black border border-gray-500 shadow shadow-white/10"></span> 
+                    <span>Detenido (0 km)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-8 h-1.5 rounded-full bg-green-500"></span> 
+                    <span>1 - 40 km/h</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-8 h-1.5 rounded-full bg-yellow-500"></span> 
+                    <span>40 - 80 km/h</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-8 h-1.5 rounded-full bg-red-600"></span> 
+                    <span>+80 km/h</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div id="modal-overlay" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center backdrop-blur-sm p-4">
@@ -96,18 +119,18 @@
 
     <script>
         const map = L.map('map', { zoomControl: false }).setView([10.4806, -66.9036], 6);
+        // Mapa base claro para buen contraste con las rutas de colores
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '', maxZoom: 19 }).addTo(map);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
         let markers = {}; 
-        let historyLayer = L.layerGroup().addTo(map); // Capa para el historial
+        let historyLayer = L.layerGroup().addTo(map); 
 
-        // --- FUNCIONES GLOBALES (ACCESIBLES DESDE EL MODAL) ---
+        // --- FUNCIONES GLOBALES ---
 
-        // 1. Enviar Comando (Corte/Restaurar)
+        // 1. Enviar Comando
         window.sendCommand = function(deviceId, type) {
             if(!confirm('¿ATENCIÓN: Está seguro de enviar este comando al vehículo?')) return;
-
             const feedback = document.getElementById('command-feedback');
             feedback.innerHTML = '<span class="text-blue-400 animate-pulse"><i class="fas fa-satellite-dish"></i> Enviando...</span>';
 
@@ -124,12 +147,11 @@
                 if(data.success) {
                     feedback.innerHTML = '<span class="text-green-500 font-bold"><i class="fas fa-check"></i> ' + data.message + '</span>';
                 } else {
-                    feedback.innerHTML = '<span class="text-red-500 font-bold"><i class="fas fa-times"></i> Error: ' + (data.message || 'Fallo') + '</span>';
+                    feedback.innerHTML = '<span class="text-red-500 font-bold"><i class="fas fa-times"></i> ' + (data.message || 'Error') + '</span>';
                 }
             })
             .catch(err => {
-                console.error(err);
-                feedback.innerHTML = '<span class="text-red-500"><i class="fas fa-exclamation-triangle"></i> Error de conexión.</span>';
+                feedback.innerHTML = '<span class="text-red-500"><i class="fas fa-wifi"></i> Error de conexión.</span>';
             });
         };
 
@@ -140,7 +162,7 @@
             const end = document.getElementById('end_date').value;
             
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> BUSCANDO...';
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> CALCULANDO RUTA...';
 
             fetch(`/api/history/${deviceId}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`)
                 .then(res => res.json())
@@ -150,8 +172,8 @@
                     } else if(!data.positions || data.positions.length === 0) {
                         alert("No se encontraron datos de recorrido en este rango.");
                     } else {
-                        closeModal(); // Cerrar modal para ver el mapa
-                        drawHistory(data.positions);
+                        closeModal();
+                        drawHistoryAdvanced(data.positions);
                     }
                 })
                 .catch(err => {
@@ -166,43 +188,89 @@
                 });
         };
 
-        // 3. Dibujar Historial en Mapa
-        function drawHistory(positions) {
-            clearHistory(); // Limpiar anterior
+        // 3. DIBUJAR HISTORIAL MULTICOLOR
+        function drawHistoryAdvanced(positions) {
+            clearHistory(); // Limpiar mapa previo
             
             if(positions.length < 2) return;
 
-            // Crear array de coordenadas [lat, lng]
-            const latlngs = positions.map(p => [p.latitude, p.longitude]);
+            // Ajustar zoom a toda la ruta
+            const allPoints = positions.map(p => [p.latitude, p.longitude]);
+            map.fitBounds(L.polyline(allPoints).getBounds(), {padding: [50, 50]});
 
-            // Dibujar línea azul
-            const polyline = L.polyline(latlngs, {color: '#3B82F6', weight: 5, opacity: 0.8}).addTo(historyLayer);
-            
-            // Zoom a la ruta
-            map.fitBounds(polyline.getBounds(), {padding: [50, 50]});
+            // Iterar punto a punto para colorear segmentos
+            for (let i = 0; i < positions.length - 1; i++) {
+                let p1 = positions[i];
+                let p2 = positions[i+1];
+                
+                // Lógica de colores según velocidad
+                let color = '#3B82F6'; // Default
+                let speed = p1.speed;
 
-            // Marcador Inicio (Verde)
-            L.marker(latlngs[0], {
-                icon: L.divIcon({html: '<i class="fas fa-flag text-green-600 text-2xl shadow-white drop-shadow-md"></i>', className: 'bg-transparent'})
-            }).addTo(historyLayer).bindTooltip("Inicio: " + new Date(positions[0].device_time).toLocaleString());
+                if (speed === 0) color = '#000000';       // Detenido (Negro)
+                else if (speed < 40) color = '#10B981';   // Lento (Verde)
+                else if (speed < 80) color = '#EAB308';   // Normal (Amarillo)
+                else color = '#EF4444';                   // Rápido (Rojo)
 
-            // Marcador Fin (Rojo - Bandera a cuadros)
-            L.marker(latlngs[latlngs.length - 1], {
-                icon: L.divIcon({html: '<i class="fas fa-flag-checkered text-red-600 text-2xl shadow-white drop-shadow-md"></i>', className: 'bg-transparent'})
-            }).addTo(historyLayer).bindTooltip("Fin: " + new Date(positions[positions.length-1].device_time).toLocaleString());
+                // Dibujar línea entre punto A y B
+                L.polyline([[p1.latitude, p1.longitude], [p2.latitude, p2.longitude]], {
+                    color: color, 
+                    weight: 5, 
+                    opacity: 0.8,
+                    lineCap: 'round'
+                }).addTo(historyLayer).bindTooltip(
+                    `<div class="text-center font-sans">
+                        <b>${new Date(p1.device_time).toLocaleTimeString()}</b><br>
+                        Vel: ${speed} km/h
+                     </div>`, 
+                    { sticky: true, direction: 'top', className: 'bg-black text-white border-0' }
+                );
 
-            // Mostrar botón cerrar
+                // Si está detenido, agregar un punto marcador para que se note
+                if (speed === 0) {
+                    L.circleMarker([p1.latitude, p1.longitude], {
+                        radius: 3,
+                        color: '#000',
+                        fillColor: '#000',
+                        fillOpacity: 1
+                    }).addTo(historyLayer);
+                }
+            }
+
+            // Marcadores de Inicio (Play) y Fin (Bandera)
+            const startPos = positions[0];
+            const endPos = positions[positions.length - 1];
+
+            L.marker([startPos.latitude, startPos.longitude], {
+                icon: L.divIcon({
+                    html: '<div class="bg-green-500 text-white rounded-full p-1 w-8 h-8 flex items-center justify-center shadow-lg border-2 border-white"><i class="fas fa-play ml-1"></i></div>',
+                    className: 'bg-transparent',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 32]
+                })
+            }).addTo(historyLayer).bindPopup("<b>Inicio del Recorrido</b><br>" + new Date(startPos.device_time).toLocaleString());
+
+            L.marker([endPos.latitude, endPos.longitude], {
+                icon: L.divIcon({
+                    html: '<div class="bg-red-600 text-white rounded-full p-1 w-8 h-8 flex items-center justify-center shadow-lg border-2 border-white"><i class="fas fa-flag-checkered"></i></div>',
+                    className: 'bg-transparent',
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 32]
+                })
+            }).addTo(historyLayer).bindPopup("<b>Fin del Recorrido</b><br>" + new Date(endPos.device_time).toLocaleString());
+
+            // Mostrar controles
             document.getElementById('close-history-btn').classList.remove('hidden');
+            document.getElementById('history-legend').classList.remove('hidden');
         }
 
         window.clearHistory = function() {
             historyLayer.clearLayers();
             document.getElementById('close-history-btn').classList.add('hidden');
-            // Resetear zoom al general si se desea
-            // map.setView([10.4806, -66.9036], 6);
+            document.getElementById('history-legend').classList.add('hidden');
         };
 
-        // --- LÓGICA CORE (Carga de activos) ---
+        // --- CARGA DE ACTIVOS ---
         function loadAssets() {
             fetch('{{ route("client.api.assets") }}')
                 .then(r => r.json())
