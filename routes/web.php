@@ -208,12 +208,9 @@ Route::domain('cliente.segusmart24.com')->group(function () {
         // APIs y Modales
         Route::get('/api/assets', [ClientPortalController::class, 'getAssets'])->name('client.api.assets');
         
-        // --- ALERTAS ---
+        // --- NUEVA RUTA DE ALERTAS ---
         Route::get('/api/alerts', [ClientPortalController::class, 'getLatestAlerts'])->name('client.api.alerts');
-        
-        // --- HISTORIAL DE RASTREO (NUEVO) ---
-        Route::get('/api/history/{id}', [ClientPortalController::class, 'getHistory'])->name('client.api.history');
-        // ------------------------------------
+        // -----------------------------
 
         Route::get('/modal/alarm/{id}', [ClientPortalController::class, 'modalAlarm'])->name('client.modal.alarm');
         Route::get('/modal/gps/{id}', [ClientPortalController::class, 'modalGps'])->name('client.modal.gps');
