@@ -30,14 +30,14 @@ class Customer extends Model
     ];
 
     // Accessor para obtener el nombre completo o razón social
-    protected function name(): Attribute
-    {
-        return Attribute::make(
-            get: fn ($value, $attributes) => !empty($attributes['business_name']) 
-                ? $attributes['business_name'] 
-                : trim(($attributes['first_name'] ?? '') . ' ' . ($attributes['last_name'] ?? ''))
-        );
-    }
+    protected function fullName(): Attribute
+{
+    return Attribute::make(
+        get: fn ($value, $attributes) => !empty($attributes['business_name']) 
+            ? $attributes['business_name'] 
+            : trim(($attributes['first_name'] ?? '') . ' ' . ($attributes['last_name'] ?? ''))
+    );
+}
 
     // Relaciones
     public function users() { return $this->hasMany(User::class); }
