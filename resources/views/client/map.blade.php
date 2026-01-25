@@ -81,36 +81,30 @@
     <div class="flex-1 relative bg-gray-900">
         <div id="map"></div>
         
-        <button id="close-history-btn" onclick="clearHistory()" class="hidden absolute top-4 right-4 z-[400] bg-white text-black font-bold px-4 py-2 rounded shadow-lg hover:bg-gray-200 text-xs flex items-center gap-2">
-            <i class="fas fa-times text-red-500"></i> LIMPIAR RUTA
-        </button>
+        <div id="map-controls" class="hidden absolute top-4 right-4 z-[400] flex flex-col gap-2 items-end">
+            
+            <a id="btn-pdf-map" href="#" target="_blank" class="bg-red-600 text-white font-bold px-4 py-2 rounded shadow-lg hover:bg-red-500 text-xs flex items-center gap-2 transition transform hover:scale-105">
+                <i class="fas fa-file-pdf text-base"></i> DESCARGAR REPORTE
+            </a>
+
+            <button onclick="clearHistory()" class="bg-white text-black font-bold px-4 py-2 rounded shadow-lg hover:bg-gray-200 text-xs flex items-center gap-2 transition">
+                <i class="fas fa-times text-red-500"></i> LIMPIAR RUTA
+            </button>
+        </div>
 
         <div id="history-legend" class="hidden absolute bottom-8 right-4 z-[400] bg-gray-900/90 p-3 rounded-lg border border-gray-700 text-xs text-gray-300 shadow-2xl backdrop-blur w-40">
             <h5 class="font-bold text-white mb-2 border-b border-gray-700 pb-1 text-center uppercase tracking-wider">Leyenda</h5>
             <div class="space-y-1.5">
-                <div class="flex items-center gap-2">
-                    <span class="w-3 h-3 rounded-full bg-black border border-gray-500 shadow shadow-white/10"></span> 
-                    <span>Detenido (0 km)</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="w-8 h-1.5 rounded-full bg-green-500"></span> 
-                    <span>1 - 40 km/h</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="w-8 h-1.5 rounded-full bg-yellow-500"></span> 
-                    <span>40 - 80 km/h</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span class="w-8 h-1.5 rounded-full bg-red-600"></span> 
-                    <span>+80 km/h</span>
-                </div>
+                <div class="flex items-center gap-2"><span class="w-3 h-3 rounded-full bg-black border border-gray-500"></span> <span>Detenido</span></div>
+                <div class="flex items-center gap-2"><span class="w-8 h-1.5 rounded-full bg-green-500"></span> <span>1-40 km/h</span></div>
+                <div class="flex items-center gap-2"><span class="w-8 h-1.5 rounded-full bg-yellow-500"></span> <span>40-80 km/h</span></div>
+                <div class="flex items-center gap-2"><span class="w-8 h-1.5 rounded-full bg-red-600"></span> <span>+80 km/h</span></div>
             </div>
         </div>
     </div>
 
     <div id="modal-overlay" class="fixed inset-0 bg-black/80 z-50 hidden flex items-center justify-center backdrop-blur-sm p-4">
-        <div id="modal-content" class="bg-gray-900 border border-gray-700 w-full max-w-2xl rounded-lg shadow-2xl overflow-hidden transform scale-95 opacity-0 transition-all duration-200 min-h-[200px]">
-            </div>
+        <div id="modal-content" class="bg-gray-900 border border-gray-700 w-full max-w-2xl rounded-lg shadow-2xl overflow-hidden transform scale-95 opacity-0 transition-all duration-200 min-h-[200px]"></div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -119,7 +113,6 @@
 
     <script>
         const map = L.map('map', { zoomControl: false }).setView([10.4806, -66.9036], 6);
-        // Mapa base claro para buen contraste con las rutas de colores
         L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '', maxZoom: 19 }).addTo(map);
         L.control.zoom({ position: 'bottomright' }).addTo(map);
 
@@ -128,221 +121,140 @@
 
         // --- FUNCIONES GLOBALES ---
 
-        // 1. Enviar Comando
         window.sendCommand = function(deviceId, type) {
-            if(!confirm('¿ATENCIÓN: Está seguro de enviar este comando al vehículo?')) return;
+            if(!confirm('¿ATENCIÓN: Está seguro de enviar este comando?')) return;
             const feedback = document.getElementById('command-feedback');
-            feedback.innerHTML = '<span class="text-blue-400 animate-pulse"><i class="fas fa-satellite-dish"></i> Enviando...</span>';
+            feedback.innerHTML = '<span class="text-blue-400 animate-pulse">Enviando...</span>';
 
             fetch(`/api/device/${deviceId}/command`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                },
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
                 body: JSON.stringify({ type: type })
             })
-            .then(res => res.json())
-            .then(data => {
-                if(data.success) {
-                    feedback.innerHTML = '<span class="text-green-500 font-bold"><i class="fas fa-check"></i> ' + data.message + '</span>';
-                } else {
-                    feedback.innerHTML = '<span class="text-red-500 font-bold"><i class="fas fa-times"></i> ' + (data.message || 'Error') + '</span>';
-                }
-            })
-            .catch(err => {
-                feedback.innerHTML = '<span class="text-red-500"><i class="fas fa-wifi"></i> Error de conexión.</span>';
-            });
+            .then(r => r.json())
+            .then(d => feedback.innerHTML = d.success ? '<span class="text-green-500 font-bold">Éxito</span>' : '<span class="text-red-500">Error</span>')
+            .catch(() => feedback.innerHTML = '<span class="text-red-500">Error Red</span>');
         };
 
-        // 2. Consultar Historial
         window.fetchHistory = function(deviceId) {
             const btn = document.getElementById('btn-history');
             const start = document.getElementById('start_date').value;
             const end = document.getElementById('end_date').value;
             
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> CALCULANDO RUTA...';
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> CARGANDO...';
 
             fetch(`/api/history/${deviceId}?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`)
-                .then(res => res.json())
+                .then(r => r.json())
                 .then(data => {
-                    if(data.error) {
-                        alert(data.error);
-                    } else if(!data.positions || data.positions.length === 0) {
-                        alert("No se encontraron datos de recorrido en este rango.");
-                    } else {
+                    if(data.error) { alert(data.error); }
+                    else if(!data.positions || data.positions.length === 0) { alert("Sin datos."); }
+                    else {
                         closeModal();
                         drawHistoryAdvanced(data.positions);
+                        // ACTIVAR BOTÓN PDF EN EL MAPA
+                        updatePdfButton(deviceId, start, end);
                     }
                 })
-                .catch(err => {
-                    console.error(err);
-                    alert("Error obteniendo el historial.");
-                })
-                .finally(() => {
-                    if(btn) {
-                        btn.disabled = false;
-                        btn.innerHTML = '<i class="fas fa-search-location"></i> CONSULTAR RUTA';
-                    }
-                });
+                .catch(e => alert("Error al cargar historial."))
+                .finally(() => { if(btn) { btn.disabled = false; btn.innerHTML = 'CONSULTAR RUTA'; }});
         };
 
-        // 3. DIBUJAR HISTORIAL MULTICOLOR
+        function updatePdfButton(deviceId, start, end) {
+            const btn = document.getElementById('btn-pdf-map');
+            btn.href = `/api/history/${deviceId}/pdf?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`;
+        }
+
         function drawHistoryAdvanced(positions) {
-            clearHistory(); // Limpiar mapa previo
-            
+            clearHistory();
             if(positions.length < 2) return;
 
-            // Ajustar zoom a toda la ruta
             const allPoints = positions.map(p => [p.latitude, p.longitude]);
             map.fitBounds(L.polyline(allPoints).getBounds(), {padding: [50, 50]});
 
-            // Iterar punto a punto para colorear segmentos
             for (let i = 0; i < positions.length - 1; i++) {
                 let p1 = positions[i];
                 let p2 = positions[i+1];
+                let color = p1.speed === 0 ? '#000' : (p1.speed < 40 ? '#10B981' : (p1.speed < 80 ? '#EAB308' : '#EF4444'));
+
+                L.polyline([[p1.latitude, p1.longitude], [p2.latitude, p2.longitude]], { color: color, weight: 5, opacity: 0.8 }).addTo(historyLayer)
+                 .bindTooltip(`Vel: ${p1.speed} km/h<br>${new Date(p1.device_time).toLocaleTimeString()}`, { sticky: true });
                 
-                // Lógica de colores según velocidad
-                let color = '#3B82F6'; // Default
-                let speed = p1.speed;
-
-                if (speed === 0) color = '#000000';       // Detenido (Negro)
-                else if (speed < 40) color = '#10B981';   // Lento (Verde)
-                else if (speed < 80) color = '#EAB308';   // Normal (Amarillo)
-                else color = '#EF4444';                   // Rápido (Rojo)
-
-                // Dibujar línea entre punto A y B
-                L.polyline([[p1.latitude, p1.longitude], [p2.latitude, p2.longitude]], {
-                    color: color, 
-                    weight: 5, 
-                    opacity: 0.8,
-                    lineCap: 'round'
-                }).addTo(historyLayer).bindTooltip(
-                    `<div class="text-center font-sans">
-                        <b>${new Date(p1.device_time).toLocaleTimeString()}</b><br>
-                        Vel: ${speed} km/h
-                     </div>`, 
-                    { sticky: true, direction: 'top', className: 'bg-black text-white border-0' }
-                );
-
-                // Si está detenido, agregar un punto marcador para que se note
-                if (speed === 0) {
-                    L.circleMarker([p1.latitude, p1.longitude], {
-                        radius: 3,
-                        color: '#000',
-                        fillColor: '#000',
-                        fillOpacity: 1
-                    }).addTo(historyLayer);
-                }
+                if (p1.speed === 0) L.circleMarker([p1.latitude, p1.longitude], { radius: 2, color: '#000' }).addTo(historyLayer);
             }
 
-            // Marcadores de Inicio (Play) y Fin (Bandera)
-            const startPos = positions[0];
-            const endPos = positions[positions.length - 1];
+            // Marcadores Inicio/Fin
+            L.marker([positions[0].latitude, positions[0].longitude], { icon: createIcon('green', 'play') }).addTo(historyLayer);
+            L.marker([positions[positions.length-1].latitude, positions[positions.length-1].longitude], { icon: createIcon('red', 'flag-checkered') }).addTo(historyLayer);
 
-            L.marker([startPos.latitude, startPos.longitude], {
-                icon: L.divIcon({
-                    html: '<div class="bg-green-500 text-white rounded-full p-1 w-8 h-8 flex items-center justify-center shadow-lg border-2 border-white"><i class="fas fa-play ml-1"></i></div>',
-                    className: 'bg-transparent',
-                    iconSize: [32, 32],
-                    iconAnchor: [16, 32]
-                })
-            }).addTo(historyLayer).bindPopup("<b>Inicio del Recorrido</b><br>" + new Date(startPos.device_time).toLocaleString());
-
-            L.marker([endPos.latitude, endPos.longitude], {
-                icon: L.divIcon({
-                    html: '<div class="bg-red-600 text-white rounded-full p-1 w-8 h-8 flex items-center justify-center shadow-lg border-2 border-white"><i class="fas fa-flag-checkered"></i></div>',
-                    className: 'bg-transparent',
-                    iconSize: [32, 32],
-                    iconAnchor: [16, 32]
-                })
-            }).addTo(historyLayer).bindPopup("<b>Fin del Recorrido</b><br>" + new Date(endPos.device_time).toLocaleString());
-
-            // Mostrar controles
-            document.getElementById('close-history-btn').classList.remove('hidden');
+            document.getElementById('map-controls').classList.remove('hidden');
             document.getElementById('history-legend').classList.remove('hidden');
+        }
+
+        function createIcon(color, icon) {
+            return L.divIcon({
+                html: `<div class="bg-${color}-600 text-white rounded-full p-1 w-8 h-8 flex items-center justify-center shadow border-2 border-white"><i class="fas fa-${icon}"></i></div>`,
+                className: 'bg-transparent', iconSize: [32, 32], iconAnchor: [16, 32]
+            });
         }
 
         window.clearHistory = function() {
             historyLayer.clearLayers();
-            document.getElementById('close-history-btn').classList.add('hidden');
+            document.getElementById('map-controls').classList.add('hidden');
             document.getElementById('history-legend').classList.add('hidden');
         };
 
         // --- CARGA DE ACTIVOS ---
         function loadAssets() {
-            fetch('{{ route("client.api.assets") }}')
-                .then(r => r.json())
-                .then(data => {
-                    renderList(data.assets);
-                    renderMap(data.assets);
-                })
-                .catch(e => console.error(e));
+            fetch('{{ route("client.api.assets") }}').then(r => r.json()).then(d => {
+                renderList(d.assets); renderMap(d.assets);
+            });
         }
 
         function renderList(assets) {
-            const container = document.getElementById('assets-list');
-            container.innerHTML = '';
-            if(assets.length === 0) {
-                container.innerHTML = '<p class="text-center text-gray-600 text-xs mt-4">Sin activos.</p>'; return;
-            }
-            assets.forEach(asset => {
-                const el = document.createElement('div');
-                let icon = asset.type === 'alarm' ? 'fa-shield-alt' : 'fa-car'; 
-                let color = (asset.status === 'online' || asset.status === 'armed') ? 'text-green-500' : 'text-gray-500';
-                if(asset.status === 'alarm') color = 'text-red-500 animate-pulse';
-
-                el.className = "bg-gray-900 p-3 rounded border border-gray-800 hover:border-gray-600 cursor-pointer transition flex items-center justify-between group hover:bg-gray-800";
-                el.innerHTML = `
-                    <div class="flex items-center gap-3 overflow-hidden">
-                        <div class="${color} w-8 text-center text-lg"><i class="fas ${icon}"></i></div>
-                        <div class="min-w-0">
-                            <h4 class="text-sm font-bold text-gray-300 group-hover:text-white truncate">${asset.name}</h4>
-                            <p class="text-[10px] text-gray-500 truncate capitalize">${asset.type === 'gps' ? (asset.speed + ' km/h') : asset.status}</p>
-                        </div>
-                    </div>`;
-                el.onclick = () => { if(asset.lat) map.flyTo([asset.lat, asset.lng], 16); };
-                container.appendChild(el);
+            const c = document.getElementById('assets-list'); c.innerHTML = '';
+            assets.forEach(a => {
+                let color = (a.status === 'online' || a.status === 'armed') ? 'text-green-500' : 'text-gray-500';
+                if(a.status === 'alarm') color = 'text-red-500 animate-pulse';
+                const div = document.createElement('div');
+                div.className = "bg-gray-900 p-3 rounded border border-gray-800 hover:border-gray-600 cursor-pointer transition flex justify-between group";
+                div.innerHTML = `<div class="flex gap-3"><div class="${color}"><i class="fas ${a.type==='alarm'?'fa-shield-alt':'fa-car'}"></i></div><div><h4 class="text-sm font-bold text-gray-300 group-hover:text-white">${a.name}</h4><p class="text-[10px] text-gray-500">${a.last_update}</p></div></div>`;
+                div.onclick = () => { if(a.lat) map.flyTo([a.lat, a.lng], 16); };
+                c.appendChild(div);
             });
         }
 
         function renderMap(assets) {
-            assets.forEach(asset => {
-                if(!asset.lat) return;
-                let key = `${asset.type}_${asset.id}`;
-                let html = asset.type === 'alarm' 
-                    ? `<div style="font-size:30px; color:${asset.status === 'armed'?'#10B981':'#6B7280'}; text-align:center; filter:drop-shadow(0 2px 2px rgba(0,0,0,0.5))"><i class="fas fa-shield-alt"></i></div>`
-                    : `<div style="font-size:26px; color:${asset.speed > 0?'#3B82F6':'#9CA3AF'}; transform:rotate(${asset.course}deg); text-align:center; filter:drop-shadow(0 2px 2px rgba(0,0,0,0.5))"><i class="fas fa-location-arrow"></i></div>`;
+            assets.forEach(a => {
+                if(!a.lat) return;
+                let key = `${a.type}_${a.id}`;
+                // Iconos simples para evitar problemas de render
+                let html = a.type === 'alarm' 
+                    ? `<div style="font-size:30px; color:${a.status==='armed'?'#10B981':'#6B7280'}"><i class="fas fa-shield-alt"></i></div>`
+                    : `<div style="font-size:24px; color:${a.speed>0?'#3B82F6':'#9CA3AF'}; transform:rotate(${a.course}deg)"><i class="fas fa-location-arrow"></i></div>`;
+                
+                let icon = L.divIcon({ className: 'bg-transparent', html: html, iconSize: [30,30], iconAnchor: [15,15] });
 
-                let icon = L.divIcon({ className: 'bg-transparent', html: html, iconSize: [40,40], iconAnchor: [20,20] });
-
-                if(markers[key]) markers[key].setLatLng([asset.lat, asset.lng]).setIcon(icon);
+                if(markers[key]) markers[key].setLatLng([a.lat, a.lng]).setIcon(icon);
                 else {
-                    let m = L.marker([asset.lat, asset.lng], {icon: icon}).addTo(map);
-                    m.on('click', () => openModal(asset.type, asset.id));
+                    let m = L.marker([a.lat, a.lng], {icon: icon}).addTo(map);
+                    m.on('click', () => openModal(a.type, a.id));
                     markers[key] = m;
                 }
             });
         }
 
-        // --- GESTIÓN DE MODALES ---
+        // --- MODALES ---
         function openModal(type, id) {
             const overlay = document.getElementById('modal-overlay');
             const content = document.getElementById('modal-content');
             overlay.classList.remove('hidden');
             setTimeout(() => { content.classList.remove('scale-95', 'opacity-0'); content.classList.add('scale-100', 'opacity-100'); }, 10);
-            
             content.innerHTML = '<div class="p-12 text-center"><i class="fas fa-circle-notch fa-spin text-3xl text-blue-500"></i></div>';
-
-            fetch(`/modal/${type}/${id}`)
-                .then(r => r.text())
-                .then(html => {
-                    content.innerHTML = html;
-                    if(document.querySelector('.datepicker')) {
-                        flatpickr(".datepicker", { enableTime: true, dateFormat: "Y-m-d H:i", locale: "es", theme: "dark" });
-                    }
-                });
+            fetch(`/modal/${type}/${id}`).then(r => r.text()).then(html => {
+                content.innerHTML = html;
+                if(document.querySelector('.datepicker')) flatpickr(".datepicker", { enableTime: true, dateFormat: "Y-m-d H:i", locale: "es", theme: "dark" });
+            });
         }
 
         window.closeModal = function() {
@@ -357,14 +269,10 @@
         function loadAlerts() {
             fetch('{{ route("client.api.alerts") }}').then(r=>r.json()).then(d=>{
                 const c=document.getElementById('alerts-content'); c.innerHTML='';
-                if(d.length){ 
-                    document.getElementById('alert-badge').classList.remove('hidden');
-                    d.forEach(a=>c.innerHTML+=`<div class="bg-gray-800 p-3 rounded border-l-2 border-red-500 text-sm"><strong class="text-red-400">${a.device}</strong><br><span class="text-gray-300">${a.message}</span><div class="text-xs text-right text-gray-500">${a.time}</div></div>`);
-                }
+                if(d.length) { document.getElementById('alert-badge').classList.remove('hidden'); d.forEach(a=>c.innerHTML+=`<div class="bg-gray-800 p-3 mb-2 rounded border-l-2 border-red-500 text-sm"><strong class="text-red-400">${a.device}</strong><br><span class="text-gray-300">${a.message}</span></div>`); }
             });
         }
 
-        // Init
         setInterval(loadAssets, 10000); loadAssets(); loadAlerts();
     </script>
 </body>
