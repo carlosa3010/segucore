@@ -8,14 +8,21 @@ use App\Models\AlarmAccount;
 use App\Models\GpsDevice;
 use App\Models\Invoice;
 use App\Models\DeviceAlert;
-use App\Models\TraccarPosition; // Asegúrate de tener este modelo o ajustar la consulta
+use App\Models\TraccarPosition;
+use App\Services\TraccarApiService; // Importamos el servicio real
 use Carbon\Carbon;
 
 class ClientPortalController extends Controller
 {
-    /**
-     * Vista Principal (Mapa)
-     */
+    protected $traccarService;
+
+    // Inyectamos el servicio en el constructor si lo prefieres, 
+    // o lo instanciamos directamente en el método.
+    public function __construct(TraccarApiService $traccarService)
+    {
+        $this->traccarService = $traccarService;
+    }
+
     public function index()
     {
         $user = Auth::user();
@@ -25,9 +32,6 @@ class ClientPortalController extends Controller
         return view('client.map', ['user' => $user]);
     }
 
-    /**
-     * API: Obtener todos los activos (Alarmas + GPS)
-     */
     public function getAssets()
     {
         $user = Auth::user();
@@ -79,51 +83,47 @@ class ClientPortalController extends Controller
         return response()->json(['assets' => $assets]);
     }
 
-    /**
-     * API: Historial de Recorrido
-     */
     public function getHistory(Request $request, $id)
     {
         $user = Auth::user();
         
-        // Validar propiedad del dispositivo
         $device = GpsDevice::where('id', $id)
             ->where('customer_id', $user->customer_id)
             ->first();
 
         if (!$device) return response()->json(['error' => 'Dispositivo no encontrado'], 404);
 
+        // Validación: El dispositivo debe estar vinculado a Traccar para tener historial
+        if (!$device->traccar_device_id) {
+            return response()->json(['error' => 'Este dispositivo no está sincronizado con el servidor de rastreo.'], 400);
+        }
+
         $start = Carbon::parse($request->start);
         $end = Carbon::parse($request->end);
 
-        // Limitación de seguridad
         if ($start->diffInDays($end) > 3) {
             return response()->json(['error' => 'El rango máximo de consulta es de 3 días.'], 400);
         }
 
-        // Obtener posiciones (Ajusta 'traccar_device_id' según tu DB)
-        // Si no usas Traccar directo, aquí iría tu lógica de historial
+        // Consulta optimizada seleccionando solo columnas necesarias
         $positions = TraccarPosition::where('device_id', $device->traccar_device_id)
             ->whereBetween('device_time', [$start, $end])
             ->orderBy('device_time', 'asc')
-            ->get(['latitude', 'longitude', 'speed', 'device_time', 'course']);
+            ->select(['latitude', 'longitude', 'speed', 'device_time', 'course'])
+            ->get(); //
 
         return response()->json(['positions' => $positions]);
     }
 
-    /**
-     * API: Últimas Alertas
-     */
     public function getLatestAlerts()
     {
         $user = Auth::user();
         if (!$user->customer_id) return response()->json([]);
 
-        // Obtener IDs de mis dispositivos GPS
         $deviceIds = GpsDevice::where('customer_id', $user->customer_id)->pluck('id');
 
         $alerts = DeviceAlert::whereIn('gps_device_id', $deviceIds)
-            ->where('created_at', '>=', now()->subHours(48)) // Últimas 48 horas
+            ->where('created_at', '>=', now()->subHours(48))
             ->with('device:id,name')
             ->orderBy('created_at', 'desc')
             ->take(20)
@@ -132,7 +132,7 @@ class ClientPortalController extends Controller
                 return [
                     'id' => $alert->id,
                     'device' => $alert->device->name,
-                    'message' => $alert->message, // Ej: "Exceso de velocidad"
+                    'message' => $alert->message,
                     'time' => $alert->created_at->diffForHumans(),
                     'type' => $alert->type
                 ];
@@ -142,7 +142,7 @@ class ClientPortalController extends Controller
     }
 
     /**
-     * API: Enviar Comandos (Corte/Restaurar)
+     * ENVÍO DE COMANDOS REAL (CONECTADO)
      */
     public function sendCommand(Request $request, $id)
     {
@@ -156,19 +156,29 @@ class ClientPortalController extends Controller
             'type' => 'required|in:engineStop,engineResume'
         ]);
 
+        if (!$device->traccar_device_id) {
+            return response()->json(['success' => false, 'message' => 'Dispositivo no vinculado a Traccar.'], 400);
+        }
+
         try {
-            // AQUÍ LLAMARÍAS A TU SERVICIO TRACCAR O PLATAFORMA GPS
-            // Ejemplo: TraccarApiService::sendCommand($device->traccar_device_id, $request->type);
-            
-            // Simulamos éxito para la demo
-            return response()->json(['success' => true, 'message' => 'Comando enviado correctamente.']);
+            // Usamos el servicio inyectado para enviar el comando real a la API
+            $success = $this->traccarService->sendCommand(
+                $device->traccar_device_id, 
+                $request->type
+            ); //
+
+            if ($success) {
+                return response()->json(['success' => true, 'message' => 'Comando enviado al satélite.']);
+            } else {
+                return response()->json(['success' => false, 'message' => 'El servidor rechazó el comando.'], 500);
+            }
 
         } catch (\Exception $e) {
-            return response()->json(['success' => false, 'message' => 'Error de comunicación con el dispositivo.'], 500);
+            return response()->json(['success' => false, 'message' => 'Error de conexión: ' . $e->getMessage()], 500);
         }
     }
 
-    // --- MODALES (Retornan HTML parcial) ---
+    // --- Modales ---
 
     public function modalGps($id)
     {
