@@ -1,69 +1,88 @@
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-    <div>
-        <div class="flex items-center gap-4 mb-4">
-            <div class="bg-blue-600/20 p-3 rounded-full text-blue-400">
-                <i class="fas fa-car text-2xl"></i>
+<div class="flex flex-col md:flex-row h-full">
+    <div class="w-full md:w-1/2 p-6 border-b md:border-b-0 md:border-r border-gray-700 bg-neutral-900">
+        <div class="text-center mb-6">
+            <div class="inline-block p-4 rounded-full bg-gray-800 text-white mb-2 shadow-inner">
+                <i class="fas fa-car-side text-3xl"></i>
             </div>
-            <div>
-                <h2 class="text-xl font-bold text-white">{{ $device->name }}</h2>
-                <p class="text-sm text-gray-400">IMEI: {{ $device->imei }}</p>
-            </div>
+            <h2 class="text-xl font-bold text-white tracking-wide">{{ $device->name }}</h2>
+            <span class="text-xs text-gray-500 uppercase tracking-widest">{{ $device->plate_number ?? 'SIN PLACA' }}</span>
         </div>
 
-        <div class="space-y-3 text-sm">
-            <div class="flex justify-between border-b border-gray-700 pb-2">
+        <div class="space-y-3">
+            <div class="flex justify-between items-center text-sm p-2 rounded bg-gray-800/50">
                 <span class="text-gray-400">Estado</span>
-                <span class="{{ $device->status == 'online' ? 'text-green-400' : 'text-red-400' }} font-bold uppercase">
-                    {{ $device->status }}
-                </span>
+                @if($device->status == 'online')
+                    <span class="text-green-400 font-bold flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> CONECTADO</span>
+                @else
+                    <span class="text-gray-500 font-bold">DESCONECTADO</span>
+                @endif
             </div>
-            <div class="flex justify-between border-b border-gray-700 pb-2">
-                <span class="text-gray-400">Placa</span>
-                <span class="text-white">{{ $device->plate_number ?? 'N/A' }}</span>
+            <div class="flex justify-between items-center text-sm p-2 rounded bg-gray-800/50">
+                <span class="text-gray-400">Velocidad</span>
+                <span class="text-white font-mono">{{ round($device->speed) }} km/h</span>
             </div>
-            <div class="flex justify-between border-b border-gray-700 pb-2">
+            <div class="flex justify-between items-center text-sm p-2 rounded bg-gray-800/50">
                 <span class="text-gray-400">Conductor</span>
-                <span class="text-white">{{ $device->driver->first_name ?? 'Sin asignar' }}</span>
+                <span class="text-white">{{ optional($device->driver)->first_name ?? 'No asignado' }}</span>
             </div>
-            <div class="flex justify-between border-b border-gray-700 pb-2">
-                <span class="text-gray-400">Última Conexión</span>
-                <span class="text-white">{{ \Carbon\Carbon::parse($device->last_connection)->format('d/m/Y H:i A') }}</span>
-            </div>
-            <div class="flex justify-between border-b border-gray-700 pb-2">
-                <span class="text-gray-400">Velocidad Actual</span>
-                <span class="text-blue-400 font-bold">{{ $device->speed }} km/h</span>
+            <div class="flex justify-between items-center text-sm p-2 rounded bg-gray-800/50">
+                <span class="text-gray-400">Último Reporte</span>
+                <span class="text-white text-xs">{{ \Carbon\Carbon::parse($device->last_connection)->diffForHumans() }}</span>
             </div>
         </div>
     </div>
 
-    <div class="bg-gray-700/30 p-4 rounded-lg border border-gray-600">
-        <h4 class="font-bold text-white mb-3 border-b border-gray-600 pb-2"><i class="fas fa-route"></i> Consultar Recorrido</h4>
+    <div class="w-full md:w-1/2 p-6 bg-black/30">
+        <h4 class="text-gray-400 text-xs font-bold uppercase mb-4 border-b border-gray-700 pb-2">Consultar Historial</h4>
         
-        <form onsubmit="event.preventDefault(); submitHistory();">
-            <div class="mb-3">
-                <label class="block text-xs text-gray-400 mb-1">Desde</label>
-                <input type="text" id="history_start" class="datepicker w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm" value="{{ now()->startOfDay()->format('Y-m-d H:i') }}">
+        <form onsubmit="event.preventDefault(); requestHistory();" id="historyForm">
+            <div class="space-y-4">
+                <div>
+                    <label class="text-gray-500 text-xs block mb-1">Inicio</label>
+                    <input type="text" id="start_date" class="datepicker w-full bg-gray-800 border border-gray-700 rounded text-white text-sm px-3 py-2 focus:border-white outline-none" value="{{ now()->startOfDay()->format('Y-m-d H:i') }}">
+                </div>
+                <div>
+                    <label class="text-gray-500 text-xs block mb-1">Fin</label>
+                    <input type="text" id="end_date" class="datepicker w-full bg-gray-800 border border-gray-700 rounded text-white text-sm px-3 py-2 focus:border-white outline-none" value="{{ now()->endOfDay()->format('Y-m-d H:i') }}">
+                </div>
+                
+                <button type="submit" id="btn-search" class="w-full bg-white text-black font-bold py-2 rounded hover:bg-gray-200 transition mt-2">
+                    <i class="fas fa-route mr-2"></i> VER RECORRIDO
+                </button>
             </div>
-            
-            <div class="mb-4">
-                <label class="block text-xs text-gray-400 mb-1">Hasta</label>
-                <input type="text" id="history_end" class="datepicker w-full bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm" value="{{ now()->endOfDay()->format('Y-m-d H:i') }}">
-            </div>
-
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded transition shadow-lg shadow-blue-900/50">
-                <i class="fas fa-search-location"></i> Ver en Mapa
-            </button>
         </form>
     </div>
 </div>
 
 <script>
-    function submitHistory() {
-        const start = document.getElementById('history_start').value;
-        const end = document.getElementById('history_end').value;
-        const deviceId = {{ $device->id }};
-        
-        // Llamar a la función global definida en map.blade.php
-        window.loadHistory(deviceId, start, end);
+    function requestHistory() {
+        let btn = document.getElementById('btn-search');
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> BUSCANDO...';
+        btn.disabled = true;
+
+        let start = document.getElementById('start_date').value;
+        let end = document.getElementById('end_date').value;
+        let id = {{ $device->id }};
+
+        fetch(`/portal/api/history/${id}?start=${start}&end=${end}`)
+            .then(res => res.json())
+            .then(data => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-route mr-2"></i> VER RECORRIDO';
+                
+                if(data.error) {
+                    alert(data.error);
+                } else if (data.positions.length === 0) {
+                    alert("No hay datos en este rango de fechas.");
+                } else {
+                    // Llamamos a la función global en map.blade.php
+                    window.loadHistoryTrace(data.positions);
+                }
+            })
+            .catch(err => {
+                alert("Error de conexión");
+                btn.disabled = false;
+                btn.innerHTML = 'REINTENTAR';
+            });
     }
 </script>
