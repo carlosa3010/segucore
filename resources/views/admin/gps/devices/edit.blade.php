@@ -32,14 +32,16 @@
                 </div>
                 <div>
                     <label class="block text-xs font-bold uppercase text-slate-400 mb-2">Modelo GPS</label>
-                    <input type="text" name="device_model" value="{{ $device->device_model }}" class="w-full bg-slate-900 border border-slate-600 rounded p-2.5 text-sm text-white focus:border-blue-500" required>
+                    {{-- CORREGIDO: name="model" --}}
+                    <input type="text" name="model" value="{{ $device->model }}" class="w-full bg-slate-900 border border-slate-600 rounded p-2.5 text-sm text-white focus:border-blue-500" required>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div>
                     <label class="block text-xs font-bold uppercase text-slate-400 mb-2">Número SIM</label>
-                    <input type="text" name="phone_number" value="{{ $device->phone_number }}" class="w-full bg-slate-900 border border-slate-600 rounded p-2.5 text-sm text-white focus:border-blue-500">
+                    {{-- CORREGIDO: name="sim_card_number" --}}
+                    <input type="text" name="sim_card_number" value="{{ $device->sim_card_number }}" class="w-full bg-slate-900 border border-slate-600 rounded p-2.5 text-sm text-white focus:border-blue-500">
                 </div>
                 <div>
                     <label class="block text-xs font-bold uppercase text-slate-400 mb-2">Placa</label>
@@ -47,9 +49,10 @@
                 </div>
                 <div>
                     <label class="block text-xs font-bold uppercase text-slate-400 mb-2">Estado</label>
-                    <select name="subscription_status" class="w-full bg-slate-900 border border-slate-600 rounded p-2.5 text-sm text-white focus:border-blue-500">
-                        <option value="active" {{ $device->subscription_status == 'active' ? 'selected' : '' }}>🟢 Activo</option>
-                        <option value="suspended" {{ $device->subscription_status == 'suspended' ? 'selected' : '' }}>🔴 Suspendido</option>
+                    {{-- CORREGIDO: name="is_active" y valores 1/0 --}}
+                    <select name="is_active" class="w-full bg-slate-900 border border-slate-600 rounded p-2.5 text-sm text-white focus:border-blue-500">
+                        <option value="1" {{ $device->is_active ? 'selected' : '' }}>🟢 Activo</option>
+                        <option value="0" {{ !$device->is_active ? 'selected' : '' }}>🔴 Suspendido</option>
                     </select>
                 </div>
             </div>
