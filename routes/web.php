@@ -210,6 +210,9 @@ Route::domain('cliente.segusmart24.com')->group(function () {
         Route::get('/api/alerts', [ClientPortalController::class, 'getLatestAlerts'])->name('client.api.alerts');
         Route::get('/api/history/{id}', [ClientPortalController::class, 'getHistory'])->name('client.api.history');
 
+        // COMANDOS REMOTOS (Nueva Ruta)
+        Route::post('/api/device/{id}/command', [ClientPortalController::class, 'sendCommand'])->name('client.device.command');
+
         // Modales (IMPORTANTE: Sin prefijo /portal para coincidir con JS)
         Route::get('/modal/alarm/{id}', [ClientPortalController::class, 'modalAlarm'])->name('client.modal.alarm');
         Route::get('/modal/gps/{id}', [ClientPortalController::class, 'modalGps'])->name('client.modal.gps');
