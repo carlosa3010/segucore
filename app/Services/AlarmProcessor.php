@@ -14,6 +14,32 @@ class AlarmProcessor
     // Tolerancia en minutos para considerar una apertura/cierre como válida
     const SCHEDULE_TOLERANCE = 30; 
 
+    // Códigos que indican que un servicio se ha restaurado (Cierran el ciclo)
+    const RESTORE_CODES = [
+        'NR' => 'Red Celular Restaurada',
+        'CU' => 'Línea Telefónica Restaurada',
+        'YR' => 'Batería Sistema Restaurada',
+        'XR' => 'Batería Repetidor Restaurada',
+        'LR' => 'Canal Principal Restaurado',
+        'DS' => 'Cámara Red Restaurada',
+        'CV' => 'Supervisión BUS Restaurada',
+        'MH' => 'Restauración Médica',
+        'FH' => 'Restauración Incendio',
+        'KH' => 'Restauración Fuego/Calor',
+        'HH' => 'Restauración Coacción',
+        'CH' => 'Restauración Pánico',
+        'CK' => 'Restauración Robo',
+        'TR' => 'Restauración Sabotaje',
+        'YJ' => 'Sobrecorriente Restaurada',
+        'YQ' => 'Sobrevoltaje Restaurado',
+        'CQ' => 'Corto Salida Restaurado',
+        'ER' => 'Expansor Restaurado',
+        'YK' => 'Subida Reporte Restaurada',
+        'FJ' => 'Fallo Sensor Restaurado',
+        'QU' => 'Anulación Zona Restaurada',
+        // 'AR' => 'Restauración AC', // Descomentar si tu panel usa AR para esto
+    ];
+
     public function process($accountNumber, $eventCode, $zoneOrUser, $rawData, $remoteIp)
     {
         Log::info("SIA: Procesando cuenta: $accountNumber | Evento: $eventCode");
@@ -22,7 +48,7 @@ class AlarmProcessor
         $utcNow = now(); 
         $localNow = $utcNow->copy()->setTimezone('America/Caracas');
 
-        // 2. Buscar el ID real de la cuenta
+        // 2. Buscar la cuenta con sus horarios
         $account = AlarmAccount::with('schedules')->where('account_number', $accountNumber)->first();
 
         if (!$account) {
@@ -30,9 +56,11 @@ class AlarmProcessor
             return null;
         }
 
-        // 3. Buscar descripción del código SIA
+        // 3. Buscar configuración del código SIA
         $siaConfig = SiaCode::where('code', $eventCode)->first();
         $description = $siaConfig ? $siaConfig->description : 'Evento Desconocido';
+        
+        // Prioridad por defecto (3 = Alerta Técnica / Amarilla)
         $priority = $siaConfig ? $siaConfig->priority : 3;
 
         // 4. Buscar nombre de zona (Opcional)
@@ -44,20 +72,25 @@ class AlarmProcessor
             if ($zone) $zoneName = " - " . $zone->name;
         }
 
-        // 5. VERIFICACIÓN DE HORARIOS Y ESTADO ARMADO
+        // 5. LÓGICA DE RESTAURACIONES (AUTO-CIERRE)
+        if (array_key_exists($eventCode, self::RESTORE_CODES)) {
+            $description = "[RESTAURADO] " . $description;
+            // Forzamos prioridad 1 (Baja/Informativa) para que se procese automático
+            $priority = 1; 
+        }
+
+        // 6. LÓGICA DE HORARIOS Y ESTADO ARMADO
         $scheduleNote = "";
         
-        // Detectar tipo de evento (Simplificado para códigos estándar SIA)
-        // OP/UA = Apertura (Disarmed), CL/CA = Cierre (Armed)
-        $isOpening = in_array($eventCode, ['OP', 'UA', 'OR']);
-        $isClosing = in_array($eventCode, ['CL', 'CA', 'CR']);
+        // Detectar tipo de evento SIA estándar
+        $isOpening = in_array($eventCode, ['OP', 'UA', 'OR']); // Aperturas
+        $isClosing = in_array($eventCode, ['CL', 'CA', 'CR']); // Cierres
 
         if ($isOpening || $isClosing) {
-            // A. Actualizar estado de armado
-            $account->is_armed = $isClosing; // True si es cierre, False si es apertura
+            // A. Actualizar estado de armado en la cuenta
+            $account->is_armed = $isClosing; 
 
             // B. Validar Horario
-            // Buscamos el horario para el día actual (0=Domingo, 6=Sábado)
             $daySchedule = $account->schedules
                                    ->where('day_of_week', $localNow->dayOfWeek)
                                    ->first();
@@ -77,25 +110,33 @@ class AlarmProcessor
                     );
                 }
             } else {
-                // Si abre/cierra y NO tiene horario configurado para hoy
-                $scheduleNote = " [FUERA DE HORARIO]"; 
-                $priority = 1; // Prioridad alta
+                // Si hay movimiento de armado/desarmado y NO hay horario para hoy
+                $scheduleNote = " [FUERA DE HORARIO NO CONFIGURADO]"; 
+                $priority = 4; // Prioridad Alta (Alerta)
             }
         }
 
-        // Si hubo violación de horario, lo agregamos a la descripción y subimos prioridad
+        // Si hubo violación de horario, lo agregamos y subimos prioridad
         if ($scheduleNote) {
             $description .= $scheduleNote;
-            $priority = 1; // Forzar atención del operador
+            // Si era una apertura/cierre normal (Prio 2), ahora es una Alerta (Prio 4)
+            if ($priority < 3) {
+                $priority = 4;
+            }
         }
 
-        // 6. Actualizar "última señal" de la cuenta (En UTC)
+        // 7. Actualizar "última señal" de la cuenta
         $account->last_signal_at = $utcNow;
         $account->service_status = 'active';
-        $account->save(); // Guardamos cambios de is_armed y timestamps
+        $account->save(); 
 
-        // 7. GUARDAR EL EVENTO
+        // 8. GUARDAR EL EVENTO
         try {
+            // LÓGICA DE PROCESADO:
+            // Si Priority <= 2 (Tests, Armados normales, Restauraciones) -> processed = true (Historial)
+            // Si Priority >= 3 (Fallo AC, Robo, Pánico, Horario Tarde) -> processed = false (TICKET)
+            $isProcessed = ($priority <= 2);
+
             $event = AlarmEvent::create([
                 'alarm_account_id' => $account->id,
                 'event_code'       => $eventCode,
@@ -104,8 +145,8 @@ class AlarmProcessor
                 'zone'             => $zoneOrUser,
                 'partition'        => '01',
                 'raw_data'         => $rawData,
-                'received_at'      => $utcNow, // Guardamos en UTC para auditoría
-                'processed'        => ($priority <= 1) ? false : true // Si es prioridad alta, queda como NO procesado
+                'received_at'      => $utcNow, // Siempre UTC para auditoría
+                'processed'        => $isProcessed
             ]);
 
             return $event;
@@ -141,13 +182,11 @@ class AlarmProcessor
                 return "";
             }
 
-            // Si se pasa de la tolerancia, determinamos si es temprano o tarde
+            // Si se pasa de la tolerancia, determinamos el mensaje
             if ($type === 'open') {
-                // Apertura
                 if ($currentLocalTime->gt($scheduledTime)) return " [APERTURA TARDIA ({$diffMinutes}m)]";
                 else return " [APERTURA TEMPRANA ({$diffMinutes}m)]";
             } else {
-                // Cierre
                 if ($currentLocalTime->gt($scheduledTime)) return " [CIERRE TARDIO ({$diffMinutes}m)]";
                 else return " [CIERRE TEMPRANO ({$diffMinutes}m)]";
             }
