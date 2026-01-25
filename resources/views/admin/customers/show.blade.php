@@ -117,9 +117,9 @@
                                             @endif
                                         </td>
                                         <td class="px-6 py-4 text-right">
-                                            <button class="text-blue-400 hover:text-white text-xs border border-blue-900 px-2 py-1 rounded">
+                                            <a href="{{ route('admin.accounts.show', $acc->id) }}" class="text-blue-400 hover:text-white text-xs border border-blue-900 px-2 py-1 rounded inline-block">
                                                 Gestionar ⚙️
-                                            </button>
+                                            </a>
                                         </td>
                                     </tr>
                                 @endforeach
@@ -141,18 +141,92 @@
                         </h3>
                         <p class="text-xs text-gray-400">Dispositivos y flotas</p>
                     </div>
-                    <button class="text-xs bg-yellow-400 hover:bg-yellow-300 text-black px-4 py-2 rounded font-bold transition">
+                    <a href="{{ route('admin.gps.devices.create', ['customer_id' => $customer->id]) }}" class="text-xs bg-yellow-400 hover:bg-yellow-300 text-black px-4 py-2 rounded font-bold transition">
                         + Vincular GPS
-                    </button>
+                    </a>
                 </div>
                 
                 <div class="p-0">
                     @if($customer->gpsDevices && $customer->gpsDevices->count() > 0)
-                        <div class="p-4">
-                            </div>
+                        <table class="w-full text-sm text-left text-gray-400">
+                            <thead class="text-xs text-gray-500 uppercase bg-gray-900/50">
+                                <tr>
+                                    <th class="px-6 py-3">Nombre / IMEI</th>
+                                    <th class="px-6 py-3">Modelo</th>
+                                    <th class="px-6 py-3 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-700">
+                                @foreach($customer->gpsDevices as $gps)
+                                    <tr class="hover:bg-gray-800/50 transition">
+                                        <td class="px-6 py-4">
+                                            <div class="text-white font-bold">{{ $gps->name }}</div>
+                                            <div class="text-xs font-mono">{{ $gps->imei }}</div>
+                                        </td>
+                                        <td class="px-6 py-4">{{ $gps->device_model ?? 'Genérico' }}</td>
+                                        <td class="px-6 py-4 text-right">
+                                             <a href="{{ route('admin.gps.devices.show', $gps->id) }}" class="text-blue-400 hover:text-white text-xs border border-blue-900 px-2 py-1 rounded inline-block">
+                                                Ver 🛰️
+                                            </a>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     @else
                         <div class="p-8 text-center text-gray-500 border-2 border-dashed border-gray-800 m-4 rounded">
                             Sin dispositivos GPS asignados.
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            <div class="bg-[#1e293b] rounded-lg border border-gray-700 overflow-hidden shadow-lg">
+                <div class="bg-gray-800/50 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
+                    <div>
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <span class="text-red-400">🚑</span> Contactos de Emergencia
+                        </h3>
+                        <p class="text-xs text-gray-400">Lista de llamadas en prioridad</p>
+                    </div>
+                    <button type="button" class="text-xs bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded font-bold transition">
+                        + Agregar
+                    </button>
+                </div>
+
+                <div class="p-0">
+                    @if($customer->contacts && $customer->contacts->count() > 0)
+                        <table class="w-full text-sm text-left text-gray-400">
+                            <thead class="text-xs text-gray-500 uppercase bg-gray-900/50">
+                                <tr>
+                                    <th class="px-6 py-3">Prioridad</th>
+                                    <th class="px-6 py-3">Nombre</th>
+                                    <th class="px-6 py-3">Teléfono</th>
+                                    <th class="px-6 py-3 text-right">Relación</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-700">
+                                @foreach($customer->contacts->sortBy('priority') as $contact)
+                                    <tr class="hover:bg-gray-800/50 transition">
+                                        <td class="px-6 py-4 text-center font-bold text-white bg-black/20 w-16">
+                                            {{ $contact->priority }}
+                                        </td>
+                                        <td class="px-6 py-4 font-medium text-white">
+                                            {{ $contact->name }}
+                                        </td>
+                                        <td class="px-6 py-4 font-mono text-gray-300">
+                                            {{ $contact->phone }}
+                                        </td>
+                                        <td class="px-6 py-4 text-right">
+                                            <span class="bg-gray-700 px-2 py-1 rounded text-xs">{{ $contact->relationship }}</span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    @else
+                        <div class="p-8 text-center text-gray-500 border-2 border-dashed border-gray-800 m-4 rounded">
+                            No hay contactos de emergencia registrados.
                         </div>
                     @endif
                 </div>
@@ -181,12 +255,12 @@
                     <p class="text-4xl font-bold text-green-400 font-mono tracking-tight">$0.00</p>
                 </div>
 
-                <button class="w-full bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-bold transition shadow-lg mb-2">
+                <a href="{{ route('admin.invoices.create', ['customer_id' => $customer->id]) }}" class="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white py-2 rounded font-bold transition shadow-lg mb-2">
                     Generar Factura Manual
-                </button>
-                <button class="w-full bg-gray-800 hover:bg-gray-700 text-gray-300 py-2 rounded text-sm transition border border-gray-600">
+                </a>
+                <a href="{{ route('admin.invoices.index', ['customer_id' => $customer->id]) }}" class="block w-full text-center bg-gray-800 hover:bg-gray-700 text-gray-300 py-2 rounded text-sm transition border border-gray-600">
                     Ver Historial Pagos
-                </button>
+                </a>
             </div>
 
             <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-6 shadow-lg">
