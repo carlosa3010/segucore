@@ -47,9 +47,11 @@ class GpsDevice extends Model
         return $this->belongsTo(Driver::class);
     }
 
-    // 3. Relación con Geocercas (Esta era la que faltaba y daba el error)
+    // 3. Relación con Geocercas (CORREGIDA: Muchos a Muchos)
+    // Se usa belongsToMany para permitir el uso de ->sync() en el controlador
     public function geofences()
     {
-        return $this->hasMany(Geofence::class);
+        return $this->belongsToMany(Geofence::class, 'geofence_gps_device', 'gps_device_id', 'geofence_id')
+                    ->withTimestamps();
     }
 }
