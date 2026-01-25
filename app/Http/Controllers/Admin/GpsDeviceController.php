@@ -40,7 +40,6 @@ class GpsDeviceController extends Controller
 
         $devices = $query->orderBy('created_at', 'desc')->paginate(20);
 
-        // Pre-carga datos básicos de Traccar para la tabla
         $imeis = $devices->pluck('imei')->toArray();
         $traccarData = [];
         try {
@@ -285,14 +284,14 @@ class GpsDeviceController extends Controller
         }
     }
 
-    // --- GENERACIÓN DE PDF ---
+    // --- GENERACIÓN DE REPORTES PDF ---
     public function exportHistoryPdf(Request $request, $id)
     {
         $device = GpsDevice::with('customer', 'driver')->findOrFail($id);
         $tz = 'America/Caracas';
         $type = $request->input('report_type', 'detailed'); 
 
-        // Manejo de fechas igual que ClientPortal
+        // 1. Parseo de Fechas (Igual que ClientPortal)
         if ($request->filled('from') && $request->filled('to')) {
             $from = Carbon::parse($request->input('from'), $tz);
             $to = Carbon::parse($request->input('to'), $tz);
@@ -305,28 +304,29 @@ class GpsDeviceController extends Controller
         $positions = collect([]);
 
         if ($traccarDevice) {
-            // CORRECCIÓN: Selección explícita de columnas para asegurar que 'attributes' se cargue correctamente
-            // y consistencia con ClientPortalController
+            // 2. Consulta EXACTA al ClientPortal
+            // IMPORTANTE: Incluimos 'id' para asegurar que el casting de 'attributes' funcione correctamente en Eloquent
             $positions = TraccarPosition::where('deviceid', $traccarDevice->id)
                 ->whereBetween('fixtime', [
                     $from->copy()->setTimezone('UTC'), 
                     $to->copy()->setTimezone('UTC')
                 ])
                 ->orderBy('fixtime', 'asc')
-                ->get(['fixtime', 'speed', 'attributes', 'latitude', 'longitude']);
+                ->get(['id', 'fixtime', 'speed', 'attributes', 'latitude', 'longitude']);
         }
 
         if ($positions->isEmpty()) {
             return back()->with('warning', 'No hay datos en este período.');
         }
 
+        // --- REPORTE DETALLADO ---
         if ($type === 'detailed') {
             $pdf = Pdf::loadView('admin.gps.devices.pdf_history', compact('device', 'positions', 'from', 'to'));
             return $pdf->download("Historial_Detallado_{$device->name}.pdf");
         }
 
+        // --- REPORTE RESUMIDO (ESTADÍSTICAS) ---
         if ($type === 'summary') {
-            // Usamos la misma lógica exacta del Portal Cliente
             $stats = $this->calculateStats($positions);
             
             $pdf = Pdf::loadView('admin.gps.devices.pdf_summary', [
@@ -339,8 +339,6 @@ class GpsDeviceController extends Controller
         }
     }
 
-    // --- FUNCIONES AUXILIARES (EXACTAMENTE IGUALES A CLIENTPORTAL) ---
-
     private function calculateStats($positions) {
         $stats = [
             'distance_km' => 0, 'move_time' => 0, 'stop_time' => 0, 'off_time' => 0,
@@ -352,17 +350,25 @@ class GpsDeviceController extends Controller
         foreach ($positions as $pos) {
             $speedKm = $pos->speed * 1.852;
             
-            // Decodificación segura de atributos
-            $attrs = is_string($pos->attributes) ? json_decode($pos->attributes, true) : $pos->attributes;
-            // Aseguramos que attrs sea array por si es null
-            $attrs = $attrs ?? [];
-            
+            // Decodificación defensiva de atributos
+            // Si el modelo casteó a array, $pos->attributes es array.
+            // Si no, es string. 'attributes' puede venir null de DB.
+            $rawAttrs = $pos->attributes;
+            if (is_string($rawAttrs)) {
+                $attrs = json_decode($rawAttrs, true);
+            } else {
+                $attrs = $rawAttrs;
+            }
+            $attrs = $attrs ?? []; // Asegurar que sea array
+
             // Lógica idéntica al cliente: usa ignición del punto actual
             $ignition = $attrs['ignition'] ?? false;
             
             if ($lastPos) {
+                // Cálculo de tiempo
                 $timeDiff = Carbon::parse($pos->fixtime)->diffInSeconds(Carbon::parse($lastPos->fixtime));
                 
+                // Filtro anti-saltos largos (> 1 hora)
                 if ($timeDiff < 3600) {
                     $dist = isset($attrs['distance']) ? $attrs['distance'] : $this->calculateDistance($lastPos->latitude, $lastPos->longitude, $pos->latitude, $pos->longitude);
                     $stats['distance_km'] += ($dist / 1000);
