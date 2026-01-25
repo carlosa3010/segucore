@@ -75,11 +75,9 @@
             
             <div class="bg-[#1e293b] rounded-lg border border-gray-700 overflow-hidden shadow-lg">
                 <div class="bg-gray-800/50 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
-                    <div>
-                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                            <span class="text-[#C6F211]">📟</span> Monitoreo de Alarmas
-                        </h3>
-                    </div>
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <span class="text-[#C6F211]">📟</span> Monitoreo de Alarmas
+                    </h3>
                     <a href="{{ route('admin.accounts.create', ['customer_id' => $customer->id]) }}" class="text-xs bg-[#C6F211] hover:bg-[#a3c90d] text-black px-4 py-2 rounded font-bold transition">
                         + Nueva Cuenta
                     </a>
@@ -124,7 +122,7 @@
                     </h3>
                 </div>
                 <div class="p-0">
-                    @if($customer->invoices->count() > 0)
+                    @if($customer->invoices && $customer->invoices->count() > 0)
                         <table class="w-full text-sm text-left text-gray-400">
                             <thead class="text-xs text-gray-500 uppercase bg-gray-900/50">
                                 <tr>
@@ -147,7 +145,8 @@
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 text-right">
-                                            <a href="{{ route('admin.invoices.download', $invoice->id) }}" class="bg-gray-700 hover:bg-red-600 text-white p-1.5 rounded transition inline-block" title="Descargar PDF">
+                                            {{-- Aquí se debe definir la ruta admin.invoices.download en web.php --}}
+                                            <a href="#" class="bg-gray-700 hover:bg-red-600 text-white p-1.5 rounded transition inline-block" title="Descargar PDF">
                                                 📄
                                             </a>
                                         </td>
@@ -186,7 +185,8 @@
                         </div>
                     </div>
 
-                    <a href="{{ route('admin.invoices.create', ['customer_id' => $customer->id]) }}" class="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded font-bold transition shadow-lg mb-2">
+                    {{-- CORRECCIÓN: El parámetro debe ser 'customer' para coincidir con la ruta --}}
+                    <a href="{{ route('admin.invoices.create', ['customer' => $customer->id]) }}" class="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded font-bold transition shadow-lg mb-2">
                         Generar Factura Manual
                     </a>
                 @else
@@ -215,9 +215,9 @@
                 </div>
 
                 <div class="bg-black/30 rounded p-4 text-center border border-gray-700 mb-4">
-                    <p class="text-gray-500 text-[10px] mb-1 uppercase tracking-tighter">Deuda Total Acumulada</p>
+                    <p class="text-gray-500 text-[10px] mb-1 uppercase tracking-tighter">Saldo Pendiente ($)</p>
                     @php
-                        $unpaidBalance = $customer->invoices->where('status', 'unpaid')->sum('total');
+                        $unpaidBalance = $customer->invoices ? $customer->invoices->where('status', 'unpaid')->sum('total') : 0;
                     @endphp
                     <p class="text-4xl font-bold {{ $unpaidBalance > 0 ? 'text-red-500' : 'text-green-400' }} font-mono tracking-tight">
                         ${{ number_format($unpaidBalance, 2) }}
