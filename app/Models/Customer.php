@@ -27,6 +27,7 @@ class Customer extends Model
         'notes',
         'status',            // AGREGADO: Requerido por las vistas
         'is_active'
+        'service_plan_id',
     ];
 
     // Accessor para obtener el nombre completo o razón social
