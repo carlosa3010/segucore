@@ -172,6 +172,16 @@ return new class extends Migration
             });
         }
 
+        // ✅ AGREGA ESTO: Nueva tabla pivote para la relación Muchos a Muchos
+        if (!Schema::hasTable('geofence_gps_device')) {
+            Schema::create('geofence_gps_device', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('gps_device_id')->constrained('gps_devices')->cascadeOnDelete();
+                $table->foreignId('geofence_id')->constrained('geofences')->cascadeOnDelete();
+                $table->timestamps();
+            });
+        }
+
         if (!Schema::hasTable('device_alerts')) {
             Schema::create('device_alerts', function (Blueprint $table) {
                 $table->id();
