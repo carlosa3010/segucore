@@ -3,6 +3,8 @@
 @section('title', 'Editar Cuenta: ' . $account->account_number)
 
 @section('content')
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
 <div class="max-w-4xl mx-auto">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold text-white">Editar Cuenta de Monitoreo</h1>
@@ -55,14 +57,20 @@
                      </select>
                 </div>
 
-                <div>
-                    <label class="text-xs text-gray-500 uppercase block mb-1 font-bold">Latitud</label>
-                    <input type="text" name="latitude" value="{{ old('latitude', $account->latitude) }}" class="form-input" placeholder="10.123456">
-                </div>
-
-                <div>
-                    <label class="text-xs text-gray-500 uppercase block mb-1 font-bold">Longitud</label>
-                    <input type="text" name="longitude" value="{{ old('longitude', $account->longitude) }}" class="form-input" placeholder="-69.123456">
+                <div class="md:col-span-2 mt-4 pt-4 border-t border-gray-700">
+                    <label class="block text-sm text-gray-400 mb-2 font-bold">Geolocalización (Arrastra el pin para actualizar)</label>
+                    <div id="map" class="h-64 w-full rounded border border-gray-600 z-0"></div>
+                    
+                    <div class="grid grid-cols-2 gap-4 mt-3">
+                        <div>
+                            <label class="text-xs text-gray-500 uppercase block mb-1 font-bold">Latitud</label>
+                            <input type="text" name="latitude" id="lat" value="{{ old('latitude', $account->latitude) }}" class="form-input bg-gray-900 font-mono text-xs" readonly>
+                        </div>
+                        <div>
+                            <label class="text-xs text-gray-500 uppercase block mb-1 font-bold">Longitud</label>
+                            <input type="text" name="longitude" id="lng" value="{{ old('longitude', $account->longitude) }}" class="form-input bg-gray-900 font-mono text-xs" readonly>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -75,4 +83,47 @@
         </form>
     </div>
 </div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Coordenadas iniciales: Usar las de la cuenta o por defecto Barquisimeto
+        var initialLat = {{ $account->latitude ?? 10.0677719 }};
+        var initialLng = {{ $account->longitude ?? -69.3473503 }};
+
+        // Inicializar mapa
+        var map = L.map('map').setView([initialLat, initialLng], 15);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Crear marcador arrastrable
+        var marker = L.marker([initialLat, initialLng], {
+            draggable: true
+        }).addTo(map);
+
+        // Función para actualizar inputs
+        function updateInputs(latlng) {
+            document.getElementById('lat').value = latlng.lat.toFixed(7);
+            document.getElementById('lng').value = latlng.lng.toFixed(7);
+        }
+
+        // Si no hay coordenadas guardadas, actualizamos los inputs con el default
+        if (!document.getElementById('lat').value) {
+            updateInputs(marker.getLatLng());
+        }
+
+        // Evento al soltar el marcador
+        marker.on('dragend', function(e) {
+            updateInputs(marker.getLatLng());
+        });
+
+        // Evento al hacer click en el mapa (mueve el marcador)
+        map.on('click', function(e) {
+            marker.setLatLng(e.latlng);
+            updateInputs(e.latlng);
+        });
+    });
+</script>
 @endsection
