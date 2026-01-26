@@ -11,16 +11,20 @@ class AlarmEvent extends Model
     use HasFactory;
 
     protected $fillable = [
-        'alarm_account_id', // Relación con la cuenta
-        'event_code',       // Código SIA (Ej: UA, BA)
-        'code',             // Duplicado por compatibilidad
-        'description',      // Descripción del evento
-        'zone',             // Número de zona o usuario
-        'partition',        // Partición (Ej: 01)
-        'raw_data',         // Trama cruda recibida
-        'received_at',      // Fecha en UTC (Base de datos)
-        'processed'         // Si ya fue procesado/atendido
-    ];
+    'alarm_account_id',
+    'account_number', // <--- Agregar
+    'event_code',
+    'event_type',     // <--- Agregar
+    'code',
+    'description',
+    'zone',
+    'partition',
+    'ip_address',     // <--- Agregar (si tienes esta columna en BD)
+    'raw_data',
+    'received_at',
+    'processed',
+    'processed_at'    // <--- Agregar
+];
 
     protected $casts = [
         'received_at' => 'datetime',
