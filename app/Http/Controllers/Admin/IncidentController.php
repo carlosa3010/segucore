@@ -20,7 +20,7 @@ class IncidentController extends Controller
      */
     public function console()
     {
-        // A. Cola de Eventos Nuevos (Pendientes)
+        // A. Cola de Eventos Nuevos (Pendientes de atención)
         $pendingEvents = AlarmEvent::where('processed', false)
             ->join('sia_codes', 'alarm_events.event_code', '=', 'sia_codes.code')
             ->orderBy('sia_codes.priority', 'desc') 
@@ -30,13 +30,15 @@ class IncidentController extends Controller
             ->get();
 
         // B. Mis Incidentes en Curso (Tickets abiertos del operador)
+        // CORRECCIÓN IMPORTANTE: Filtramos por todo lo que NO esté cerrado.
+        // Así, los estados personalizados (ej: WAIT_CLIENT) siguen apareciendo.
         $myIncidents = Incident::where('operator_id', Auth::id() ?? 1)
-            ->whereIn('status', ['in_progress', 'monitoring', 'police_dispatched'])
+            ->where('status', '!=', 'closed') 
             ->with(['alarmEvent.account.customer', 'alarmEvent.siaCode'])
             ->orderBy('updated_at', 'desc')
             ->get();
 
-        // C. Datos para Modal de Evento Manual (Optimizado)
+        // C. Datos para Modal de Evento Manual
         $accounts = AlarmAccount::with('customer:id,first_name,last_name,business_name')
             ->select('id', 'customer_id', 'account_number', 'branch_name')
             ->get();
@@ -60,7 +62,7 @@ class IncidentController extends Controller
 
         // Crear Ticket
         $incident = Incident::create([
-            // ✅ CORRECCIÓN 1: Título obligatorio
+            // Título obligatorio basado en la descripción del código SIA
             'title'            => $event->siaCode ? $event->siaCode->description : 'Evento ' . $event->event_code,
             
             'alarm_event_id'   => $event->id,
@@ -69,7 +71,7 @@ class IncidentController extends Controller
             'operator_id'      => Auth::id() ?? 1,
             'status'           => 'in_progress',
             
-            // ✅ CORRECCIÓN 2: Usar nombre real de la columna en BD (occurred_at) en vez del alias
+            // Usamos 'occurred_at' que es la columna real en la BD
             'occurred_at'      => now(), 
         ]);
 
@@ -102,7 +104,7 @@ class IncidentController extends Controller
 
         // A. Crear un "Evento Artificial"
         $event = AlarmEvent::create([
-            'alarm_account_id' => $account->id, // ✅ CORRECCIÓN 3: Evita error 1364
+            'alarm_account_id' => $account->id, // Vinculación correcta
             'account_number'   => $account->account_number,
             'event_code'       => $request->event_code,
             'event_type'       => 'manual',
@@ -117,16 +119,12 @@ class IncidentController extends Controller
 
         // B. Crear el Incidente vinculado
         $incident = Incident::create([
-            // ✅ CORRECCIÓN 4: Título obligatorio para manuales
             'title'            => 'Manual: ' . $request->event_code,
-            
             'alarm_event_id'   => $event->id,
             'alarm_account_id' => $account->id,
             'customer_id'      => $account->customer_id,
             'operator_id'      => Auth::id() ?? 1,
             'status'           => 'in_progress',
-            
-            // ✅ CORRECCIÓN 5: Fecha correcta
             'occurred_at'      => now(),
         ]);
 
@@ -160,7 +158,7 @@ class IncidentController extends Controller
             ->take(15)
             ->get();
 
-        // Cargar Configuración Dinámica (Resoluciones y Motivos)
+        // Cargar Configuración Dinámica (Resoluciones y Motivos activos)
         $resolutions = IncidentResolution::where('is_active', true)->get();
         $holdReasons = IncidentHoldReason::where('is_active', true)->get();
 
@@ -179,11 +177,12 @@ class IncidentController extends Controller
             'note'   => 'nullable|string'
         ]);
 
+        // Actualizamos el estado al código del motivo (ej: WAIT_CLIENT)
         $incident->update([
             'status' => $request->status,
         ]);
 
-        // Obtener nombre legible del motivo
+        // Obtener nombre legible del motivo para el log
         $reasonName = IncidentHoldReason::where('code', $request->status)->value('name') ?? $request->status;
 
         IncidentLog::create([
@@ -193,7 +192,6 @@ class IncidentController extends Controller
             'description' => "Incidente puesto en espera: $reasonName. Nota: " . ($request->note ?? 'Sin observaciones')
         ]);
 
-        // Redirigir a la Consola
         return redirect()->route('admin.operations.console')
             ->with('success', 'Incidente puesto en espera.');
     }
@@ -210,16 +208,16 @@ class IncidentController extends Controller
             'result_code'      => 'required|string'
         ]);
 
-        // Aquí usamos los campos correctos para el cierre
+        // Guardamos fecha de resolución, cierre, notas e informe final
         $incident->update([
             'status'      => 'closed',
-            'resolved_at' => now(), // Aseguramos usar resolved_at
-            'closed_at'   => now(), // Mantenemos compatibilidad si usas ambos
+            'resolved_at' => now(),
+            'closed_at'   => now(),
             'notes'       => $request->resolution_notes,
             'result'      => $request->result_code
         ]);
 
-        // Obtener nombre legible de resolución
+        // Obtener nombre legible de resolución para el log
         $resName = IncidentResolution::where('code', $request->result_code)->value('name') ?? $request->result_code;
 
         IncidentLog::create([
@@ -229,7 +227,6 @@ class IncidentController extends Controller
             'description' => "Incidente cerrado. Resultado: $resName. Informe: {$request->resolution_notes}"
         ]);
 
-        // Redirigir a la Consola
         return redirect()->route('admin.operations.console')
             ->with('success', 'Incidente cerrado correctamente.');
     }
