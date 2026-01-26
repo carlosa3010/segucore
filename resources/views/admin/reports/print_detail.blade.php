@@ -61,7 +61,7 @@
             <tr>
                 <td style="border:none; width: 30%; vertical-align: middle;">
                     {{-- Logo: Usamos logo.png sin invertir colores para que se vea bien en papel --}}
-                    <img src="{{ public_path('images/logo.png') }}" alt="SEGUSMART" class="logo-img"> 
+                    <img src="{{ asset('images/logo.png') }}" alt="SEGUSMART" class="logo-img"> 
                 </td>
                 <td style="border:none; width: 70%; text-align: right; vertical-align: middle;">
                     <div class="company-info">
