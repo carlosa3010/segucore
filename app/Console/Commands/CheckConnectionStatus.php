@@ -58,7 +58,10 @@ class CheckConnectionStatus extends Command
             $tolerance = 30; // Minutos de gracia extras al intervalo
             $interval = $account->test_interval_minutes ?? 1440; // Default 24h si es null
             
-            $minutesSinceLastSignal = Carbon::now()->diffInMinutes($account->last_signal_at);
+            // CORRECCIÓN CRÍTICA: Usamos abs() para garantizar número positivo
+            // Carbon::now()->diffInMinutes($date, false) devuelve negativo si $date es pasado
+            $minutesSinceLastSignal = abs(Carbon::now()->diffInMinutes($account->last_signal_at, false));
+            
             $maxAllowedMinutes = $interval + $tolerance;
 
             $this->line("   -> Tiempo sin señal: {$minutesSinceLastSignal} min (Máximo permitido: {$maxAllowedMinutes} min)");
@@ -73,9 +76,10 @@ class CheckConnectionStatus extends Command
                 $lastFailure = $account->last_connection_failure_at;
                 
                 // Calculamos hace cuánto fue el último fallo para el log
-                $minutesSinceFailure = $lastFailure ? Carbon::now()->diffInMinutes($lastFailure) : 'N/A';
+                // Usamos abs() aquí también por seguridad
+                $minutesSinceFailure = $lastFailure ? abs(Carbon::now()->diffInMinutes($lastFailure, false)) : 'N/A';
 
-                if (!$lastFailure || Carbon::now()->diffInMinutes($lastFailure) > $spamProtectionTime) {
+                if (!$lastFailure || $minutesSinceFailure > $spamProtectionTime) {
                     
                     // DISPARAR EVENTO
                     $this->triggerEvent($account, $failureCode, $minutesSinceLastSignal, $priority);
