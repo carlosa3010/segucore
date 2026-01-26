@@ -85,28 +85,29 @@ class IncidentController extends Controller
      * 3. CREAR EVENTO MANUAL (Ticket sin Señal)
      */
     public function storeManual(Request $request)
-    {
-        $request->validate([
-            'account_id' => 'required|exists:alarm_accounts,id',
-            'event_code' => 'required|exists:sia_codes,code',
-            'note'       => 'required|string|min:5'
-        ]);
+{
+    $request->validate([
+        'account_id' => 'required|exists:alarm_accounts,id',
+        'event_code' => 'required|exists:sia_codes,code',
+        'note'       => 'required|string|min:5'
+    ]);
 
-        $account = AlarmAccount::find($request->account_id);
+    $account = AlarmAccount::find($request->account_id);
 
-        // A. Crear un "Evento Artificial"
-        $event = AlarmEvent::create([
-            'account_number' => $account->account_number,
-            'event_code'     => $request->event_code,
-            'event_type'     => 'manual',
-            'zone'           => '000', // Zona genérica
-            'partition'      => '0',
-            'ip_address'     => request()->ip(),
-            'raw_data'       => "EVENTO MANUAL: " . $request->note,
-            'received_at'    => now(),
-            'processed'      => true, // Ya nace procesado
-            'processed_at'   => now()
-        ]);
+    // A. Crear un "Evento Artificial"
+    $event = AlarmEvent::create([
+        'alarm_account_id' => $account->id, // <--- AGREGA ESTA LÍNEA (Solución al error 1364)
+        'account_number' => $account->account_number,
+        'event_code'     => $request->event_code,
+        'event_type'     => 'manual',
+        'zone'           => '000', 
+        'partition'      => '0',
+        'ip_address'     => request()->ip(),
+        'raw_data'       => "EVENTO MANUAL: " . $request->note,
+        'received_at'    => now(),
+        'processed'      => true, 
+        'processed_at'   => now()
+    ]);
 
         // B. Crear el Incidente vinculado
         $incident = Incident::create([
