@@ -7,6 +7,7 @@ use App\Models\Invoice;
 use App\Models\Customer;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class InvoiceController extends Controller
 {
