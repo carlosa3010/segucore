@@ -126,9 +126,28 @@ class AlarmProcessor
         }
 
         // 7. Actualizar "última señal" de la cuenta
+        
+        // --- INICIO DEBUG ---
+        Log::info("DEBUG MONITOR: Intentando actualizar last_signal_at para cuenta: {$account->account_number}");
+        Log::info("DEBUG MONITOR: Valor anterior: " . ($account->last_signal_at ?? 'NULL'));
+        Log::info("DEBUG MONITOR: Nuevo valor a guardar: " . $utcNow);
+        // --- FIN DEBUG ---
+
         $account->last_signal_at = $utcNow;
         $account->service_status = 'active';
-        $account->save(); 
+        
+        // Si quieres limpiar el fallo inmediatamente al recibir señal (Recomendado):
+        $account->last_connection_failure_at = null; 
+
+        $saved = $account->save(); 
+
+        // --- INICIO DEBUG ---
+        if ($saved) {
+            Log::info("DEBUG MONITOR: ¡Guardado EXITOSO en Base de Datos!");
+        } else {
+            Log::error("DEBUG MONITOR: ALERTA - El método save() devolvió false.");
+        }
+        // --- FIN DEBUG ---
 
         // 8. GUARDAR EL EVENTO
         try {
