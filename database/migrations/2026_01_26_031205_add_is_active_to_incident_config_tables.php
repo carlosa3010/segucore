@@ -11,8 +11,19 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('incident_config_tables', function (Blueprint $table) {
-            //
+        // 1. Agregar is_active a Resoluciones
+        Schema::table('incident_resolutions', function (Blueprint $table) {
+            if (!Schema::hasColumn('incident_resolutions', 'is_active')) {
+                $table->boolean('is_active')->default(true)->after('code');
+            }
+        });
+
+        // 2. Agregar is_active a Motivos de Espera
+        Schema::table('incident_hold_reasons', function (Blueprint $table) {
+            if (!Schema::hasColumn('incident_hold_reasons', 'is_active')) {
+                // Lo ponemos al final porque la estructura varió con migraciones anteriores
+                $table->boolean('is_active')->default(true); 
+            }
         });
     }
 
@@ -21,8 +32,16 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('incident_config_tables', function (Blueprint $table) {
-            //
+        Schema::table('incident_resolutions', function (Blueprint $table) {
+            if (Schema::hasColumn('incident_resolutions', 'is_active')) {
+                $table->dropColumn('is_active');
+            }
+        });
+
+        Schema::table('incident_hold_reasons', function (Blueprint $table) {
+            if (Schema::hasColumn('incident_hold_reasons', 'is_active')) {
+                $table->dropColumn('is_active');
+            }
         });
     }
 };
