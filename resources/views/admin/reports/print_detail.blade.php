@@ -11,13 +11,20 @@
         
         /* HEADER CORPORATIVO */
         .header-table { width: 100%; border-bottom: 2px solid #C6F211; margin-bottom: 15px; padding-bottom: 10px; }
-        .logo-img { height: 60px; width: auto; object-fit: contain; }
+        
+        /* AJUSTE DE LOGO: Limitamos altura y ancho máximo para que no se desborde */
+        .logo-img { 
+            height: 60px; 
+            width: auto; 
+            max-width: 250px; /* Evita que logos muy anchos rompan la tabla */
+            object-fit: contain; 
+        }
         
         .company-info { 
             text-align: right; 
             font-size: 10px; 
             color: #333;
-            font-family: Arial, sans-serif; /* Usamos Arial para los datos legales por legibilidad */
+            font-family: Arial, sans-serif; 
         }
 
         /* TITULO */
@@ -60,8 +67,15 @@
         <table class="header-table">
             <tr>
                 <td style="border:none; width: 30%; vertical-align: middle;">
-                    {{-- Logo: Usamos logo.png sin invertir colores para que se vea bien en papel --}}
-                    <img src="{{ asset('images/logo.png') }}" alt="SEGUSMART" class="logo-img"> 
+                    {{-- LOGO EN BASE64: Solución definitiva para problemas de carga en PDF/Impresión --}}
+                    @php
+                        $path = public_path('images/logo.png');
+                        $type = pathinfo($path, PATHINFO_EXTENSION);
+                        // Verificamos si existe la imagen para evitar errores fatales
+                        $data = file_exists($path) ? file_get_contents($path) : '';
+                        $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+                    @endphp
+                    <img src="{{ $base64 }}" alt="SEGUSMART" class="logo-img"> 
                 </td>
                 <td style="border:none; width: 70%; text-align: right; vertical-align: middle;">
                     <div class="company-info">
@@ -127,7 +141,6 @@
             <div class="row">
                 <span class="label">CIERRE:</span>
                 <span class="value">
-                    {{-- Usa resolved_at preferiblemente, fallback a updated_at si ya tiene resultado --}}
                     @php
                         $closeDate = $incident->resolved_at ?? ($incident->result ? $incident->updated_at : null);
                     @endphp
