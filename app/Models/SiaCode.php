@@ -10,17 +10,19 @@ class SiaCode extends Model
     use HasFactory;
 
     protected $fillable = [
-        'code',                         // Ej: BA
-        'name',                         // Ej: Alarma de Robo
-        'description',                  // Descripción breve
-        'priority',                     // 0=Log, 1=Info, 2=Alerta, 3=Crítico
-        'category',                     // alarm, status, test, power
+        'code',
+        'name',
+        'description',
+        'priority',
+        'category',
+        'color_hex',    // <--- FALTABA ESTE
+        'sound_alert',  // <--- FALTABA ESTE
         
-        // --- NUEVOS CAMPOS (Configuración Avanzada) ---
-        'procedure_instructions',       // Texto: Pasos a seguir por el operador
-        'requires_schedule_check',      // Bool: ¿Validar horario de apertura/cierre?
-        'schedule_grace_minutes',       // Int: Minutos de tolerancia
-        'schedule_violation_action'     // Enum: 'none', 'warning', 'critical_alert'
+        // Configuración Avanzada
+        'procedure_instructions',
+        'requires_schedule_check',
+        'schedule_grace_minutes',
+        'schedule_violation_action'
     ];
 
     /**
