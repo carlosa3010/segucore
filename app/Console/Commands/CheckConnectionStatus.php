@@ -10,63 +10,105 @@ use Carbon\Carbon;
 
 class CheckConnectionStatus extends Command
 {
+    /**
+     * El nombre y la firma del comando de consola.
+     *
+     * @var string
+     */
     protected $signature = 'segucore:check-connections';
+
+    /**
+     * La descripción del comando de consola.
+     *
+     * @var string
+     */
     protected $description = 'Verifica si las cuentas de alarma han reportado dentro de su intervalo esperado';
 
+    /**
+     * Ejecuta el comando de consola.
+     */
     public function handle()
     {
-        $this->info('Iniciando verificación de conectividad...');
+        $this->info('--- Iniciando verificación de conectividad ---');
 
+        // 1. Obtener cuentas activas y con servicio activo
         $accounts = AlarmAccount::where('is_active', true)
                                 ->where('service_status', 'active')
                                 ->get();
 
-        // CAMBIO: Usamos FC (Fallo Comunicación) en lugar de FT
-        $failureCode = 'FC'; 
+        $this->info("Cuentas encontradas para analizar: " . $accounts->count());
+
+        // Configuración del código de fallo
+        $failureCode = 'FC'; // Fallo de Comunicación
         
         $siaConfig = SiaCode::where('code', $failureCode)->first();
-        // Si no existe el código en BD, forzamos prioridad 3 (Alta/Ticket)
+        // Si no existe configuración, asumimos prioridad 3 (Alta/Ticket)
         $priority = $siaConfig ? $siaConfig->priority : 3;
 
         foreach ($accounts as $account) {
+            $this->line("Analizando cuenta: {$account->account_number}...");
+
+            // Validación: Si nunca ha reportado, no podemos calcular diferencia
             if (!$account->last_signal_at) {
+                $this->warn("   -> Saltada: No tiene fecha de 'last_signal_at' registrada.");
                 continue;
             }
 
-            $tolerance = 30; // Minutos de gracia
+            // Configuración de tiempos
+            $tolerance = 30; // Minutos de gracia extras al intervalo
+            $interval = $account->test_interval_minutes ?? 1440; // Default 24h si es null
+            
             $minutesSinceLastSignal = Carbon::now()->diffInMinutes($account->last_signal_at);
-            $maxAllowedMinutes = $account->test_interval_minutes + $tolerance;
+            $maxAllowedMinutes = $interval + $tolerance;
 
-            // 1. Detección de Fallo
+            $this->line("   -> Tiempo sin señal: {$minutesSinceLastSignal} min (Máximo permitido: {$maxAllowedMinutes} min)");
+
+            // --- LÓGICA DE DETECCIÓN ---
+
+            // CASO 1: FALLO DETECTADO (Tiempo excedido)
             if ($minutesSinceLastSignal > $maxAllowedMinutes) {
                 
-                // Evitar spam: solo alertar si no se ha alertado en las últimas 12h
+                // Protección contra Spam: Solo alertar si no se ha alertado en las últimas 12h (720 min)
                 $spamProtectionTime = 720; 
                 $lastFailure = $account->last_connection_failure_at;
+                
+                // Calculamos hace cuánto fue el último fallo para el log
+                $minutesSinceFailure = $lastFailure ? Carbon::now()->diffInMinutes($lastFailure) : 'N/A';
 
                 if (!$lastFailure || Carbon::now()->diffInMinutes($lastFailure) > $spamProtectionTime) {
                     
+                    // DISPARAR EVENTO
                     $this->triggerEvent($account, $failureCode, $minutesSinceLastSignal, $priority);
                     
+                    // Actualizar marca de tiempo para evitar duplicados inmediatos
                     $account->last_connection_failure_at = Carbon::now();
                     $account->save();
                     
-                    $this->error("Alerta generada: {$account->account_number} (Offline {$minutesSinceLastSignal} min)");
+                    $this->error("   -> ALERTA GENERADA (Offline hace " . round($minutesSinceLastSignal/60, 1) . " horas).");
+                } else {
+                    $this->comment("   -> Alerta omitida por protección de spam (Última alerta hace {$minutesSinceFailure} min).");
                 }
             } 
-            // 2. Auto-Restauración (Opcional pero recomendada)
+            
+            // CASO 2: RECUPERACIÓN (Tiempo OK)
             else {
-                // Si la cuenta tiene una marca de fallo pero ya está en tiempo, limpiamos la marca.
-                // (Esto ocurre si entró una señal y AlarmProcessor actualizó last_signal_at)
+                // Si la cuenta tenía una marca de fallo previa pero ahora está bien (recibió señal)
                 if ($account->last_connection_failure_at) {
                     $account->last_connection_failure_at = null;
                     $account->save();
-                    $this->info("Cuenta recuperada: {$account->account_number}");
+                    $this->info("   -> Cuenta RECUPERADA (Marca de fallo limpiada).");
+                } else {
+                    $this->info("   -> Estado OK.");
                 }
             }
         }
+
+        $this->info('--- Verificación completada ---');
     }
 
+    /**
+     * Crea el evento en la tabla alarm_events
+     */
     private function triggerEvent($account, $code, $minutesSilent, $priority)
     {
         $hours = round($minutesSilent / 60, 1);
@@ -79,6 +121,8 @@ class CheckConnectionStatus extends Command
             'partition'        => '00',
             'raw_data'         => 'SYSTEM_AUTO_CHECK',
             'received_at'      => Carbon::now(),
+            // Si priority es <= 2 es informativo (processed=true). 
+            // Si es >= 3 es alerta (processed=false) para que genere Ticket.
             'processed'        => ($priority <= 2) 
         ]);
     }
