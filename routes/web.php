@@ -186,10 +186,10 @@ Route::domain('admin.segusmart24.com')->group(function () {
         // Facturación detallada
         Route::get('invoices/create', [InvoiceController::class, 'create'])->name('invoices.create'); 
         
-        // ✅ Ruta para descargar PDF (Agregada para solucionar el error del botón)
+        // ✅ Ruta para descargar PDF (Admin)
         Route::get('invoices/{id}/download', [InvoiceController::class, 'download'])->name('invoices.download');
         
-        // Resource estándar (Crea automáticamente la ruta show: admin.invoices.show)
+        // Resource estándar
         Route::resource('invoices', InvoiceController::class)->except(['create']);
 
         // Pagos y Tasas
@@ -238,6 +238,9 @@ Route::domain('cliente.segusmart24.com')->group(function () {
         Route::get('/modal/alarm/{id}', [ClientPortalController::class, 'modalAlarm'])->name('client.modal.alarm');
         Route::get('/modal/gps/{id}', [ClientPortalController::class, 'modalGps'])->name('client.modal.gps');
         Route::get('/modal/billing', [ClientPortalController::class, 'modalBilling'])->name('client.modal.billing');
+
+        // ✅ NUEVA RUTA: Descargar Factura Cliente
+        Route::get('/invoice/{id}/download', [ClientPortalController::class, 'downloadInvoice'])->name('client.invoice.download');
     });
 });
 
