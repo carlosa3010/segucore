@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\AlarmAccount;
+use App\Models\AlarmEvent; // Importante: Importar el modelo
 use App\Models\GpsDevice;
 use App\Models\Invoice;
 use App\Models\DeviceAlert;
@@ -33,7 +34,7 @@ class ClientPortalController extends Controller
         return view('client.map', ['user' => $user]);
     }
 
-    // 2. API DE ACTIVOS (MODIFICADO PARA BUSCADOR)
+    // 2. API DE ACTIVOS
     public function getAssets()
     {
         $user = Auth::user();
@@ -55,8 +56,10 @@ class ClientPortalController extends Controller
                     'lng' => (float)$alarm->longitude,
                     'status' => $alarm->monitoring_status ?? 'normal',
                     'name' => $alarm->name ?? $alarm->account_number,
-                    'plate' => '', // Alarmas no tienen placa
-                    'imei' => '',  // Alarmas no tienen imei visible
+                    'plate' => '', 
+                    'imei' => '',  
+                    'speed' => 0,
+                    'course' => 0,
                     'last_update' => $alarm->updated_at->diffForHumans(),
                 ]);
             }
@@ -91,7 +94,6 @@ class ClientPortalController extends Controller
                 'lng' => (float)$lng,
                 'status' => $traccarData ? $traccarData->status : $status,
                 'name' => $device->name,
-                // [MODIFICACIÓN] Agregados para el buscador
                 'plate' => $device->plate_number ?? '',
                 'imei' => $device->imei ?? '',
                 'speed' => $speed,
@@ -244,7 +246,7 @@ class ClientPortalController extends Controller
         return view('client.modals.gps', compact('device'));
     }
 
-    // 6. ENVIAR COMANDO (IMPLEMENTADO)
+    // 6. ENVIAR COMANDO
     public function sendCommand(Request $request, $id)
     {
         $user = Auth::user();
@@ -257,7 +259,6 @@ class ClientPortalController extends Controller
         $type = $request->input('type'); // Ejemplo: "engineStop", "engineResume"
 
         try {
-            // Asumiendo que traccarService maneja la lógica de API
             $response = $this->traccarService->sendCommand($device->imei, $type);
             
             if ($response && isset($response['id'])) {
@@ -270,7 +271,7 @@ class ClientPortalController extends Controller
         }
     }
 
-    // 7. MODAL ALARMA (IMPLEMENTADO)
+    // 7. MODAL ALARMA (CORREGIDO)
     public function modalAlarm($id)
     {
         $user = Auth::user();
@@ -280,38 +281,41 @@ class ClientPortalController extends Controller
 
         if (!$alarm) return '<div class="p-4 text-red-500 text-center">Cuenta de alarma no encontrada.</div>';
 
-        // Opcional: Cargar últimos eventos de esta alarma si tienes tabla de eventos
-        // $events = $alarm->events()->latest()->take(5)->get();
+        // Recuperar los últimos 5 eventos para esta cuenta
+        $events = AlarmEvent::where('account_id', $alarm->id)
+                    ->with('siaCode')
+                    ->latest()
+                    ->take(5)
+                    ->get();
 
-        return view('client.modals.alarm', compact('alarm'));
+        return view('client.modals.alarm', compact('alarm', 'events'));
     }
 
-    // 8. MODAL FACTURACIÓN (IMPLEMENTADO)
+    // 8. MODAL FACTURACIÓN (ACTUALIZADO)
     public function modalBilling()
     {
         $user = Auth::user();
         
         // Obtener facturas del cliente
         $invoices = Invoice::where('customer_id', $user->customer_id)
-            ->orderBy('created_at', 'desc')
-            ->take(10) // Últimas 10
+            ->orderBy('issue_date', 'desc')
+            ->take(12) 
             ->get();
 
         return view('client.modals.billing', compact('invoices'));
     }
 
-    // 9. ALERTAS RECIENTES (IMPLEMENTADO)
+    // 9. ALERTAS RECIENTES
     public function getLatestAlerts()
     {
         $user = Auth::user();
         if (!$user->customer_id) return response()->json([]);
 
-        // Obtener IDs de los dispositivos GPS del cliente
         $deviceIds = GpsDevice::where('customer_id', $user->customer_id)->pluck('id');
 
         $alerts = DeviceAlert::whereIn('gps_device_id', $deviceIds)
-            ->with('gpsDevice:id,name') // Cargar solo el nombre
-            ->where('created_at', '>=', Carbon::now()->subHours(48)) // Últimas 48 horas
+            ->with('gpsDevice:id,name') 
+            ->where('created_at', '>=', Carbon::now()->subHours(48)) 
             ->orderBy('created_at', 'desc')
             ->take(20)
             ->get()
@@ -325,6 +329,22 @@ class ClientPortalController extends Controller
             });
 
         return response()->json($alerts);
+    }
+
+    // 10. DESCARGAR FACTURA (NUEVO)
+    public function downloadInvoice($id)
+    {
+        $user = Auth::user();
+        
+        $invoice = Invoice::with('customer')
+            ->where('id', $id)
+            ->where('customer_id', $user->customer_id)
+            ->firstOrFail();
+
+        // Reutilizamos la misma vista PDF que usa el admin
+        $pdf = Pdf::loadView('admin.invoices.pdf', compact('invoice'));
+        
+        return $pdf->download('Factura-' . $invoice->invoice_number . '.pdf');
     }
 
     // --- FUNCIONES AUXILIARES ---
