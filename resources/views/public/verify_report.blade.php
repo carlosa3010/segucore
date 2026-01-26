@@ -15,7 +15,7 @@
 <body>
     <div class="min-h-screen flex flex-col items-center justify-center p-4">
         
-        <img src="{{ asset('images/logo.png') }}" alt="SEGUSMART" class="h-16 mb-6 object-contain">
+        <img src="{{ asset('images/logo-white.png') }}" alt="SEGUSMART" class="h-16 mb-6 object-contain">
 
         <div class="w-full max-w-2xl bg-white rounded-lg shadow-2xl overflow-hidden relative">
             
