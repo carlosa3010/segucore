@@ -51,9 +51,12 @@
                 </div>
                 <div class="flex justify-between py-2 border-b border-gray-800">
                     <span class="text-gray-500">Última Señal</span>
-                    {{-- Conversión de Hora: UTC -> America/Caracas --}}
                     <span class="text-gray-300">
-                        {{ $alarm->updated_at ? $alarm->updated_at->setTimezone('America/Caracas')->format('d/m/Y h:i A') : 'N/A' }}
+                        @php
+                            // ✅ CORRECCIÓN: Priorizar la fecha del último evento recibido
+                            $lastDate = $events->count() > 0 ? $events->first()->created_at : $alarm->updated_at;
+                        @endphp
+                        {{ $lastDate ? $lastDate->setTimezone('America/Caracas')->format('d/m/Y h:i A') : 'N/A' }}
                     </span>
                 </div>
                 <div class="flex justify-between py-2 border-b border-gray-800">
