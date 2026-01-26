@@ -19,3 +19,6 @@ Schedule::command('gps:check-alerts')->everyMinute();
 
 // Limpiar tokens de API expirados diariamente (Mantenimiento)
 Schedule::command('sanctum:prune-expired')->daily();
+
+// Ejecutar verificación cada hora
+Schedule::command('segucore:check-connections')->hourly();
