@@ -4,19 +4,10 @@
     <meta charset="utf-8">
     <title>Reporte Resumido - {{ $device->name }}</title>
     <style>
-        body { font-family: sans-serif; color: #333; font-size: 13px; }
-        
-        /* Encabezado ajustado para datos completos */
-        .header { width: 100%; border-bottom: 2px solid #C6F211; padding-bottom: 10px; margin-bottom: 20px; }
-        .logo { float: left; width: 180px; padding-top: 5px; }
-        .company-info { 
-            float: right; 
-            text-align: right; 
-            font-size: 10px; /* Letra más pequeña para que quepa la dirección */
-            color: #555; 
-            line-height: 1.3;
-        }
-        
+        body { font-family: sans-serif; color: #333; }
+        .header { width: 100%; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
+        .logo { float: left; width: 150px; }
+        .company-info { float: right; text-align: right; font-size: 12px; }
         .title { text-align: center; font-size: 18px; font-weight: bold; margin-top: 30px; text-transform: uppercase; }
         
         .card-container { width: 100%; margin-top: 20px; }
@@ -41,17 +32,11 @@
 
     <div class="header clearfix">
         <div class="logo">
-            {{-- Usamos el logo principal logo.png sin filtros --}}
-            <img src="{{ public_path('images/logo.png') }}" style="height: 55px;"> 
+            <img src="{{ public_path('images/logo-white.png') }}" style="height: 40px; filter: invert(1);"> 
         </div>
         <div class="company-info">
-            <strong style="font-size: 12px; color: #000;">Segusmart 24, C.A.</strong><br>
-            RIF: J-50608166-0<br>
-            Av Lara CC Rio Lama 5ta Etapa Nivel Plaza Local 38-39<br>
-            Barquisimeto Edo Lara 3001<br>
-            contacto@segusmart24.com | +58 412-1405670<br>
-            <br>
-            <em>Generado: {{ now()->format('d/m/Y H:i') }}</em>
+            <strong>SeguCore Monitor</strong><br>
+            Generado: {{ now()->format('d/m/Y H:i') }}
         </div>
     </div>
 
@@ -111,7 +96,7 @@
     </table>
 
     <div style="margin-top: 50px; font-size: 10px; text-align: center; color: #999;">
-        Este documento es un reporte generado automáticamente por el sistema Segusmart 24.
+        Este documento es un reporte generado automáticamente por el sistema SeguCore.
     </div>
 
 </body>
