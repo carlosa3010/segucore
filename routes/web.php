@@ -184,7 +184,7 @@ Route::domain('admin.segusmart24.com')->group(function () {
 
         // 12. FACTURACIÓN Y FINANZAS
         // Facturación detallada
-        Route::get('invoices/create/{customer}', [InvoiceController::class, 'create'])->name('invoices.create');
+        Route::get('invoices/create', [InvoiceController::class, 'create'])->name('invoices.create'); 
         Route::resource('invoices', InvoiceController::class)->except(['create']);
 
         // Pagos y Tasas
