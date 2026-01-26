@@ -194,8 +194,8 @@
                                             </span>
                                         </td>
                                         <td class="px-6 py-4 text-right">
-                                            {{-- Aquí se debe definir la ruta admin.invoices.download en web.php --}}
-                                            <a href="#" class="bg-gray-700 hover:bg-red-600 text-white p-1.5 rounded transition inline-block" title="Descargar PDF">
+                                            {{-- ✅ CORRECCIÓN: Botón PDF actualizado para usar la ruta correcta --}}
+                                            <a href="{{ route('admin.invoices.download', $invoice->id) }}" class="bg-gray-700 hover:bg-red-600 text-white p-1.5 rounded transition inline-block" title="Descargar PDF">
                                                 📄
                                             </a>
                                         </td>
