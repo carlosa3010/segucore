@@ -21,13 +21,13 @@ class IncidentController extends Controller
     public function console()
     {
         // A. Cola de Eventos Nuevos (Pendientes de atención)
-        $pendingEvents = AlarmEvent::where('processed', false)
-            ->join('sia_codes', 'alarm_events.event_code', '=', 'sia_codes.code')
-            ->orderBy('sia_codes.priority', 'desc') 
-            ->orderBy('alarm_events.created_at', 'asc')
-            ->select('alarm_events.*')
-            ->with(['account.customer', 'siaCode'])
-            ->get();
+        $pendingEvents = AlarmEvent::with(['account.customer', 'siaCode']) // Carga las relaciones primero
+        ->join('sia_codes', 'alarm_events.event_code', '=', 'sia_codes.code')
+        ->where('alarm_events.processed', false)
+        ->select('alarm_events.*') // Asegura que el ID sea el de alarm_events
+        ->orderBy('sia_codes.priority', 'desc') 
+        ->orderBy('alarm_events.created_at', 'asc')
+        ->get();
 
         // B. Mis Incidentes en Curso (Tickets abiertos del operador)
         // CORRECCIÓN IMPORTANTE: Filtramos por todo lo que NO esté cerrado.
