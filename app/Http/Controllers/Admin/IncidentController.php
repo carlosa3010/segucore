@@ -152,13 +152,15 @@ class IncidentController extends Controller
         ])->findOrFail($id);
 
         // Historial reciente de la cuenta
-        $accountHistory = AlarmEvent::where('account_number', $incident->alarmEvent->account_number)
-            ->where('id', '!=', $incident->alarm_event_id)
+        // CORRECCIÓN: Usamos 'alarm_account_id' para ver también señales antiguas
+        // que no tenían guardado el string 'account_number'.
+        $accountHistory = AlarmEvent::where('alarm_account_id', $incident->alarm_account_id) // <--- CAMBIO AQUÍ
+            ->where('id', '!=', $incident->alarm_event_id) // Excluir el evento actual
             ->latest()
             ->take(15)
             ->get();
 
-        // Cargar Configuración Dinámica (Resoluciones y Motivos activos)
+        // Cargar Configuración Dinámica
         $resolutions = IncidentResolution::where('is_active', true)->get();
         $holdReasons = IncidentHoldReason::where('is_active', true)->get();
 
