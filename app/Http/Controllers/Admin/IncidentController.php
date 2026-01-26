@@ -51,7 +51,8 @@ class IncidentController extends Controller
      */
     public function take($eventId)
     {
-        $event = AlarmEvent::with('account')->findOrFail($eventId);
+        // Cargamos siaCode para poder usar su descripción en el título
+        $event = AlarmEvent::with(['account', 'siaCode'])->findOrFail($eventId);
         
         if ($event->processed) {
             return back()->with('error', 'Este evento ya fue atendido.');
@@ -59,12 +60,17 @@ class IncidentController extends Controller
 
         // Crear Ticket
         $incident = Incident::create([
+            // ✅ CORRECCIÓN 1: Título obligatorio
+            'title'            => $event->siaCode ? $event->siaCode->description : 'Evento ' . $event->event_code,
+            
             'alarm_event_id'   => $event->id,
             'alarm_account_id' => $event->account->id,
             'customer_id'      => $event->account->customer_id ?? null,
             'operator_id'      => Auth::id() ?? 1,
             'status'           => 'in_progress',
-            'started_at'       => now(),
+            
+            // ✅ CORRECCIÓN 2: Usar nombre real de la columna en BD (occurred_at) en vez del alias
+            'occurred_at'      => now(), 
         ]);
 
         // Marcar evento como procesado
@@ -85,38 +91,43 @@ class IncidentController extends Controller
      * 3. CREAR EVENTO MANUAL (Ticket sin Señal)
      */
     public function storeManual(Request $request)
-{
-    $request->validate([
-        'account_id' => 'required|exists:alarm_accounts,id',
-        'event_code' => 'required|exists:sia_codes,code',
-        'note'       => 'required|string|min:5'
-    ]);
+    {
+        $request->validate([
+            'account_id' => 'required|exists:alarm_accounts,id',
+            'event_code' => 'required|exists:sia_codes,code',
+            'note'       => 'required|string|min:5'
+        ]);
 
-    $account = AlarmAccount::find($request->account_id);
+        $account = AlarmAccount::find($request->account_id);
 
-    // A. Crear un "Evento Artificial"
-    $event = AlarmEvent::create([
-        'alarm_account_id' => $account->id, // <--- AGREGA ESTA LÍNEA (Solución al error 1364)
-        'account_number' => $account->account_number,
-        'event_code'     => $request->event_code,
-        'event_type'     => 'manual',
-        'zone'           => '000', 
-        'partition'      => '0',
-        'ip_address'     => request()->ip(),
-        'raw_data'       => "EVENTO MANUAL: " . $request->note,
-        'received_at'    => now(),
-        'processed'      => true, 
-        'processed_at'   => now()
-    ]);
+        // A. Crear un "Evento Artificial"
+        $event = AlarmEvent::create([
+            'alarm_account_id' => $account->id, // ✅ CORRECCIÓN 3: Evita error 1364
+            'account_number'   => $account->account_number,
+            'event_code'       => $request->event_code,
+            'event_type'       => 'manual',
+            'zone'             => '000', 
+            'partition'        => '0',
+            'ip_address'       => request()->ip(),
+            'raw_data'         => "EVENTO MANUAL: " . $request->note,
+            'received_at'      => now(),
+            'processed'        => true, 
+            'processed_at'     => now()
+        ]);
 
         // B. Crear el Incidente vinculado
         $incident = Incident::create([
+            // ✅ CORRECCIÓN 4: Título obligatorio para manuales
+            'title'            => 'Manual: ' . $request->event_code,
+            
             'alarm_event_id'   => $event->id,
             'alarm_account_id' => $account->id,
             'customer_id'      => $account->customer_id,
             'operator_id'      => Auth::id() ?? 1,
             'status'           => 'in_progress',
-            'started_at'       => now(),
+            
+            // ✅ CORRECCIÓN 5: Fecha correcta
+            'occurred_at'      => now(),
         ]);
 
         // C. Bitácora
@@ -199,11 +210,13 @@ class IncidentController extends Controller
             'result_code'      => 'required|string'
         ]);
 
+        // Aquí usamos los campos correctos para el cierre
         $incident->update([
-            'status'    => 'closed',
-            'closed_at' => now(),
-            'notes'     => $request->resolution_notes,
-            'result'    => $request->result_code
+            'status'      => 'closed',
+            'resolved_at' => now(), // Aseguramos usar resolved_at
+            'closed_at'   => now(), // Mantenemos compatibilidad si usas ambos
+            'notes'       => $request->resolution_notes,
+            'result'      => $request->result_code
         ]);
 
         // Obtener nombre legible de resolución
