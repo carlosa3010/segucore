@@ -17,7 +17,7 @@ class CheckGpsAlerts extends Command
 
     public function handle()
     {
-        // 1. Obtener dispositivos activos (usando is_active que sí existe)
+        // 1. Obtener dispositivos activos
         $devices = GpsDevice::where('is_active', true)->get();
 
         $count = 0;
@@ -29,10 +29,11 @@ class CheckGpsAlerts extends Command
             if (!$traccarDev || !$traccarDev->position) continue;
 
             $pos = $traccarDev->position;
-            $speedKmh = round($pos->speed * 1.852); // Nudos a Km/h
             
-            // --- CORRECCIÓN DEL ERROR JSON ---
-            // Si ya es array (por el Model Cast), úsalo. Si es string, decodifícalo.
+            // Conversión correcta de Nudos a Km/h
+            $speedKmh = round($pos->speed * 1.852); 
+            
+            // Manejo seguro de atributos (JSON o Array)
             $attributes = is_array($pos->attributes) 
                 ? $pos->attributes 
                 : (json_decode($pos->attributes, true) ?? []);
@@ -46,6 +47,7 @@ class CheckGpsAlerts extends Command
                 'last_longitude' => $pos->longitude,
                 'speed'          => $speedKmh,
                 'battery_level'  => $batteryLevel,
+                // Lógica de estado: Si se mueve y tiene ignición = online, sino stopped
                 'status'         => ($speedKmh > 2 && $ignition) ? 'online' : 'stopped',
                 'updated_at'     => now() 
             ]);
@@ -53,19 +55,28 @@ class CheckGpsAlerts extends Command
             // 3. REGLAS DE ALERTAS
             
             // A. Exceso de Velocidad
-            if (($pos['speed'] * 1.852) > $device->speed_limit) {
-                $this->triggerAlert($dev, 'overspeed', "⚠️ Exceso de velocidad: {$speedKmh} km/h (Límite: {$dev->speed_limit} km/h)", [
-                    'speed' => $speedKmh,
-                    'lat' => $pos->latitude,
-                    'lng' => $pos->longitude
-                ]);
+            // CORRECCIÓN: Usamos $dev (no $device) y $speedKmh (ya calculado)
+            if ($dev->speed_limit > 0 && $speedKmh > $dev->speed_limit) {
+                $this->triggerAlert(
+                    $dev, 
+                    'overspeed', 
+                    "⚠️ Exceso de velocidad: {$speedKmh} km/h (Límite: {$dev->speed_limit} km/h)", 
+                    [
+                        'speed' => $speedKmh,
+                        'lat' => $pos->latitude,
+                        'lng' => $pos->longitude
+                    ]
+                );
             }
 
             // B. Batería Baja
             if ($batteryLevel !== null && $batteryLevel < 20) {
-                 $this->triggerAlert($dev, 'low_battery', "🔋 Batería baja: {$batteryLevel}%", [
-                    'battery' => $batteryLevel
-                ]);
+                 $this->triggerAlert(
+                    $dev, 
+                    'low_battery', 
+                    "🔋 Batería baja: {$batteryLevel}%", 
+                    ['battery' => $batteryLevel]
+                );
             }
 
             $count++;
@@ -87,7 +98,7 @@ class CheckGpsAlerts extends Command
                 'gps_device_id' => $device->id,
                 'type' => $type,
                 'message' => $message,
-                'data' => $data
+                'data' => $data // Laravel casteará esto a JSON automáticamente si está en $casts
             ]);
             
             if ($device->customer) {
@@ -98,7 +109,7 @@ class CheckGpsAlerts extends Command
                         'msg' => $message
                     ]));
                 } catch (\Exception $e) {
-                    Log::error("Error enviando notificación: " . $e->getMessage());
+                    Log::error("Error enviando notificación GPS: " . $e->getMessage());
                 }
             }
         }
