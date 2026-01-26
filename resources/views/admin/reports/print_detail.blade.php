@@ -3,15 +3,22 @@
 <head>
     <meta charset="utf-8">
     <title>Informe Oficial #{{ str_pad($incident->id, 6, '0', STR_PAD_LEFT) }}</title>
+    {{-- Librería QR (usamos una versión CDN estable) --}}
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         body { font-family: 'Courier New', Courier, monospace; font-size: 12px; color: #000; line-height: 1.3; }
         .container { max-width: 800px; margin: 0 auto; padding: 20px; }
         
-        /* HEADER */
-        .header-table { width: 100%; border-bottom: 2px solid #000; margin-bottom: 15px; padding-bottom: 10px; }
+        /* HEADER CORPORATIVO */
+        .header-table { width: 100%; border-bottom: 2px solid #C6F211; margin-bottom: 15px; padding-bottom: 10px; }
         .logo-img { height: 60px; width: auto; object-fit: contain; }
-        .company-info { text-align: right; font-size: 10px; }
+        
+        .company-info { 
+            text-align: right; 
+            font-size: 10px; 
+            color: #333;
+            font-family: Arial, sans-serif; /* Usamos Arial para los datos legales por legibilidad */
+        }
 
         /* TITULO */
         h1 { text-align: center; text-transform: uppercase; font-size: 18px; margin: 10px 0 20px 0; letter-spacing: 1px; }
@@ -44,22 +51,26 @@
 </head>
 <body>
 
-    <div class="no-print" style="position: fixed; top: 0; right: 0; padding: 10px; background: #ddd; opacity: 0.9;">
-        <button onclick="window.print()" style="font-size: 16px; padding: 10px 20px; cursor: pointer; font-weight: bold;">🖨️ IMPRIMIR / GUARDAR PDF</button>
+    <div class="no-print" style="position: fixed; top: 0; right: 0; padding: 10px; background: #ddd; opacity: 0.9; z-index: 1000; border-bottom-left-radius: 5px;">
+        <button onclick="window.print()" style="font-size: 14px; padding: 8px 15px; cursor: pointer; font-weight: bold; background: #333; color: white; border: none; border-radius: 4px;">🖨️ IMPRIMIR / GUARDAR PDF</button>
     </div>
 
     <div class="container">
         
         <table class="header-table">
             <tr>
-                <td style="border:none; width: 30%;">
-                    <img src="{{ asset('images/logo-white.png') }}" alt="SEGUSMART" class="logo-img" style="filter: invert(1);"> 
+                <td style="border:none; width: 30%; vertical-align: middle;">
+                    {{-- Logo: Usamos logo.png sin invertir colores para que se vea bien en papel --}}
+                    <img src="{{ public_path('images/logo.png') }}" alt="SEGUSMART" class="logo-img"> 
                 </td>
-                <td style="border:none; width: 70%; text-align: right;">
-                    <strong>SEGUSMART 24, C.A.</strong><br>
-                    RIF: J-50462276-0<br>
-                    Centro de Control y Monitoreo 24/7<br>
-                    Barquisimeto, Venezuela
+                <td style="border:none; width: 70%; text-align: right; vertical-align: middle;">
+                    <div class="company-info">
+                        <strong style="font-size: 14px; color: #000;">SEGUSMART 24, C.A.</strong><br>
+                        RIF: J-50608166-0<br>
+                        Av Lara CC Rio Lama 5ta Etapa Nivel Plaza Local 38-39<br>
+                        Barquisimeto, Edo. Lara 3001<br>
+                        Centro de Control y Monitoreo 24/7
+                    </div>
                 </td>
             </tr>
         </table>
@@ -93,8 +104,8 @@
                     <tr>
                         <th width="15%">Hora</th>
                         <th width="15%">Operador</th>
-                        <th width="10%">Acción</th>
-                        <th width="60%">Detalle</th>
+                        <th width="15%">Acción</th>
+                        <th width="55%">Detalle</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -116,11 +127,11 @@
             <div class="row">
                 <span class="label">CIERRE:</span>
                 <span class="value">
-                    {{-- Verifica si usamos closed_at o resolved_at según tu modelo --}}
-                    {{ ($incident->resolved_at ?? $incident->closed_at) 
-                        ? \Carbon\Carbon::parse($incident->resolved_at ?? $incident->closed_at)->setTimezone('America/Caracas')->format('d/m/Y h:i:s A') 
-                        : 'ABIERTO' 
-                    }}
+                    {{-- Usa resolved_at preferiblemente, fallback a updated_at si ya tiene resultado --}}
+                    @php
+                        $closeDate = $incident->resolved_at ?? ($incident->result ? $incident->updated_at : null);
+                    @endphp
+                    {{ $closeDate ? \Carbon\Carbon::parse($closeDate)->setTimezone('America/Caracas')->format('d/m/Y h:i:s A') : 'ABIERTO / EN PROCESO' }}
                 </span>
             </div>
             <div style="margin-top: 10px; border: 1px solid #ccc; padding: 5px; background: #fafafa;">
@@ -130,16 +141,16 @@
         </div>
 
         @php
-            // El hash debe generarse con los datos originales (UTC) para consistencia técnica
+            // Generar Hash de Seguridad para validación
             $securityHash = strtoupper(substr(md5($incident->id . $incident->created_at . config('app.key')), 0, 8));
-            // URL firmada
+            // URL firmada para QR
             $verificationUrl = URL::signedRoute('report.verify', ['id' => $incident->id]);
         @endphp
 
         <div class="security-footer">
-            <div style="flex: 1;">
+            <div style="flex: 1; padding-right: 20px;">
                 <strong>VERIFICACIÓN DE AUTENTICIDAD</strong><br>
-                <small>Escanee el código QR para validar la integridad de este documento físico en nuestros servidores.</small><br><br>
+                <small style="color: #555;">Este documento es un registro oficial. Escanee el código QR para validar su integridad en nuestros servidores.</small><br><br>
                 SERIAL DE SEGURIDAD:<br>
                 <span class="hash-code">#{{ $securityHash }}-{{ $incident->id }}</span>
             </div>
@@ -149,13 +160,14 @@
     </div>
 
     <script type="text/javascript">
+        // Generar QR automáticamente al cargar
         new QRCode(document.getElementById("qrcode"), {
             text: "{{ $verificationUrl }}",
             width: 80,
             height: 80,
             colorDark : "#000000",
             colorLight : "#ffffff",
-            correctLevel : QRCode.CorrectLevel.M
+            correctLevel : QRCode.CorrectLevel.L
         });
     </script>
 
