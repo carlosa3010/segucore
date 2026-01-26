@@ -471,7 +471,7 @@
 
     <div x-show="editPartitionModal" style="display: none;" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm" x-transition>
         <div class="bg-[#1e293b] rounded-lg border border-gray-700 w-full max-w-md shadow-2xl" @click.away="editPartitionModal = false">
-            <form :action="'/admin/partitions/' + partitionForm.id" method="POST">
+            <form :action="'/partitions/' + partitionForm.id" method="POST">
                 @csrf @method('PUT')
                 <div class="p-4 border-b border-gray-700"><h3 class="text-white font-bold">Editar Área #<span x-text="partitionForm.number"></span></h3></div>
                 <div class="p-4">
