@@ -11,7 +11,7 @@ use App\Models\TraccarDevice;
 use App\Models\AlarmAccount;
 use App\Models\AlarmEvent;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth; // Agregamos Auth por si acaso se usa en la vista
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
@@ -57,7 +57,8 @@ class DashboardController extends Controller
         $gpsAlerts24h = DeviceAlert::where('created_at', '>=', now()->subDay())->count();
 
         // --- D. FEED DE INCIDENTES ---
-        $latestIncidents = Incident::with(['customer', 'user']) // Eager loading para optimizar
+        // CORRECCIÓN AQUÍ: Cambiamos 'user' por 'operator' que es el nombre real de la relación en el Modelo
+        $latestIncidents = Incident::with(['customer', 'operator']) 
             ->orderBy('created_at', 'desc')
             ->take(5)
             ->get();
