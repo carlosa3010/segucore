@@ -4,7 +4,7 @@
 
 @section('content')
     <div class="bg-[#1e293b] border-b border-gray-700 p-6 mb-6 rounded-lg shadow-lg relative overflow-hidden">
-        
+        {{-- Encabezado del perfil (sin cambios) --}}
         <div class="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
             <span class="text-9xl font-bold {{ $customer->is_active ? 'text-green-500' : 'text-red-500' }}">
                 {{ $customer->is_active ? 'ACT' : 'SUS' }}
@@ -73,6 +73,7 @@
         
         <div class="xl:col-span-2 space-y-6">
             
+            {{-- SECCIÓN ALARMAS --}}
             <div class="bg-[#1e293b] rounded-lg border border-gray-700 overflow-hidden shadow-lg">
                 <div class="bg-gray-800/50 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-white flex items-center gap-2">
@@ -115,10 +116,58 @@
                 </div>
             </div>
 
+            {{-- SECCIÓN GPS (RECUPERADA) --}}
             <div class="bg-[#1e293b] rounded-lg border border-gray-700 overflow-hidden shadow-lg">
                 <div class="bg-gray-800/50 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
                     <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                        <span class="text-blue-400">🧾</span> Historial de Facturación
+                        <span class="text-blue-400">🛰️</span> Rastreo GPS
+                    </h3>
+                    {{-- Asumiendo que la ruta create de GPS funciona similar a accounts --}}
+                    <a href="{{ route('admin.gps.devices.create', ['customer_id' => $customer->id]) }}" class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded font-bold transition">
+                        + Nuevo Dispositivo
+                    </a>
+                </div>
+                <div class="p-0 overflow-x-auto">
+                    @if($customer->gpsDevices->count() > 0)
+                        <table class="w-full text-sm text-left text-gray-400">
+                            <thead class="text-xs text-gray-500 uppercase bg-gray-900/50">
+                                <tr>
+                                    <th class="px-6 py-3">Dispositivo</th>
+                                    <th class="px-6 py-3">IMEI / Placa</th>
+                                    <th class="px-6 py-3 text-right">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-700">
+                                @foreach($customer->gpsDevices as $device)
+                                    <tr class="hover:bg-gray-800/50 transition cursor-pointer" onclick="window.location='{{ route('admin.gps.devices.show', $device->id) }}'">
+                                        <td class="px-6 py-4">
+                                            <div class="font-bold text-white">{{ $device->name }}</div>
+                                            <div class="text-[10px]">{{ $device->model }}</div>
+                                        </td>
+                                        <td class="px-6 py-4 font-mono">
+                                            <div class="text-white">{{ $device->imei }}</div>
+                                            <div class="text-[10px] text-gray-500">{{ $device->plate_number ?? 'S/P' }}</div>
+                                        </td>
+                                        <td class="px-6 py-4 text-right">
+                                            <span class="px-2 py-0.5 rounded text-[10px] font-bold {{ $device->is_active ? 'bg-green-900/30 text-green-400 border border-green-800' : 'bg-red-900/30 text-red-400 border border-red-800' }}">
+                                                {{ $device->is_active ? 'ONLINE' : 'OFFLINE' }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    @else
+                        <div class="p-8 text-center text-gray-500 italic">No hay dispositivos GPS registrados.</div>
+                    @endif
+                </div>
+            </div>
+
+            {{-- SECCIÓN FACTURACIÓN --}}
+            <div class="bg-[#1e293b] rounded-lg border border-gray-700 overflow-hidden shadow-lg">
+                <div class="bg-gray-800/50 px-6 py-4 border-b border-gray-700 flex justify-between items-center">
+                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                        <span class="text-gray-400">🧾</span> Historial de Facturación
                     </h3>
                 </div>
                 <div class="p-0">
@@ -185,8 +234,8 @@
                         </div>
                     </div>
 
-                    {{-- CORRECCIÓN: El parámetro debe ser 'customer' para coincidir con la ruta --}}
-                    <a href="{{ route('admin.invoices.create', ['customer' => $customer->id]) }}" class="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded font-bold transition shadow-lg mb-2">
+                    {{-- CORREGIDO: Usamos customer_id para coincidir con el controlador y la nueva ruta --}}
+                    <a href="{{ route('admin.invoices.create', ['customer_id' => $customer->id]) }}" class="block w-full text-center bg-blue-600 hover:bg-blue-500 text-white py-2.5 rounded font-bold transition shadow-lg mb-2">
                         Generar Factura Manual
                     </a>
                 @else
@@ -200,6 +249,7 @@
                 @endif
             </div>
 
+            {{-- ... resto de sidebar (Resumen Activos, Administración) ... --}}
             <div class="bg-[#1e293b] rounded-lg border border-gray-700 p-6 shadow-lg">
                 <h3 class="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-700 pb-2">
                     Resumen de Activos
