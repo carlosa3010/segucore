@@ -16,7 +16,8 @@ class PublicReportController extends Controller
         // Si el enlace ha expirado o la firma es inválida, Laravel lanza 403 automáticamente.
         // Pero por seguridad adicional, verificamos existencia.
         
-        $incident = Incident::with(['alarmEvent.account.customer', 'siaCode', 'logs.user'])
+        // CORRECCIÓN AQUÍ: 'siaCode' no existe en Incident, debe cargarse a través de 'alarmEvent'
+        $incident = Incident::with(['alarmEvent.account.customer', 'alarmEvent.siaCode', 'logs.user'])
             ->findOrFail($id);
 
         // Generamos el Hash de Seguridad Visual (para comparar con el papel)
