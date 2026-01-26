@@ -19,29 +19,27 @@
         <div class="space-y-4">
             <div class="bg-gray-800 p-4 rounded border border-gray-700 text-center">
                 <p class="text-xs text-gray-400 uppercase tracking-widest mb-1">Estado del Sistema</p>
-                {{-- Lógica de estado visual --}}
                 @php 
-                    $status = $alarm->monitoring_status ?? 'normal'; 
-                    $statusColor = 'text-gray-400';
+                    $status = $alarm->monitoring_status ?? 'normal';
+                    $statusClass = 'text-gray-400';
                     $statusIcon = 'fa-circle-question';
                     $statusText = 'DESCONOCIDO';
-
+                    
                     if($status == 'armed' || $status == 'closed') {
-                        $statusColor = 'text-green-500';
+                        $statusClass = 'text-green-500';
                         $statusIcon = 'fa-lock';
                         $statusText = 'ARMADO / CERRADO';
                     } elseif($status == 'disarmed' || $status == 'open') {
-                        $statusColor = 'text-gray-400';
+                        $statusClass = 'text-gray-400';
                         $statusIcon = 'fa-lock-open';
                         $statusText = 'DESARMADO / ABIERTO';
                     } elseif($status == 'alarm') {
-                        $statusColor = 'text-red-500 animate-pulse';
+                        $statusClass = 'text-red-500 animate-pulse';
                         $statusIcon = 'fa-exclamation-triangle';
                         $statusText = 'EN ALARMA';
                     }
                 @endphp
-
-                <h2 class="text-2xl font-bold {{ $statusColor }}">
+                <h2 class="text-2xl font-bold {{ $statusClass }}">
                     <i class="fas {{ $statusIcon }}"></i> {{ $statusText }}
                 </h2>
             </div>
@@ -53,7 +51,10 @@
                 </div>
                 <div class="flex justify-between py-2 border-b border-gray-800">
                     <span class="text-gray-500">Última Señal</span>
-                    <span class="text-gray-300">{{ $alarm->updated_at->diffForHumans() }}</span>
+                    {{-- Conversión de Hora: UTC -> America/Caracas --}}
+                    <span class="text-gray-300">
+                        {{ $alarm->updated_at ? $alarm->updated_at->setTimezone('America/Caracas')->format('d/m/Y h:i A') : 'N/A' }}
+                    </span>
                 </div>
                 <div class="flex justify-between py-2 border-b border-gray-800">
                     <span class="text-gray-500">Particiones</span>
@@ -70,12 +71,14 @@
                         @forelse($events as $event)
                             <tr class="hover:bg-gray-700/50 transition">
                                 <td class="p-3 text-gray-400 text-xs whitespace-nowrap">
-                                    {{ $event->created_at->format('d/m H:i') }}
+                                    {{-- Conversión de Hora: UTC -> America/Caracas --}}
+                                    {{ $event->created_at->setTimezone('America/Caracas')->format('d/m H:i') }}
+                                    <div class="text-[9px] opacity-50">{{ $event->created_at->diffForHumans() }}</div>
                                 </td>
                                 <td class="p-3">
                                     <div class="flex items-center gap-2">
-                                        <span class="text-xs font-mono font-bold text-blue-400 bg-blue-900/30 px-1 rounded">{{ $event->event_code }}</span>
-                                        <span class="text-gray-200 text-xs">{{ Str::limit($event->siaCode->description ?? 'Señal Recibida', 25) }}</span>
+                                        <span class="bg-blue-900/30 text-blue-400 font-mono text-xs px-1 rounded">{{ $event->event_code }}</span>
+                                        <span class="text-white text-xs">{{ Str::limit($event->siaCode->description ?? 'Señal Recibida', 25) }}</span>
                                     </div>
                                     @if($event->zone)
                                         <div class="text-[10px] text-gray-500 pl-1">Zona: {{ $event->zone }}</div>
