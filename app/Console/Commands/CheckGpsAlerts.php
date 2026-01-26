@@ -53,7 +53,7 @@ class CheckGpsAlerts extends Command
             // 3. REGLAS DE ALERTAS
             
             // A. Exceso de Velocidad
-            if ($dev->speed_limit > 0 && $speedKmh > $dev->speed_limit) {
+            if (($pos['speed'] * 1.852) > $device->speed_limit) {
                 $this->triggerAlert($dev, 'overspeed', "⚠️ Exceso de velocidad: {$speedKmh} km/h (Límite: {$dev->speed_limit} km/h)", [
                     'speed' => $speedKmh,
                     'lat' => $pos->latitude,
