@@ -11,19 +11,26 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Paso 1: Asegurar que exista la columna 'result' (que faltaba y causó el error)
+        if (!Schema::hasColumn('incidents', 'result')) {
+            Schema::table('incidents', function (Blueprint $table) {
+                // La agregamos después de 'status' si existe, si no, al final.
+                $table->string('result')->nullable(); 
+            });
+        }
+
+        // Paso 2: Crear las relaciones
         Schema::table('incidents', function (Blueprint $table) {
             // Relación con Resoluciones (Cierre)
-            // Se usa set null para que si borras una resolución, el historial no se rompa (solo queda null)
             $table->foreignId('incident_resolution_id')
                   ->nullable()
-                  ->after('result') // Opcional: para ordenarlo visualmente después de 'result'
+                  // Quitamos el 'after' estricto para evitar errores, se agregarán al final
                   ->constrained('incident_resolutions')
                   ->nullOnDelete();
 
             // Relación con Motivos de Espera
             $table->foreignId('incident_hold_reason_id')
                   ->nullable()
-                  ->after('incident_resolution_id')
                   ->constrained('incident_hold_reasons')
                   ->nullOnDelete();
         });
@@ -35,12 +42,17 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('incidents', function (Blueprint $table) {
-            // Eliminamos primero la llave foránea y luego la columna
+            // Eliminamos las llaves foráneas y columnas
             $table->dropForeign(['incident_resolution_id']);
             $table->dropColumn('incident_resolution_id');
 
             $table->dropForeign(['incident_hold_reason_id']);
             $table->dropColumn('incident_hold_reason_id');
+            
+            // Opcional: Si quieres que el rollback también borre 'result', descomenta esto:
+            // if (Schema::hasColumn('incidents', 'result')) {
+            //    $table->dropColumn('result');
+            // }
         });
     }
 };
