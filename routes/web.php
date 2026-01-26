@@ -87,6 +87,7 @@ Route::domain('admin.segusmart24.com')->group(function () {
         Route::post('accounts/{id}/partitions', [AccountController::class, 'storePartition'])->name('accounts.partitions.store');
         Route::put('partitions/{id}', [AccountController::class, 'updatePartition'])->name('partitions.update');
         Route::delete('partitions/{id}', [AccountController::class, 'destroyPartition'])->name('partitions.destroy');
+        Route::get('partitions/{id}/edit', [AccountController::class, 'editPartition'])->name('partitions.edit');
 
         Route::post('accounts/{id}/users', [AccountController::class, 'storePanelUser'])->name('accounts.users.store');
         Route::put('panel-users/{id}', [AccountController::class, 'updatePanelUser'])->name('accounts.users.update');
