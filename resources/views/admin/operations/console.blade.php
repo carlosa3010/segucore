@@ -55,8 +55,8 @@
                         </div>
                         
                         <div class="col-span-2 font-mono font-bold text-yellow-500">
-                            {{ $event->account_number }}
-                        </div>
+    {{ $event->account_number ?? ($event->account->account_number ?? 'N/A') }}
+</div>
                         
                         <div class="col-span-4 font-bold text-white truncate" title="{{ $event->siaCode->description }}">
                             {{ $event->event_code }} - {{ $event->siaCode->description }}
