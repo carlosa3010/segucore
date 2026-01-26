@@ -21,10 +21,10 @@ class IncidentController extends Controller
     public function console()
     {
         // A. Cola de Eventos Nuevos (Pendientes de atención)
-        $pendingEvents = AlarmEvent::with(['account.customer', 'siaCode']) // Carga las relaciones primero
+        $pendingEvents = AlarmEvent::where('processed', false)
         ->join('sia_codes', 'alarm_events.event_code', '=', 'sia_codes.code')
-        ->where('alarm_events.processed', false)
-        ->select('alarm_events.*') // Asegura que el ID sea el de alarm_events
+        ->select('alarm_events.*') // Fuerza a traer solo columnas de eventos, incluyendo su ID real
+        ->with(['account.customer', 'siaCode']) 
         ->orderBy('sia_codes.priority', 'desc') 
         ->orderBy('alarm_events.created_at', 'asc')
         ->get();
