@@ -105,7 +105,6 @@ class AccountController extends Controller
         return view('admin.customers.accounts.show', compact('account'));
     }
 
-    // MÉTODO AGREGADO: Formulario de edición
     public function edit($id)
     {
         $account = AlarmAccount::with('customer')->findOrFail($id);
@@ -122,7 +121,7 @@ class AccountController extends Controller
             'latitude' => 'nullable|numeric',
             'longitude' => 'nullable|numeric',
             'device_model' => 'nullable|string|max:100',
-            'service_status' => 'required|in:active,suspended,inactive' // Validación agregada para el estado
+            'service_status' => 'required|in:active,suspended,inactive'
         ]);
 
         $account->update($validated);
@@ -210,7 +209,15 @@ class AccountController extends Controller
         return back()->with('success', 'Partición agregada.');
     }
 
-    // Actualizar Partición (NUEVO)
+    // --- AGREGA ESTE MÉTODO PARA EVITAR EL ERROR 404 SI SE CARGA EL FORMULARIO ---
+    public function editPartition($id)
+    {
+        $partition = AlarmPartition::findOrFail($id);
+        // Si usas modal AJAX, devuelve una vista parcial.
+        // Si usas modal estático, este método es el respaldo por si alguien entra directo a la URL.
+        return view('admin.customers.accounts.partials.edit_partition_modal', compact('partition'));
+    }
+
     public function updatePartition(Request $request, $id)
     {
         $partition = AlarmPartition::with('account')->findOrFail($id);
@@ -277,7 +284,13 @@ class AccountController extends Controller
         return back()->with('success', 'Usuario de panel agregado.');
     }
 
-    // Actualizar Usuario de Panel (NUEVO)
+    // --- AGREGA ESTE MÉTODO PARA EVITAR 404 EN USUARIOS ---
+    public function editPanelUser($id)
+    {
+        $panelUser = PanelUser::findOrFail($id);
+        return view('admin.customers.accounts.partials.edit_user_modal', compact('panelUser'));
+    }
+
     public function updatePanelUser(Request $request, $id)
     {
         $user = PanelUser::with('account')->findOrFail($id);
@@ -323,8 +336,6 @@ class AccountController extends Controller
     /**
      * 7. GESTIÓN DE HORARIOS (TEMPORAL Y SEMANAL)
      */
-    
-    // Guardar Horario Temporal (Excepciones)
     public function storeTempSchedule(Request $request, $id)
     {
         $account = AlarmAccount::findOrFail($id);
@@ -353,7 +364,6 @@ class AccountController extends Controller
         return back()->with('success', 'Horario temporal creado.');
     }
 
-    // Guardar Horario Semanal (Lunes a Domingo)
     public function storeWeeklySchedule(Request $request, $id)
     {
         $account = AlarmAccount::findOrFail($id);
@@ -386,7 +396,6 @@ class AccountController extends Controller
         return back()->with('success', 'Horario semanal actualizado correctamente.');
     }
 
-    // Eliminar cualquier horario
     public function destroySchedule($id)
     {
         $schedule = AccountSchedule::with('account')->findOrFail($id);
