@@ -22,14 +22,26 @@ class SiaCodeController extends Controller
 
     public function store(Request $request)
     {
+        // 1. Validar datos
         $validated = $request->validate([
             'code' => 'required|string|max:3|unique:sia_codes,code',
             'description' => 'required|string|max:255',
             'priority' => 'required|integer|min:0|max:5',
-            'color_hex' => 'required|string|regex:/^#[a-fA-F0-9]{6}$/',
+            'color_hex' => 'nullable|string|regex:/^#[a-fA-F0-9]{6}$/', // Nullable permite dejarlo vacío
             'sound_alert' => 'nullable|string',
+            
+            // --- NUEVOS CAMPOS DE PROTOCOLO ---
+            'procedure_instructions' => 'nullable|string',
+            'requires_schedule_check' => 'nullable|boolean', // El checkbox envía true/1 o nada
+            'schedule_grace_minutes' => 'nullable|integer',
+            'schedule_violation_action' => 'nullable|string',
         ]);
 
+        // 2. Corrección para Checkboxes
+        // Si el checkbox no se marca, HTML no envía nada. Forzamos un booleano.
+        $validated['requires_schedule_check'] = $request->has('requires_schedule_check');
+
+        // 3. Crear registro
         SiaCode::create($validated);
 
         return redirect()->route('admin.sia-codes.index')
@@ -50,9 +62,18 @@ class SiaCodeController extends Controller
             'code' => 'required|string|max:3|unique:sia_codes,code,' . $id,
             'description' => 'required|string|max:255',
             'priority' => 'required|integer|min:0|max:5',
-            'color_hex' => 'required|string|regex:/^#[a-fA-F0-9]{6}$/',
+            'color_hex' => 'nullable|string|regex:/^#[a-fA-F0-9]{6}$/',
             'sound_alert' => 'nullable|string',
+
+            // --- NUEVOS CAMPOS ---
+            'procedure_instructions' => 'nullable|string',
+            'requires_schedule_check' => 'nullable|boolean',
+            'schedule_grace_minutes' => 'nullable|integer',
+            'schedule_violation_action' => 'nullable|string',
         ]);
+
+        // Corrección para Checkboxes en Update
+        $validated['requires_schedule_check'] = $request->has('requires_schedule_check');
 
         $siaCode->update($validated);
 
