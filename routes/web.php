@@ -129,9 +129,10 @@ Route::domain('admin.segusmart24.com')->group(function () {
             Route::post('resolutions', [IncidentConfigController::class, 'storeResolution'])->name('resolutions.store');
             Route::delete('resolutions/{id}', [IncidentConfigController::class, 'destroyResolution'])->name('resolutions.destroy');
             
-            Route::get('hold-reasons', [IncidentConfigController::class, 'indexHoldReasons'])->name('hold-reasons.index');
-            Route::post('hold-reasons', [IncidentConfigController::class, 'storeHoldReason'])->name('hold-reasons.store');
-            Route::delete('hold-reasons/{id}', [IncidentConfigController::class, 'destroyHoldReason'])->name('hold-reasons.destroy');
+            // --- MOTIVOS DE ESPERA (CORREGIDO: name usa guion bajo) ---
+            Route::get('hold-reasons', [IncidentConfigController::class, 'indexHoldReasons'])->name('hold_reasons.index');
+            Route::post('hold-reasons', [IncidentConfigController::class, 'storeHoldReason'])->name('hold_reasons.store');
+            Route::delete('hold-reasons/{id}', [IncidentConfigController::class, 'destroyHoldReason'])->name('hold_reasons.destroy');
 
             // Planes de Facturación
             Route::resource('plans', ServicePlanController::class);
