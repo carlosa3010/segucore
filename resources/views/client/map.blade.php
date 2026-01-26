@@ -42,6 +42,7 @@
                 <i class="fas fa-bell mr-1"></i> ALERTAS
                 <span id="alert-badge" class="hidden absolute top-2 right-6 w-2 h-2 bg-red-600 rounded-full animate-pulse"></span>
             </button>
+            {{-- Botón Facturas con ruta dinámica --}}
             <button onclick="loadModal('{{ route('client.modal.billing') }}')" class="py-3 text-xs font-bold text-gray-400 hover:text-white hover:bg-gray-800 transition">
                 <i class="fas fa-file-invoice mr-1"></i> FACTURAS
             </button>
@@ -116,36 +117,22 @@
 
         let markers = {}; 
         let historyLayer = L.layerGroup().addTo(map); 
-        
-        // VARIABLE GLOBAL PARA ALMACENAR ACTIVOS Y FILTRAR LOCALMENTE
         let allAssets = [];
 
-        // --- BÚSQUEDA / FILTRO EN TIEMPO REAL ---
-        document.getElementById('searchInput').addEventListener('input', function() {
-            filterAssets();
-        });
+        // --- BÚSQUEDA ---
+        document.getElementById('searchInput').addEventListener('input', function() { filterAssets(); });
 
         function filterAssets() {
             const term = document.getElementById('searchInput').value.toLowerCase().trim();
-            
-            if (!term) {
-                renderList(allAssets);
-                // Opcional: Si quieres que el mapa también se filtre, usa renderMap(allAssets) aquí.
-                // Por ahora mantenemos todos los marcadores en mapa, y filtramos la lista.
-                return;
-            }
+            if (!term) { renderList(allAssets); return; }
 
             const filtered = allAssets.filter(asset => {
                 const name = (asset.name || '').toLowerCase();
-                const plate = (asset.plate || '').toLowerCase(); // Datos nuevos
-                const imei = (asset.imei || '').toLowerCase();   // Datos nuevos
-                
+                const plate = (asset.plate || '').toLowerCase();
+                const imei = (asset.imei || '').toLowerCase();
                 return name.includes(term) || plate.includes(term) || imei.includes(term);
             });
-
             renderList(filtered);
-            // Si quieres filtrar también los íconos del mapa, descomenta:
-            // renderMap(filtered, true); 
         }
 
         // --- CARGA DE ACTIVOS ---
@@ -153,17 +140,9 @@
             fetch('{{ route("client.api.assets") }}')
                 .then(r => r.json())
                 .then(d => {
-                    allAssets = d.assets; // Guardamos en global
-                    
-                    // Si hay una búsqueda activa, filtramos sobre los nuevos datos recibidos
+                    allAssets = d.assets;
                     const term = document.getElementById('searchInput').value;
-                    if(term) {
-                        filterAssets();
-                    } else {
-                        renderList(allAssets);
-                    }
-                    
-                    // El mapa siempre muestra todo (o ajusta según prefieras)
+                    if(term) filterAssets(); else renderList(allAssets);
                     renderMap(allAssets); 
                 });
         }
@@ -181,7 +160,6 @@
                 let color = (a.status === 'online' || a.status === 'armed') ? 'text-green-500' : 'text-gray-500';
                 if(a.status === 'alarm') color = 'text-red-500 animate-pulse';
                 
-                // Info extra para mostrar en lista si se desea (Placa)
                 let subInfo = a.type === 'gps' && a.plate ? `<span class="bg-gray-800 text-gray-400 px-1 rounded ml-2 text-[9px] border border-gray-700">${a.plate}</span>` : '';
 
                 const div = document.createElement('div');
@@ -194,17 +172,17 @@
                             <p class="text-[10px] text-gray-500">${a.last_update}</p>
                         </div>
                     </div>`;
-                div.onclick = () => { if(a.lat) map.flyTo([a.lat, a.lng], 16); };
+                
+                // CLICK EN LISTA: Centrar mapa Y abrir modal
+                div.onclick = () => { 
+                    if(a.lat) map.flyTo([a.lat, a.lng], 16); 
+                    openModal(a.type, a.id);
+                };
                 c.appendChild(div);
             });
         }
 
-        function renderMap(assets, clearMissing = false) {
-            // Si quisieras limpiar marcadores que ya no están en 'assets' (útil para filtro de mapa)
-            if(clearMissing) {
-                // Lógica para remover markers no presentes... (simplificado para este ejemplo)
-            }
-
+        function renderMap(assets) {
             assets.forEach(a => {
                 if(!a.lat) return;
                 let key = `${a.type}_${a.id}`;
@@ -224,22 +202,65 @@
             });
         }
 
-        // --- FUNCIONES GLOBALES (Historial, Comandos, etc. se mantienen igual) ---
-        window.sendCommand = function(deviceId, type) {
-            if(!confirm('¿ATENCIÓN: Está seguro de enviar este comando?')) return;
-            const feedback = document.getElementById('command-feedback');
-            feedback.innerHTML = '<span class="text-blue-400 animate-pulse">Enviando...</span>';
+        // --- SISTEMA DE MODALES UNIFICADO ---
+        
+        // 1. Cargar Modal desde URL (Para Facturas y uso interno)
+        window.loadModal = function(url) {
+            const overlay = document.getElementById('modal-overlay');
+            const content = document.getElementById('modal-content');
+            
+            overlay.classList.remove('hidden');
+            // Reset de clases para animación
+            content.className = 'bg-gray-900 border border-gray-700 w-full max-w-2xl rounded-lg shadow-2xl overflow-hidden transform scale-95 opacity-0 transition-all duration-200 min-h-[200px]';
+            
+            setTimeout(() => { 
+                content.classList.remove('scale-95', 'opacity-0'); 
+                content.classList.add('scale-100', 'opacity-100'); 
+            }, 10);
 
-            fetch(`/api/device/${deviceId}/command`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
-                body: JSON.stringify({ type: type })
-            })
-            .then(r => r.json())
-            .then(d => feedback.innerHTML = d.success ? '<span class="text-green-500 font-bold">Éxito</span>' : '<span class="text-red-500">Error</span>')
-            .catch(() => feedback.innerHTML = '<span class="text-red-500">Error Red</span>');
+            content.innerHTML = '<div class="p-12 text-center"><i class="fas fa-circle-notch fa-spin text-3xl text-blue-500"></i></div>';
+
+            fetch(url)
+                .then(r => r.text())
+                .then(html => {
+                    content.innerHTML = html;
+                    // Inicializar datepickers si existen en el modal cargado
+                    if(document.querySelector('.datepicker')) {
+                        flatpickr(".datepicker", { enableTime: true, dateFormat: "Y-m-d H:i", locale: "es", theme: "dark" });
+                    }
+                })
+                .catch(() => {
+                    content.innerHTML = '<div class="p-6 text-center text-red-500">Error de conexión.</div>';
+                });
         };
 
+        // 2. Wrapper para abrir Alarmas o GPS por ID
+        window.openModal = function(type, id) {
+            loadModal(`/modal/${type}/${id}`);
+        };
+
+        window.closeModal = function() {
+            const overlay = document.getElementById('modal-overlay');
+            const content = document.getElementById('modal-content');
+            content.classList.remove('scale-100', 'opacity-100'); 
+            content.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => overlay.classList.add('hidden'), 200);
+        };
+
+        // --- OTRAS FUNCIONES ---
+        function toggleAlerts() { document.getElementById('alerts-panel').classList.toggle('translate-x-full'); }
+        
+        function loadAlerts() {
+            fetch('{{ route("client.api.alerts") }}').then(r=>r.json()).then(d=>{
+                const c=document.getElementById('alerts-content'); c.innerHTML='';
+                if(d.length) { 
+                    document.getElementById('alert-badge').classList.remove('hidden'); 
+                    d.forEach(a=>c.innerHTML+=`<div class="bg-gray-800 p-3 mb-2 rounded border-l-2 border-red-500 text-sm"><strong class="text-red-400">${a.device}</strong><br><span class="text-gray-300">${a.message}</span></div>`); 
+                }
+            });
+        }
+
+        // --- FUNCIONES DE HISTORIAL ---
         window.fetchHistory = function(deviceId) {
             const btn = document.getElementById('btn-history');
             const start = document.getElementById('start_date').value;
@@ -306,33 +327,21 @@
             document.getElementById('history-legend').classList.add('hidden');
         };
 
-        // --- MODALES ---
-        function openModal(type, id) {
-            const overlay = document.getElementById('modal-overlay');
-            const content = document.getElementById('modal-content');
-            overlay.classList.remove('hidden');
-            setTimeout(() => { content.classList.remove('scale-95', 'opacity-0'); content.classList.add('scale-100', 'opacity-100'); }, 10);
-            content.innerHTML = '<div class="p-12 text-center"><i class="fas fa-circle-notch fa-spin text-3xl text-blue-500"></i></div>';
-            fetch(`/modal/${type}/${id}`).then(r => r.text()).then(html => {
-                content.innerHTML = html;
-                if(document.querySelector('.datepicker')) flatpickr(".datepicker", { enableTime: true, dateFormat: "Y-m-d H:i", locale: "es", theme: "dark" });
-            });
-        }
+        // --- COMANDOS ---
+        window.sendCommand = function(deviceId, type) {
+            if(!confirm('¿ATENCIÓN: Está seguro de enviar este comando?')) return;
+            const feedback = document.getElementById('command-feedback');
+            feedback.innerHTML = '<span class="text-blue-400 animate-pulse">Enviando...</span>';
 
-        window.closeModal = function() {
-            const overlay = document.getElementById('modal-overlay');
-            const content = document.getElementById('modal-content');
-            content.classList.remove('scale-100', 'opacity-100'); content.classList.add('scale-95', 'opacity-0');
-            setTimeout(() => overlay.classList.add('hidden'), 200);
+            fetch(`/api/device/${deviceId}/command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+                body: JSON.stringify({ type: type })
+            })
+            .then(r => r.json())
+            .then(d => feedback.innerHTML = d.success ? '<span class="text-green-500 font-bold">Éxito</span>' : '<span class="text-red-500">Error</span>')
+            .catch(() => feedback.innerHTML = '<span class="text-red-500">Error Red</span>');
         };
-
-        function toggleAlerts() { document.getElementById('alerts-panel').classList.toggle('translate-x-full'); }
-        function loadAlerts() {
-            fetch('{{ route("client.api.alerts") }}').then(r=>r.json()).then(d=>{
-                const c=document.getElementById('alerts-content'); c.innerHTML='';
-                if(d.length) { document.getElementById('alert-badge').classList.remove('hidden'); d.forEach(a=>c.innerHTML+=`<div class="bg-gray-800 p-3 mb-2 rounded border-l-2 border-red-500 text-sm"><strong class="text-red-400">${a.device}</strong><br><span class="text-gray-300">${a.message}</span></div>`); }
-            });
-        }
 
         setInterval(loadAssets, 10000); loadAssets(); loadAlerts();
     </script>
