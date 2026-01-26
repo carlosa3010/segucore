@@ -139,7 +139,7 @@
                                 <button @click="openEditPartition({{ $part }})" class="text-blue-400 hover:text-blue-300 font-bold mr-3" title="Editar">✏️</button>
                                 
                                 @if($part->partition_number != 1)
-                                    <form action="{{ route('admin.partitions.destroy', $part->id) }}" method="POST" onsubmit="return confirm('¿Eliminar partición? Se borrarán sus zonas asociadas.');" class="inline">
+                                    <form action="{{ route('partitions.destroy', $part->id) }}" method="POST" onsubmit="return confirm('¿Eliminar partición? Se borrarán sus zonas asociadas.');" class="inline">
                                         @csrf @method('DELETE')
                                         <button class="text-red-500 hover:text-red-300 font-bold" title="Eliminar">🗑️</button>
                                     </form>
@@ -471,7 +471,7 @@
 
     <div x-show="editPartitionModal" style="display: none;" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm" x-transition>
         <div class="bg-[#1e293b] rounded-lg border border-gray-700 w-full max-w-md shadow-2xl" @click.away="editPartitionModal = false">
-            <form :action="`/admin/partitions/${partitionForm.id}`" method="POST">
+            <form :action="'/admin/partitions/' + partitionForm.id" method="POST">
                 @csrf @method('PUT')
                 <div class="p-4 border-b border-gray-700"><h3 class="text-white font-bold">Editar Área #<span x-text="partitionForm.number"></span></h3></div>
                 <div class="p-4">
@@ -488,7 +488,7 @@
 
     <div x-show="editZoneModal" style="display: none;" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm" x-transition>
         <div class="bg-[#1e293b] rounded-lg border border-gray-700 w-full max-w-lg shadow-2xl" @click.away="editZoneModal = false">
-            <form :action="`/admin/zones/${zoneForm.id}`" method="POST">
+            <form :action="'/admin/zones/' + zoneForm.id" method="POST">
                 @csrf @method('PUT')
                 <div class="p-4 border-b border-gray-700"><h3 class="text-white font-bold">Editar Zona</h3></div>
                 <div class="p-4 grid grid-cols-2 gap-4">
@@ -530,7 +530,7 @@
 
     <div x-show="editUserModal" style="display: none;" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm" x-transition>
         <div class="bg-[#1e293b] rounded-lg border border-gray-700 w-full max-w-md shadow-2xl" @click.away="editUserModal = false">
-            <form :action="`/admin/panel-users/${userForm.id}`" method="POST">
+            <form :action="'/admin/panel-users/' + userForm.id" method="POST">
                 @csrf @method('PUT')
                 <div class="p-4 border-b border-gray-700"><h3 class="text-white font-bold">Editar Usuario</h3></div>
                 <div class="p-4 space-y-3">
@@ -561,7 +561,7 @@
 
     <div x-show="editContactModal" style="display: none;" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm" x-transition>
         <div class="bg-[#1e293b] rounded-lg border border-gray-700 w-full max-w-md shadow-2xl" @click.away="editContactModal = false">
-            <form :action="`/admin/contacts/${contactForm.id}`" method="POST">
+            <form :action="'/admin/contacts/' + contactForm.id" method="POST">
                 @csrf @method('PUT')
                 <div class="p-4 border-b border-gray-700"><h3 class="text-white font-bold">Editar Contacto</h3></div>
                 <div class="p-4 space-y-3">
