@@ -158,6 +158,7 @@ class AlarmProcessor
 
             $event = AlarmEvent::create([
                 'alarm_account_id' => $account->id,
+                'account_number'   => $accountNumber,
                 'event_code'       => $eventCode,
                 'code'             => $eventCode,
                 'description'      => $description . $zoneName,
