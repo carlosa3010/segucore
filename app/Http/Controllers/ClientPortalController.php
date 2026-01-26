@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\AlarmAccount;
-use App\Models\AlarmEvent; // Importante: Importar el modelo
+use App\Models\AlarmEvent; // Modelo de eventos
 use App\Models\GpsDevice;
 use App\Models\Invoice;
 use App\Models\DeviceAlert;
@@ -24,7 +24,6 @@ class ClientPortalController extends Controller
         $this->traccarService = $traccarService;
     }
 
-    // 1. VISTA PRINCIPAL
     public function index()
     {
         $user = Auth::user();
@@ -34,7 +33,6 @@ class ClientPortalController extends Controller
         return view('client.map', ['user' => $user]);
     }
 
-    // 2. API DE ACTIVOS
     public function getAssets()
     {
         $user = Auth::user();
@@ -57,7 +55,7 @@ class ClientPortalController extends Controller
                     'status' => $alarm->monitoring_status ?? 'normal',
                     'name' => $alarm->name ?? $alarm->account_number,
                     'plate' => '', 
-                    'imei' => '',  
+                    'imei' => '',
                     'speed' => 0,
                     'course' => 0,
                     'last_update' => $alarm->updated_at->diffForHumans(),
@@ -105,7 +103,7 @@ class ClientPortalController extends Controller
         return response()->json(['assets' => $assets]);
     }
 
-    // 3. API HISTORIAL
+    // --- MÉTODOS DE HISTORIAL Y REPORTES GPS (Sin cambios mayores) ---
     public function getHistory(Request $request, $id)
     {
         $user = Auth::user();
@@ -140,7 +138,6 @@ class ClientPortalController extends Controller
         return response()->json(['positions' => $positions]);
     }
 
-    // 4. REPORTE PDF
     public function downloadReport(Request $request, $id)
     {
         $user = Auth::user();
@@ -215,7 +212,6 @@ class ClientPortalController extends Controller
         return $pdf->download("Reporte_Resumido_{$device->name}.pdf");
     }
 
-    // 5. MODAL GPS
     public function modalGps($id)
     {
         $user = Auth::user();
@@ -246,7 +242,6 @@ class ClientPortalController extends Controller
         return view('client.modals.gps', compact('device'));
     }
 
-    // 6. ENVIAR COMANDO
     public function sendCommand(Request $request, $id)
     {
         $user = Auth::user();
@@ -256,47 +251,47 @@ class ClientPortalController extends Controller
             return response()->json(['success' => false, 'message' => 'Dispositivo no autorizado.']);
         }
 
-        $type = $request->input('type'); // Ejemplo: "engineStop", "engineResume"
+        $type = $request->input('type');
 
         try {
             $response = $this->traccarService->sendCommand($device->imei, $type);
-            
             if ($response && isset($response['id'])) {
                  return response()->json(['success' => true]);
             }
             return response()->json(['success' => false, 'message' => 'Fallo al enviar comando a Traccar.']);
-
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Error de conexión: ' . $e->getMessage()]);
         }
     }
 
-    // 7. MODAL ALARMA (CORREGIDO)
+    // --- SECCIÓN CORREGIDA Y NUEVA ---
+
+    // 7. MODAL ALARMA (CORREGIDO: alarm_account_id)
     public function modalAlarm($id)
     {
         $user = Auth::user();
+        
         $alarm = AlarmAccount::where('id', $id)
             ->where('customer_id', $user->customer_id)
             ->first();
 
         if (!$alarm) return '<div class="p-4 text-red-500 text-center">Cuenta de alarma no encontrada.</div>';
 
-        // Recuperar los últimos 5 eventos para esta cuenta
-        $events = AlarmEvent::where('account_id', $alarm->id)
+        // ✅ CORRECCIÓN AQUÍ: Usamos 'alarm_account_id' en lugar de 'account_id'
+        $events = AlarmEvent::where('alarm_account_id', $alarm->id)
                     ->with('siaCode')
                     ->latest()
-                    ->take(5)
+                    ->take(10)
                     ->get();
 
         return view('client.modals.alarm', compact('alarm', 'events'));
     }
 
-    // 8. MODAL FACTURACIÓN (ACTUALIZADO)
+    // 8. MODAL FACTURACIÓN
     public function modalBilling()
     {
         $user = Auth::user();
         
-        // Obtener facturas del cliente
         $invoices = Invoice::where('customer_id', $user->customer_id)
             ->orderBy('issue_date', 'desc')
             ->take(12) 
@@ -331,7 +326,7 @@ class ClientPortalController extends Controller
         return response()->json($alerts);
     }
 
-    // 10. DESCARGAR FACTURA (NUEVO)
+    // 10. DESCARGAR FACTURA
     public function downloadInvoice($id)
     {
         $user = Auth::user();
@@ -341,17 +336,14 @@ class ClientPortalController extends Controller
             ->where('customer_id', $user->customer_id)
             ->firstOrFail();
 
-        // Reutilizamos la misma vista PDF que usa el admin
         $pdf = Pdf::loadView('admin.invoices.pdf', compact('invoice'));
         
         return $pdf->download('Factura-' . $invoice->invoice_number . '.pdf');
     }
 
-    // --- FUNCIONES AUXILIARES ---
-
+    // --- HELPERS ---
     private function calculateDistance($lat1, $lon1, $lat2, $lon2) {
         if (($lat1 == $lat2) && ($lon1 == $lon2)) return 0;
-        
         $theta = $lon1 - $lon2;
         $dist = sin(deg2rad($lat1)) * sin(deg2rad($lat2)) +  cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * cos(deg2rad($theta));
         $dist = acos($dist);
