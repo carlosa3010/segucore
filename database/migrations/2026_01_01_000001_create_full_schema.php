@@ -100,6 +100,10 @@ return new class extends Migration
                 $table->date('due_date');
                 $table->decimal('total', 10, 2);
                 $table->string('status')->default('unpaid');
+                
+                // ✅ AGREGA ESTA LÍNEA:
+                $table->json('details')->nullable(); 
+
                 $table->timestamps();
             });
         }
